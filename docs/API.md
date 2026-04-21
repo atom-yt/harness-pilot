@@ -62,26 +62,6 @@ I'm using harness-apply --auto to auto-generate harness infrastructure.
 - Creates all files: AGENTS.md, docs/, scripts/, harness/, rules/
 - Validates generated scripts are executable
 
-### harness-execute
-
-Executes development tasks within the harness infrastructure with planning, subagent delegation, validation, and memory.
-
-**Trigger:** `execute`, `harness-execute`, `dev`, `implement`, `build-feature`
-
-**Usage:**
-```
-I'm using harness-execute to implement this feature within harness infrastructure.
-```
-
-**What it does:**
-- Environment detection -- Loads AGENTS.md, ARCHITECTURE.md, memory
-- Complexity assessment -- Simple (direct) / Medium (subagent) / Complex (subagent + worktree)
-- Task planning -- Dispatches planner agent for non-trivial tasks
-- Subagent delegation -- Coordinator never writes code for medium+ tasks
-- Validation pipeline -- build -> lint-arch -> test -> verify
-- Checkpoints -- Saves progress for resumability
-- Memory recording -- Records experiences and failures
-
 ### harness-improve
 
 Audits harness health and self-improves by analyzing failure patterns, detecting lint coverage gaps, and applying targeted fixes.

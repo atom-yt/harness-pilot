@@ -1,0 +1,9 @@
+{
+  "name": "harness-pilot",
+  "version": "0.1.0",
+  "description": "Transform any project into a harness-compatible form with dry-run analysis, guided build, and auto-generation modes",
+  "author": {
+    "name": "harness-pilot"
+  },
+  "keywords": ["harness", "project-structure", "lint", "architecture", "validation"]
+}

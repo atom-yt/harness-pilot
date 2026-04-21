@@ -22,8 +22,7 @@ Ask user which mode they want to use:
 Available modes:
   1. harness-analyze  - Analyze project only (no changes)
   2. harness-apply    - Generate harness infrastructure (interactive by default, --auto for auto mode)
-  3. harness-execute  - Execute development tasks within harness (plan, delegate, validate)
-  4. harness-improve  - Audit harness health and self-improve
+  3. harness-improve  - Audit harness health and self-improve
 
 Which mode? (or describe what you want to accomplish)
 ```
@@ -68,20 +67,6 @@ Each step shows detected defaults and allows customization before proceeding.
 - Validates generated scripts
 
 Best for standard-structure projects or when defaults are acceptable.
-
-### harness-execute Mode
-
-**Required sub-skill:** Use `harness-pilot:harness-execute`
-
-Executes development tasks within the harness infrastructure. Manages the full lifecycle:
-
-- **Environment detection** — Loads AGENTS.md, ARCHITECTURE.md, memory
-- **Complexity assessment** — Simple (direct) / Medium (subagent) / Complex (subagent + worktree)
-- **Task planning** — Dispatches planner agent for non-trivial tasks
-- **Subagent delegation** — Coordinator never writes code for medium+ tasks
-- **Validation pipeline** — build → lint-arch → test → verify
-- **Checkpoints** — Saves progress for resumability
-- **Memory recording** — Records experiences and failures
 
 ### harness-improve Mode
 

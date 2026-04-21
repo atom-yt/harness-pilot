@@ -37,7 +37,6 @@ harness-pilot/
 │       ├── skills/
 │       │   ├── harness-analyze/     # Dryrun analysis mode
 │       │   ├── harness-apply/       # Interactive & auto-generation mode
-│       │   ├── harness-execute/     # Task execution mode
 │       │   └── harness-improve/     # Self-improvement mode
 │       └── templates/
 │           ├── base/                # Base templates
