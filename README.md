@@ -21,10 +21,10 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
 
 ```bash
 # Add marketplace
-/plugin marketplace add github:atom-yt/harness-pilot
+/plugin marketplace add atom-yt/harness-pilot
 
 # Install plugin
-/plugin install harness-pilot
+/plugin install harness-pilot@harness-pilot
 ```
 
 ### Manual installation

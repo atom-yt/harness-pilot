@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "Harness Pilot Marketplace",
+  "name": "harness-pilot",
   "version": "1.0.0",
   "description": "AI Agent harness infrastructure tools for any codebase",
   "owner": {
