@@ -39,37 +39,37 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
 
 ## Update
 
-### Marketplace 方式更新
+### Update via marketplace
 
-卸载旧版本后重新安装即可：
+Uninstall the old version and reinstall to get the latest:
 
 ```bash
-# 卸载旧版本
+# Uninstall old version
 /plugin uninstall harness-pilot@harness-pilot
 
-# 重新安装最新版本
+# Reinstall latest version
 /plugin install harness-pilot@harness-pilot
 ```
 
-### 手动方式更新
+### Manual update
 
 ```bash
-# 拉取最新代码
+# Pull latest code
 cd harness-pilot && git pull
 
-# 重新复制到目标项目
+# Re-copy to your project
 cp -r plugins/harness-pilot /path/to/your-project/plugins/
 ```
 
-### 更新已生成的 Harness 文件
+### Update generated harness files
 
-如果需要更新项目中已生成的 harness 规则、脚本等文件，重新运行 `harness-apply` 即可：
+Re-run `harness-apply` to regenerate harness rules, scripts, and other files:
 
 ```bash
 /harness-pilot:harness-apply
 ```
 
-> **注意**：`harness-apply` 会覆盖已有的 harness 文件。如果你对生成的文件做过自定义修改，请提前备份。
+> **Note**: `harness-apply` will overwrite existing harness files. Back up any custom modifications before running.
 
 ## Quick Start
 
