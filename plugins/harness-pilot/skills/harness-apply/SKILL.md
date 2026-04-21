@@ -457,21 +457,31 @@ If user selects Customize, ask for manual layer configuration.
 │  Framework: [Next.js]                              │
 │                                                  │
 │  Components to Create:                              │
+│                                                  │
+│  Core Documents:                                    │
 │    ✓ AGENTS.md                                    │
 │    ✓ docs/ARCHITECTURE.md                          │
 │    ✓ docs/DEVELOPMENT.md                           │
-│    ✓ .harness/scripts/lint-deps.ts                         │
-│    ✓ .harness/scripts/lint-quality.ts                        │
-│    ✓ .harness/scripts/validate.ts                           │
-│    ✓ .harness/memory/                                │
-│    ✓ .harness/tasks/                                 │
-│    ✓ .harness/trace/                                │
-│    ✓ .harness/rules/common/safety.md                        │
-│    ✓ .harness/rules/common/git-workflow.md                   │
-│    ✓ .harness/rules/typescript/development.md                │
+│    ✓ docs/PRODUCT_SENSE.md                         │
+│    ✓ docs/design-docs/ (directory)                 │
+│    ✓ docs/exec-plans/ (directory)                  │
 │                                                  │
-│  Files to create: 12                              │
-│  Directories to create: 6                          │
+│  Validation Scripts:                                 │
+│    ✓ .harness/scripts/lint-deps.[ext]              │
+│    ✓ .harness/scripts/lint-quality.[ext]           │
+│    ✓ .harness/scripts/validate.[ext]               │
+│    ✓ .harness/scripts/verify-action.[ext]          │
+│    ✓ .harness/scripts/verify/ (directory)          │
+│                                                  │
+│  Harness Storage:                                   │
+│    ✓ .harness/memory/ (directory)                  │
+│    ✓ .harness/tasks/ (directory)                   │
+│    ✓ .harness/trace/ (directory)                   │
+│                                                  │
+│  AI Rules:                                           │
+│    ✓ .harness/rules/common/safety.md               │
+│    ✓ .harness/rules/common/git-workflow.md         │
+│    ✓ .harness/rules/[language]/development.md      │
 │                                                  │
 │  [Confirm & Generate] [Go Back]                │
 └─────────────────────────────────────────────────────────┘
