@@ -210,9 +210,8 @@ Total Score: [0-100]
   3. [actionable recommendation]
 
 Next Steps:
-  - Run harness-guide for interactive build (uses template engine)
-  - Run harness-apply for auto-generation (uses template engine)
-  - Run harness-generate-rules to create AI rules only
+  - Run harness-apply for interactive build (default) or auto-generation (--auto)
+  - Run harness-improve to audit and strengthen existing harness
 
 **Available Templates:**
   - Base templates: AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md
@@ -235,8 +234,8 @@ Always output the health report using the template above. End with next steps:
 
 ```bash
 Would you like to:
-  1. Run harness-guide for interactive build
-  2. Run harness-apply for auto-generation
+  1. Run harness-apply for interactive build (or --auto for auto-generation)
+  2. Run harness-improve to audit and strengthen existing harness
   3. Review specific recommendations
 
 Choose an option or describe what you'd like to do next.
@@ -279,8 +278,8 @@ If not in a git repo or no source files found, inform user.
 
 Always offer follow-up actions:
 
-1. **harness-guide** - Build harness with interactive configuration
-2. **harness-apply** - Auto-generate with defaults
+1. **harness-apply** - Build harness with interactive configuration (default) or auto-generate with `--auto`
+2. **harness-improve** - Audit and strengthen existing harness
 3. **Specific recommendation** - Address a particular gap
 
 Do not automatically proceed to any mode. Wait for user confirmation.
