@@ -97,6 +97,7 @@ If user confirms, proceed to Step 2. If user says no, ask for correct values.
 | harness/memory/ | Three types of memory | Medium |
 | harness/tasks/ | Task state and checkpoints | Small |
 | harness/trace/ | Failure records | Small |
+| rules/ | AI rules for safety, git, language-specific | Medium |
 
 ### Output Template
 
@@ -121,9 +122,19 @@ If user confirms, proceed to Step 2. If user says no, ask for correct values.
 │  ☑ harness/tasks/ (task state)                    │
 │  ☑ harness/trace/ (failure records)                │
 │                                                  │
+│  AI Rules (法律 - 强制约束):                           │
+│  ☑ rules/common/safety.md (安全红线)            │
+│  ☑ rules/common/git-workflow.md (提交规范)              │
+│  ☑ rules/{{LANGUAGE}}/development.md (语言规范)      │
+│                                                  │
 │  [Select All] [Minimum Recommended]                │
 └─────────────────────────────────────────────────────────┘
 ```
+
+**Rules Explanation:**
+- `rules/common/safety.md` - 🚫 安全红线（不能删除数据、不能暴露密钥等）
+- `rules/common/git-workflow.md` - Git 工作流规范（commit 格式、分支命名等）
+- `rules/{{LANGUAGE}}/development.md` - 语言特定的开发规范
 
 Save user selection for Step 6 generation.
 
@@ -303,9 +314,12 @@ If user selects Customize, ask for manual layer configuration.
 │    ✓ harness/memory/                                │
 │    ✓ harness/tasks/                                 │
 │    ✓ harness/trace/                                │
+│    ✓ rules/common/safety.md                        │
+│    ✓ rules/common/git-workflow.md                   │
+│    ✓ rules/typescript/development.md                │
 │                                                  │
-│  Files to create: 9                               │
-│  Directories to create: 3                          │
+│  Files to create: 12                              │
+│  Directories to create: 6                          │
 │                                                  │
 │  [Confirm & Generate] [Go Back]                │
 └─────────────────────────────────────────────────────────┘
@@ -316,6 +330,14 @@ If user selects Customize, ask for manual layer configuration.
 After user confirms:
 
 1. Create directory structure
+   ```
+   docs/
+   scripts/
+   harness/
+   rules/
+     common/
+     typescript/
+   ```
 2. Generate AGENTS.md from template
 3. Generate docs/ from templates
 4. Generate scripts/ from templates
@@ -341,16 +363,22 @@ Generated files:
     ✓ memory/
     ✓ tasks/
     ✓ trace/
+  ✓ rules/
+    ✓ common/safety.md
+    ✓ common/git-workflow.md
+    ✓ typescript/development.md
 
 Next steps:
   1. Read AGENTS.md to understand the structure
-  2. Run `npm run lint` to check existing code
-  3. Run `npm run validate` to test verification pipeline
-  4. Read docs/ARCHITECTURE.md to understand layer rules
+  2. Read rules/ to understand mandatory constraints
+  3. Run `npm run lint` to check existing code
+  4. Run `npm run validate` to test verification pipeline
+  5. Read docs/ARCHITECTURE.md to understand layer rules
 
 Would you like to:
   [ ] Run lint now to see existing issues
   [ ] Open AGENTS.md for review
+  [ ] Review rules/ for mandatory constraints
   [ ] Create a test file to verify harness works
 ```
 

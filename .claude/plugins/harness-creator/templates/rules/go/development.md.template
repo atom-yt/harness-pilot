@@ -1,0 +1,378 @@
+---
+paths:
+  - "**/*.go"
+---
+# Go Development Rules
+
+> These rules apply to all Go files in this project.
+> This file extends [common/safety.md](../common/safety.md) and [common/git-workflow.md](../common/git-workflow.md).
+
+## Code Style
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Packages | lowercase, no underscores | `package userservice` |
+| Exports | PascalCase | `func GetUser()` |
+| Unexports | camelCase | `func getUser()` |
+| Interfaces | -er suffix or verbs | `type Reader interface` |
+| Constants | PascalCase or UPPER_SNAKE | `const MaxRetries = 3` |
+| Files | snake_case | `user_service.go` |
+
+### Import Organization
+
+```go
+// Standard library
+import (
+    "fmt"
+    "os"
+)
+
+// Third-party libraries
+import (
+    "github.com/gin-gonic/gin"
+    "go.uber.org/zap"
+)
+
+// Local packages
+import (
+    "myapp/internal/user"
+    "myapp/pkg/config"
+)
+```
+
+## Idiomatic Go
+
+### Error Handling
+
+**Never ignore errors:**
+
+```go
+// Good
+user, err := user.GetByID(id)
+if err != nil {
+    return fmt.Errorf("failed to get user: %w", err)
+}
+
+// Bad
+user, _ := user.GetByID(id)  // Never ignore errors!
+```
+
+### Use Context
+
+**Always pass `context.Context` as first parameter:**
+
+```go
+// Good
+func GetUser(ctx context.Context, id string) (*User, error)
+
+// Bad
+func GetUser(id string) (*User, error)
+```
+
+**Use context for cancellation and timeouts:**
+
+```go
+ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+defer cancel()
+
+user, err := GetUser(ctx, id)
+```
+
+### Structs and Interfaces
+
+**Prefer small interfaces:**
+
+```go
+// Good - small interface
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+// Bad - giant interface
+type Everything interface {
+    Read() error
+    Write() error
+    Close() error
+    Flush() error
+    // ... many more
+}
+```
+
+**Accept interfaces, return structs:**
+
+```go
+// Good - accept interface
+func Process(r io.Reader) error { ... }
+
+// Good - return struct
+func GetUser(id string) (*User, error) { ... }
+
+// Bad
+func Process(r *File) error { ... }
+```
+
+## Concurrency
+
+### Goroutines
+
+**Always wait for goroutines or manage their lifecycle:**
+
+```go
+// Good - use WaitGroup
+var wg sync.WaitGroup
+for _, item := range items {
+    wg.Add(1)
+    go func(item Item) {
+        defer wg.Done()
+        Process(item)
+    }(item)
+}
+wg.Wait()
+
+// Bad - goroutines may leak
+for _, item := range items {
+    go Process(item)  // No WaitGroup!
+}
+```
+
+### Channels
+
+**Prefer channels over mutex for communication:**
+
+```go
+// Good - channels
+ch := make(chan Result)
+go func() {
+    ch <- Process()
+}()
+result := <-ch
+
+// Bad - manual coordination (use channels instead)
+var mu sync.Mutex
+var result Result
+go func() {
+    mu.Lock()
+    result = Process()
+    mu.Unlock()
+}()
+```
+
+### Lock Order
+
+**Always acquire locks in consistent order to avoid deadlocks:**
+
+```go
+// Good - consistent lock order
+mu1.Lock()
+mu2.Lock()
+// ...
+mu2.Unlock()
+mu1.Unlock()
+
+// Bad - inconsistent order may deadlock
+mu1.Lock()
+mu2.Unlock()
+mu2.Lock()
+mu1.Unlock()
+```
+
+## Testing
+
+### Test File Naming
+
+- Test files end with `_test.go`
+- Colocated with source files: `user_service.go` → `user_service_test.go`
+
+### Test Structure
+
+```go
+func TestUserService_GetUser(t *testing.T) {
+    tests := []struct {
+        name    string
+        id      string
+        want    *User
+        wantErr bool
+    }{
+        {
+            name: "success",
+            id:   "123",
+            want: &User{ID: "123"},
+        },
+        {
+            name:    "not found",
+            id:      "999",
+            wantErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := service.GetUser(context.Background(), tt.id)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("GetUser() error = %v, wantErr %v", err, tt.wantErr)
+                return
+            }
+            if !reflect.DeepEqual(got, tt.want) {
+                t.Errorf("GetUser() = %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+```
+
+## Error Handling
+
+### Wrap Errors
+
+**Use `fmt.Errorf` with `%w` to wrap errors:**
+
+```go
+// Good
+user, err := repo.Find(id)
+if err != nil {
+    return fmt.Errorf("failed to find user %s: %w", id, err)
+}
+
+// Bad
+user, err := repo.Find(id)
+if err != nil {
+    return err  // No context!
+}
+```
+
+### Error Messages
+
+**Write descriptive error messages:**
+- Include what operation failed
+- Include relevant identifiers
+- Don't include sensitive data
+
+```go
+// Good
+return fmt.Errorf("failed to create user: email %s already exists", email)
+
+// Bad
+return fmt.Errorf("error")  // No context!
+```
+
+## Framework-Specific Rules
+
+{{#if FRAMEWORK eq 'Gin'}}
+
+### Gin Specific
+
+- Use middleware for common concerns (auth, logging, etc.)
+- Group related routes
+- Use structured logging
+
+```go
+// Good
+userRoutes := router.Group("/users")
+userRoutes.Use(authMiddleware)
+userRoutes.GET("/:id", handler.GetUser)
+userRoutes.POST("", handler.CreateUser)
+
+// Bad - scattered routes
+router.GET("/users/:id", handler.GetUser)
+router.POST("/users", handler.CreateUser)
+router.GET("/posts/:id", handler.GetPost)
+```
+
+{{/if}}
+
+## Security
+
+### Input Validation
+
+- Always validate user input
+- Use context values for auth/user info
+- Never trust headers from clients
+
+### Secrets Management
+
+- Use environment variables for secrets
+- Never commit `.env` files
+- Use `viper` or similar for config
+
+```go
+// Good
+import "github.com/spf13/viper"
+
+viper.SetConfigFile(".env")
+if err := viper.ReadInConfig(); err != nil {
+    return fmt.Errorf("failed to read config: %w", err)
+}
+
+apiKey := viper.GetString("API_KEY")
+
+// Bad
+const apiKey = "secret-key-here"  // Never hardcode!
+```
+
+## Performance
+
+### Memory Management
+
+- Use `sync.Pool` for frequently allocated objects
+- Avoid unnecessary allocations in hot paths
+- Use `[]byte` buffers instead of string concatenation
+
+### Profiling
+
+- Use `pprof` for performance profiling
+- Profile before optimizing
+- Focus on hot paths
+
+## Common Anti-Patterns to Avoid
+
+### ❌ Don't Ignore Context
+
+```go
+// Bad - no context
+func GetUser(id string) (*User, error)
+
+// Good - with context
+func GetUser(ctx context.Context, id string) (*User, error)
+```
+
+### ❌ Don't Panic in Libraries
+
+```go
+// Bad - panic in library code
+func Process(input string) {
+    if input == "" {
+        panic("empty input")  // Never panic!
+    }
+}
+
+// Good - return error
+func Process(input string) error {
+    if input == "" {
+        return errors.New("empty input")
+    }
+    return nil
+}
+```
+
+### ❌ Don't Use nil Pointer Checks
+
+```go
+// Bad - nil pointer check
+if user != nil && user.ID == "" {
+    // ...
+}
+
+// Good - use value types or pointers correctly
+type User struct {
+    ID   string
+    Name string
+}
+
+// Or use pointer only when nil is meaningful
+type User struct {
+    ID   string
+    Name *string  // nil means no name set
+}
+```

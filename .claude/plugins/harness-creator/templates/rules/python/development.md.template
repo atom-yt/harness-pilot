@@ -1,0 +1,299 @@
+---
+paths:
+  - "**/*.py"
+---
+# Python Development Rules
+
+> These rules apply to all Python files in this project.
+> This file extends [common/safety.md](../common/safety.md) and [common/git-workflow.md](../common/git-workflow.md).
+
+## Code Style
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Classes | PascalCase | `class UserService:` |
+| Functions | snake_case | `def get_user_by_id():` |
+| Variables | snake_case | `user_id = 1` |
+| Constants | UPPER_SNAKE_CASE | `MAX_RETRIES = 3` |
+| Modules | snake_case | `user_service.py` |
+| Private members | _prefix | `def _internal_method():` |
+
+### Type Hints
+
+**Always use type hints:**
+- Function parameters and return types
+- Class attributes
+- Use `typing` module for complex types
+
+```python
+# Good
+from typing import List, Optional
+
+def get_users(limit: int) -> List[User]:
+    """Get users with optional limit."""
+    pass
+
+# Bad
+def get_users(limit):
+    pass
+```
+
+### Docstrings
+
+**Use Google-style or NumPy-style docstrings:**
+
+```python
+def calculate_age(birth_year: int) -> int:
+    """Calculate age from birth year.
+
+    Args:
+        birth_year: Year of birth
+
+    Returns:
+        Age in years
+
+    Raises:
+        ValueError: If birth_year is in the future
+    """
+    pass
+```
+
+## Imports
+
+### Import Order
+
+1. Standard library
+2. Third-party libraries
+3. Local application imports
+4. Relative imports
+
+```python
+# Standard library
+import os
+import sys
+
+# Third-party
+import numpy as np
+from fastapi import FastAPI
+
+# Local
+from app.services import user_service
+from .models import User
+```
+
+### Import Best Practices
+
+- Use absolute imports when possible
+- Avoid `from module import *`
+- Group related imports together
+- Remove unused imports
+
+## Async Programming
+
+- Use `async` and `await` for I/O-bound operations
+- Always handle exceptions in async functions
+- Use `asyncio` properly, don't mix blocking and async
+
+```python
+# Good
+async def fetch_user(user_id: int) -> User:
+    try:
+        response = await api_client.get(f'/users/{user_id}')
+        return User.parse_obj(response)
+    except Exception as e:
+        logger.error(f"Failed to fetch user: {e}")
+        raise
+
+# Bad
+def fetch_user(user_id: int) -> User:
+    response = api_client.get(f'/users/{user_id}')  # Blocking
+    return User.parse_obj(response)
+```
+
+## Framework-Specific Rules
+
+{{#if FRAMEWORK eq 'FastAPI'}}
+
+### FastAPI Specific
+
+- Use Pydantic models for request/response
+- Use dependency injection for common parameters
+- Use `async` for route handlers
+- Always add proper status codes
+
+```python
+# Good
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class UserCreate(BaseModel):
+    name: str
+    email: str
+
+@app.post("/users")
+async def create_user(
+    user: UserCreate,
+    db: Session = Depends(get_db)
+) -> User:
+    return user_service.create(db, user)
+
+# Bad
+@app.post("/users")
+def create_user(user: dict, db: Session = Depends(get_db)):
+    # No Pydantic, no typing
+    pass
+```
+
+{{/if}}
+
+{{#if FRAMEWORK eq 'Django'}}
+
+### Django Specific
+
+- Use Django models with proper field types
+- Always use `@login_required` for protected views
+- Use class-based views for consistency
+- Never commit `migrations/` to repository
+
+{{/if}}
+
+## Testing
+
+### Test File Naming
+
+- Test files end with `_test.py`
+- Colocated with source files: `services/user.py` → `services/user_test.py`
+
+### Test Structure
+
+```python
+class TestUserService:
+    """User service tests."""
+
+    def test_get_user_success(self, db):
+        """Test getting user when exists."""
+        user = create_test_user(db)
+        result = user_service.get(db, user.id)
+        assert result.id == user.id
+
+    def test_get_user_not_found(self, db):
+        """Test getting non-existent user raises error."""
+        with pytest.raises(UserNotFoundError):
+            user_service.get(db, 999)
+```
+
+### Pytest Best Practices
+
+- Use fixtures for common setup
+- Keep tests independent (no shared state)
+- Use descriptive test names
+- One assertion per test where possible
+
+## Security
+
+### Input Validation
+
+- Always validate user input
+- Use Pydantic models for API requests
+- Sanitize database queries (use ORM, not raw SQL)
+
+### Secrets Management
+
+- Use `python-dotenv` for environment variables
+- Never commit `.env` files
+- Use `.env.example` for template
+- Use environment-specific configs (`.env.development`, `.env.production`)
+
+```python
+# Good
+from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    DATABASE_URL: str
+    API_KEY: str
+
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
+
+# Bad
+API_KEY = "secret-key-here"  # Never hardcode!
+```
+
+## Performance
+
+### Database Queries
+
+- Use `select_related()` and `prefetch_related()` to avoid N+1 queries
+- Use `only()` and `defer()` to limit fields
+- Use bulk operations for inserts/updates
+
+```python
+# Good - avoids N+1
+users = User.objects.select_related('profile').all()
+
+# Bad - N+1 queries
+users = User.objects.all()
+for user in users:
+    profile = user.profile  # Extra query per user
+```
+
+### Caching
+
+- Cache expensive computations
+- Use appropriate cache expiration
+- Cache invalidation must be correct
+
+## Common Anti-Patterns to Avoid
+
+### ❌ Don't Use Mutable Default Arguments
+```python
+def process_items(items=[]):  # Bad - shared across calls
+    items.append(1)
+    return items
+
+def process_items(items=None):  # OK
+    if items is None:
+        items = []
+    items.append(1)
+    return items
+```
+
+### ❌ Don't Catch Bare Exceptions
+```python
+try:
+    do_something()
+except Exception:  # Bad - catches everything
+    pass
+
+try:
+    do_something()
+except (ValueError, TypeError) as e:  # OK - specific exceptions
+    logger.error(f"Error: {e}")
+    raise
+```
+
+### ❌ Don't Mix Levels in One Module
+```python
+# Bad - controller, service, model all in one file
+class User:
+    pass
+
+def get_user():
+    pass
+
+@app.get("/users")
+def list_users():
+    pass
+
+# Good - separate modules
+# models/user.py
+# services/user.py
+# api/users.py
+```
