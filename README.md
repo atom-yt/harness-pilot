@@ -41,17 +41,15 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
 
 ### Marketplace 方式更新
 
-先更新 marketplace 索引，再更新插件：
+卸载旧版本后重新安装即可：
 
 ```bash
-# 更新 marketplace 索引（拉取最新插件列表）
-/plugin marketplace update
+# 卸载旧版本
+/plugin uninstall harness-pilot@harness-pilot
 
-# 更新已安装的插件到最新版本
-/plugin update harness-pilot@harness-pilot
+# 重新安装最新版本
+/plugin install harness-pilot@harness-pilot
 ```
-
-> 如果插件尚未安装，请使用 `/plugin install harness-pilot@harness-pilot` 进行首次安装。
 
 ### 手动方式更新
 
