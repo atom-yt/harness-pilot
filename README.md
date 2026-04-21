@@ -37,6 +37,40 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
    cp -r harness-pilot/plugins/harness-pilot /path/to/your-project/plugins/
    ```
 
+## Update
+
+### Marketplace 方式更新
+
+先更新 marketplace 索引，再重新安装插件：
+
+```bash
+# 更新 marketplace 索引（拉取最新插件列表）
+/plugin marketplace update
+
+# 重新安装以获取最新版本
+/plugin install harness-pilot@harness-pilot
+```
+
+### 手动方式更新
+
+```bash
+# 拉取最新代码
+cd harness-pilot && git pull
+
+# 重新复制到目标项目
+cp -r plugins/harness-pilot /path/to/your-project/plugins/
+```
+
+### 更新已生成的 Harness 文件
+
+如果需要更新项目中已生成的 harness 规则、脚本等文件，重新运行 `harness-apply` 即可：
+
+```bash
+/harness-pilot:harness-apply
+```
+
+> **注意**：`harness-apply` 会覆盖已有的 harness 文件。如果你对生成的文件做过自定义修改，请提前备份。
+
 ## Quick Start
 
 ```bash
