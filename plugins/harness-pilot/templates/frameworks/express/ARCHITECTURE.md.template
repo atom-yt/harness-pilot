@@ -1,0 +1,141 @@
+# {{PROJECT_NAME}} Architecture
+
+## Layer System (Express.js)
+
+{{LAYER_RULES}}
+
+## Express.js Specific Rules
+
+1. **Route Organization**
+   - Route handlers (`routes/*.js`) are Layer 4
+   - Route files should be thin, delegate to services
+
+2. **Middleware Chain**
+   - Global middleware: registered in `server.js` (Layer 4)
+   - Route-specific middleware: in route files (Layer 4)
+   - Custom middleware logic: Layer 2 (lib/)
+
+3. **Request/Response Handling**
+   - Input validation: Layer 2 (lib/validators.js)
+   - Business logic: Layer 3 (services/)
+   - Response formatting: Layer 2 (lib/responses.js)
+
+4. **Error Handling**
+   - Global error handler: Layer 4 (server.js)
+   - Service errors: Layer 3 (services/)
+   - Custom error classes: Layer 0 (types/errors.js)
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────┐
+│  HTTP Request                                   │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Middleware (server.js)                    │
+│       ↓                                         │
+│  Route Handler (routes/*.js)              │
+│       ↓                                         │
+│  Validation (lib/validators.js)            │
+│       ↓                                         │
+│  Service Layer (services/*.js)             │
+│       ↓                                         │
+│  Utils / Lib (utils/*.js, lib/*.js)      │
+│       ↓                                         │
+│  Types / Models (types/*.js)               │
+└─────────────────────────────────────────────────┘
+```
+
+## Module Responsibilities
+
+| Layer | Directory | Responsibilities |
+|-------|-----------|----------------|
+| Layer 0 | types/ - Schemas, error definitions, interfaces |
+| Layer 1 | utils/ - Utility functions, pure logic |
+| Layer 2 | lib/ - Validators, formatters, external wrappers |
+| Layer 3 | services/ - Business logic, data operations |
+| Layer 4 | routes/, server.js - HTTP handlers, app entry |
+
+## Violation Examples
+
+```
+❌ Invalid: Service importing route
+   // services/userService.js
+   import { router } from '../routes/user'
+   Fix: Move shared logic to Layer 2
+
+❌ Invalid: Utility importing service
+   // utils/format.js
+   import { db } from '../services/database'
+   Fix: Pass data as parameter instead
+
+✓ Valid: Route importing service
+   // routes/user.js
+   import { createUser } from '../services/user'
+
+✓ Valid: Service importing utils
+   // services/user.js
+   import { hashPassword } from '../utils/crypto'
+```
+
+## Express Best Practices
+
+1. **Route Handler Structure**
+   ```javascript
+   // routes/user.js
+   router.post('/users', async (req, res, next) => {
+     try {
+       const input = validateUserInput(req.body);
+       const user = await userService.createUser(input);
+       res.status(201).json(user);
+     } catch (err) {
+       next(err); // Delegate to error handler
+     }
+   });
+   ```
+
+2. **Service Layer Pattern**
+   - Services return promises or async functions
+   - Services don't know about HTTP (no req/res)
+   - Services throw errors, routes handle responses
+
+3. **Error Handling**
+   ```javascript
+   // server.js
+   app.use((err, req, res, next) => {
+     if (err instanceof ValidationError) {
+       return res.status(400).json({ error: err.message });
+     }
+     // ... other error types
+   });
+   ```
+
+4. **Middleware Stack**
+   - Authentication → Authorization → Validation → Handler
+   - Each layer in middleware should be testable independently
+
+## File Organization Example
+
+```
+routes/
+  user.js      # User routes
+  post.js      # Post routes
+server.js      # App entry, middleware setup
+
+services/
+  userService.js    # User business logic
+  postService.js    # Post business logic
+
+lib/
+  validators.js     # Input validation
+  responses.js      # Response formatters
+  auth.js          # Auth middleware
+
+utils/
+  crypto.js        # Cryptographic utilities
+  date.js          # Date utilities
+
+types/
+  errors.js        # Custom error classes
+  schemas.js       # Data schemas
+```

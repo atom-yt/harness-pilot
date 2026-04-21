@@ -1,0 +1,331 @@
+#!/usr/bin/env go run
+// +build ignore
+
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+var RULES = struct {
+	NoPrint         bool
+	MaxFileSize     int
+	NoDebug         bool
+	NoHardcodedURLs bool
+}{
+	NoPrint:         true,
+	MaxFileSize:     500,
+	NoDebug:         true,
+	NoHardcodedURLs: false,
+}
+
+var EXCLUDE_DIRS = map[string]bool{
+	"node_modules": true,
+	"vendor":       true,
+	"dist":         true,
+	"build":        true,
+	".git":         true,
+	"test":         true,
+	"tests":        true,
+}
+
+// ============================================================================
+// Data Structures
+// ============================================================================
+
+type Issue struct {
+	File     string
+	Line     int
+	Rule     string
+	Message  string
+	Severity string // "error" or "warning"
+}
+
+// ============================================================================
+// Rule Implementations
+// ============================================================================
+
+func checkNoPrint(content string, filePath string) []Issue {
+	var issues []Issue
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+
+		if strings.Contains(line, "fmt.Print") {
+			issues = append(issues, Issue{
+				File:     filePath,
+				Line:     lineNum,
+				Rule:     "no-print",
+				Message:  "Use logger instead of fmt.Print",
+				Severity: "error",
+			})
+		}
+	}
+
+	return issues
+}
+
+func checkMaxFileSize(content string, filePath string) []Issue {
+	var issues []Issue
+	lines := strings.Split(content, "\n")
+
+	if len(lines) > RULES.MaxFileSize {
+		issues = append(issues, Issue{
+			File:     filePath,
+			Line:     1,
+			Rule:     "max-file-size",
+			Message:  fmt.Sprintf("File has %d lines (max: %d)", len(lines), RULES.MaxFileSize),
+			Severity: "error",
+		})
+	}
+
+	return issues
+}
+
+func checkNoDebug(content string, filePath string) []Issue {
+	var issues []Issue
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+
+		// Check for debug.PrintStack
+		if strings.Contains(line, "debug.PrintStack") || strings.Contains(line, "runtime/debug") {
+			issues = append(issues, Issue{
+				File:     filePath,
+				Line:     lineNum,
+				Rule:     "no-debug",
+				Message:  "Remove debug statements before commit",
+				Severity: "error",
+			})
+		}
+	}
+
+	return issues
+}
+
+func checkNoHardcodedURLs(content string, filePath string) []Issue {
+	var issues []Issue
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+
+		// Check for common URL patterns
+		if strings.Contains(line, "http://") || strings.Contains(line, "https://") {
+			// Skip if it's a comment
+			if !strings.Contains(line, "// http://") && !strings.Contains(line, "// https://") {
+				issues = append(issues, Issue{
+					File:     filePath,
+					Line:     lineNum,
+					Rule:     "no-hardcoded-urls",
+					Message:  "Move URLs to config file",
+					Severity: "warning",
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+func checkErrorHandling(content string, filePath string) []Issue {
+	var issues []Issue
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+
+		// Check for ignored errors
+		if strings.Contains(line, "_, err :=") || strings.Contains(line, "_, err :=") {
+			issues = append(issues, Issue{
+				File:     filePath,
+				Line:     lineNum,
+				Rule:     "error-handling",
+				Message:  "Ignored error - should handle or explicitly ignore with `_` on separate line",
+				Severity: "warning",
+			})
+		}
+	}
+
+	return issues
+}
+
+func checkGodoc(content string, filePath string) []Issue {
+	var issues []Issue
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lineNum := 0
+
+	hasExported := false
+	hasExportedDocs := false
+
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+
+		// Check for exported functions/types
+		if strings.HasPrefix(line, "func ") || strings.HasPrefix(line, "type ") {
+			// Check if it's exported (first letter is uppercase)
+			nameParts := strings.Fields(line)
+			if len(nameParts) > 1 {
+				name := strings.TrimSuffix(nameParts[1], "(")
+				if len(name) > 0 && name[0] >= 'A' && name[0] <= 'Z' {
+					hasExported = true
+
+					// Check if there's a comment above it
+					if lineNum > 1 {
+						// Need to check previous line which we've already passed
+						// This is simplified - real implementation would look back
+					}
+				}
+			}
+		}
+	}
+
+	// Simplified check - real implementation would be more sophisticated
+	if hasExported && !strings.Contains(content, "// ") {
+		issues = append(issues, Issue{
+			File:     filePath,
+			Line:     1,
+			Rule:     "godoc",
+			Message:  "Exported functions/types should have godoc comments",
+			Severity: "warning",
+		})
+	}
+
+	return issues
+}
+
+// ============================================================================
+// File Analysis
+// ============================================================================
+
+func analyzeFile(filePath string) []Issue {
+	var issues []Issue
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return issues
+	}
+
+	contentStr := string(content)
+
+	if RULES.NoPrint {
+		issues = append(issues, checkNoPrint(contentStr, filePath)...)
+	}
+
+	if RULES.MaxFileSize > 0 {
+		issues = append(issues, checkMaxFileSize(contentStr, filePath)...)
+	}
+
+	if RULES.NoDebug {
+		issues = append(issues, checkNoDebug(contentStr, filePath)...)
+	}
+
+	if RULES.NoHardcodedURLs {
+		issues = append(issues, checkNoHardcodedURLs(contentStr, filePath)...)
+	}
+
+	// Always check error handling
+	issues = append(issues, checkErrorHandling(contentStr, filePath)...)
+
+	// Always check godoc comments
+	issues = append(issues, checkGodoc(contentStr, filePath)...)
+
+	return issues
+}
+
+func getAllGoFiles(root string, files *[]string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			if EXCLUDE_DIRS[info.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
+			*files = append(*files, path)
+		}
+
+		return nil
+	})
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+func main() {
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	var goFiles []string
+	if err := getAllGoFiles(projectRoot, &goFiles); err != nil {
+		fmt.Fprintf(os.Stderr, "Error scanning files: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n📏 Analyzing %d files for quality issues...\n\n", len(goFiles))
+
+	var allIssues []Issue
+
+	for _, file := range goFiles {
+		issues := analyzeFile(file)
+		allIssues = append(allIssues, issues...)
+	}
+
+	if len(allIssues) == 0 {
+		fmt.Println("✓ No quality issues found!\n")
+		os.Exit(0)
+	}
+
+	var errors, warnings []Issue
+	for _, issue := range allIssues {
+		if issue.Severity == "error" {
+			errors = append(errors, issue)
+		} else {
+			warnings = append(warnings, issue)
+		}
+	}
+
+	fmt.Printf("✗ Found %d error(s), %d warning(s):\n\n", len(errors), len(warnings))
+
+	for _, issue := range allIssues {
+		icon := "❌"
+		if issue.Severity == "warning" {
+			icon = "⚠️"
+		}
+		fmt.Printf("%s %s:%d\n", icon, issue.File, issue.Line)
+		fmt.Printf("   [%s] %s\n\n", issue.Rule, issue.Message)
+	}
+
+	if len(errors) > 0 {
+		os.Exit(1)
+	}
+}

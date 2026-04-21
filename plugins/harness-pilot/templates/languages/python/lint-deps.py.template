@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""
+Layer Dependency Checker
+Analyzes import statements and detects layer violations
+
+Usage: python scripts/lint-deps.py [--fix]
+"""
+
+import os
+import re
+import sys
+from pathlib import Path
+from typing import List, Optional, Dict, NamedTuple
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+LAYERS: Dict[str, int] = {
+    # Layer 0: Types (no internal dependencies)
+    'types': 0,
+    'models': 0,
+    'schemas': 0,
+    'dtos': 0,
+
+    # Layer 1: Utils (depends on Layer 0)
+    'utils': 1,
+    'helpers': 1,
+    'common': 1,
+
+    # Layer 2: Libraries and configs (depends on Layer 0-1)
+    'lib': 2,
+    'config': 2,
+    'constants': 2,
+
+    # Layer 3: Services and business logic (depends on Layer 0-2)
+    'services': 3,
+    'core': 3,
+    'domain': 3,
+    'managers': 3,
+
+    # Layer 4: Interface layer (depends on Layer 0-3)
+    'api': 4,
+    'views': 4,
+    'controllers': 4,
+    'handlers': 4,
+    'routers': 4,
+    'routes': 4,
+    'endpoints': 4,
+}
+
+# Extensions to check
+EXTENSIONS = ['.py']
+
+# Directories to exclude
+EXCLUDE_DIRS = {'node_modules', 'dist', 'build', '.git', '__pycache__', 'test', 'tests', '.venv', 'venv'}
+
+
+# ============================================================================
+# Data Classes
+# ============================================================================
+
+class Violation(NamedTuple):
+    file: str
+    line: int
+    import_name: str
+    current_layer: int
+    target_layer: int
+    message: str
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def get_layer_from_file(file_path: str) -> Optional[int]:
+    """Determine which layer a file belongs to based on its path."""
+    parts = Path(file_path).parts
+    for part in parts:
+        if part in LAYERS:
+            return LAYERS[part]
+    return None
+
+
+def get_layer_from_import(import_path: str) -> Optional[int]:
+    """Determine which layer an import belongs to."""
+    import_path = import_path.replace('.', os.sep)
+
+    for name, layer in LAYERS.items():
+        if name in import_path:
+            return layer
+    return None
+
+
+def is_internal_import(import_path: str, project_root: str) -> bool:
+    """Check if an import is internal to the project."""
+    # Relative imports
+    if import_path.startswith('.'):
+        return True
+
+    # Absolute imports that might be internal
+    # This requires checking if the module exists in the project
+    # For now, assume non-relative imports are external
+    return False
+
+
+def extract_imports(content: str) -> List[str]:
+    """Extract all import statements from Python code."""
+    imports: List[str] = []
+
+    # Direct imports: import module
+    pattern1 = r'^import\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)'
+    imports.extend(re.findall(pattern1, content, re.MULTILINE))
+
+    # From imports: from module import name
+    pattern2 = r'^from\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)'
+    imports.extend(re.findall(pattern2, content, re.MULTILINE))
+
+    return imports
+
+
+def get_all_files(root_dir: Path, files: Optional[List[str]] = None) -> List[str]:
+    """Recursively get all Python files in a directory."""
+    if files is None:
+        files = []
+
+    for entry in root_dir.iterdir():
+        if entry.is_dir():
+            if entry.name not in EXCLUDE_DIRS:
+                get_all_files(entry, files)
+        elif entry.suffix in EXTENSIONS:
+            files.append(str(entry))
+
+    return files
+
+
+# ============================================================================
+# Main Analysis
+# ============================================================================
+
+def analyze_file(file_path: str) -> List[Violation]:
+    """Analyze a single file for layer violations."""
+    violations: List[Violation] = []
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    lines = content.split('\n')
+    current_layer = get_layer_from_file(file_path)
+
+    if current_layer is None:
+        return violations  # File not in a known layer
+
+    imports = extract_imports(content)
+
+    for import_path in imports:
+        # For Python, we mainly check relative imports for layer violations
+        if not import_path.startswith('.'):
+            continue  # Skip absolute imports
+
+        target_layer = get_layer_from_import(import_path)
+
+        if target_layer is None:
+            continue  # Import not in a known layer
+
+        # Check for violation: lower layer importing higher layer
+        if target_layer > current_layer:
+            line_num = 0
+            for i, line in enumerate(lines):
+                if import_path in line:
+                    line_num = i + 1
+                    break
+
+            violations.append(Violation(
+                file=file_path,
+                line=line_num,
+                import_name=import_path,
+                current_layer=current_layer,
+                target_layer=target_layer,
+                message=f'Layer {current_layer} cannot import Layer {target_layer}'
+            ))
+
+    return violations
+
+
+def main() -> None:
+    """Main entry point."""
+    project_root = Path.cwd()
+    files = get_all_files(project_root)
+    all_violations: List[Violation] = []
+
+    print(f'\n📦 Analyzing {len(files)} files for layer violations...\n')
+
+    for file_path in files:
+        violations = analyze_file(file_path)
+        all_violations.extend(violations)
+
+    if not all_violations:
+        print('✓ No layer violations found!\n')
+        sys.exit(0)
+
+    print(f'✗ Found {len(all_violations)} layer violation(s):\n')
+
+    for v in all_violations:
+        print(f'❌ {v.file}:{v.line}')
+        print(f'   Import: {v.import_name}')
+        print(f'   {v.message}')
+        print(f'   Fix: Move import to a higher layer or use interface\n')
+
+    sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

@@ -13,20 +13,46 @@ Harness Pilot is a Claude Code plugin that transforms any codebase into a harnes
 - **harness-apply** (auto mode) - One-click generation with default settings
 - **harness-generate-rules** - Generate AI rules for safety, git workflow, and language-specific development
 
+## Installation
+
+### Install from marketplace (Recommended)
+
+Add the Harness Pilot marketplace and install the plugin in Claude Code:
+
+```bash
+# Add marketplace
+/plugin marketplace add github:<owner>/harness-pilot
+
+# Install plugin
+/plugin install harness-pilot
+```
+
+### Manual installation
+
+1. Clone this repository:
+   ```bash
+   git clone <repo-url>
+   ```
+
+2. Copy the plugin directory to your project:
+   ```bash
+   cp -r harness-pilot/plugins/harness-pilot /path/to/your-project/plugins/
+   ```
+
 ## Quick Start
 
 ```bash
 # Analyze project health (no changes made)
-/harness-creator:harness-analyze
+/harness-pilot:harness-analyze
 
 # Interactive guided build
-/harness-creator:harness-guide
+/harness-pilot:harness-guide
 
 # Auto-generate with defaults
-/harness-creator:harness-apply
+/harness-pilot:harness-apply
 
 # Generate AI rules only
-/harness-creator:harness-generate-rules
+/harness-pilot:harness-generate-rules
 ```
 
 ## What is a Harness?

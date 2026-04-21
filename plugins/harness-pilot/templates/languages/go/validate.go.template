@@ -1,0 +1,167 @@
+#!/usr/bin/env go run
+// +build ignore
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+)
+
+// ============================================================================
+// Data Structures
+// ============================================================================
+
+type ValidationStep struct {
+	Name        string
+	Description string
+	Command     string
+	Timeout     time.Duration
+}
+
+type StepResult struct {
+	Name     string
+	Success  bool
+	Duration time.Duration
+	Output   string
+	Error    string
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+var VALIDATION_STEPS = []ValidationStep{
+	{
+		Name:        "build",
+		Description: "Build project",
+		Command:     "go build ./...",
+		Timeout:     2 * time.Minute,
+	},
+	{
+		Name:        "lint-arch",
+		Description: "Architecture lint",
+		Command:     "go run scripts/lint-deps.go",
+		Timeout:     1 * time.Minute,
+	},
+	{
+		Name:        "lint-quality",
+		Description: "Quality lint",
+		Command:     "go run scripts/lint-quality.go",
+		Timeout:     1 * time.Minute,
+	},
+	{
+		Name:        "test",
+		Description: "Run tests",
+		Command:     "go test ./...",
+		Timeout:     5 * time.Minute,
+	},
+}
+
+// ============================================================================
+// Runner
+// ============================================================================
+
+func runStep(step ValidationStep) StepResult {
+	start := time.Now()
+
+	fmt.Printf("\n🔧 Running %s...\n", step.Name)
+	fmt.Printf("   Command: %s\n", step.Command)
+
+	// Create command
+	cmd := exec.Command("sh", "-c", step.Command)
+
+	// Capture output
+	output, err := cmd.CombinedOutput()
+
+	duration := time.Since(start)
+
+	if err != nil {
+		fmt.Printf("   ✗ %s failed (%.0fs)\n", step.Name, duration.Seconds())
+		if len(output) > 0 {
+			fmt.Printf("   Error: %s\n", strings.TrimSpace(string(output)[:200]))
+		}
+		return StepResult{
+			Name:     step.Name,
+			Success:  false,
+			Duration: duration,
+			Output:   string(output),
+			Error:    err.Error(),
+		}
+	}
+
+	fmt.Printf("   ✓ %s passed (%.0fs)\n", step.Name, duration.Seconds())
+
+	return StepResult{
+		Name:     step.Name,
+		Success:  true,
+		Duration: duration,
+		Output:   string(output),
+	}
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+func main() {
+	// Parse --step argument
+	stepFilter := ""
+	for i, arg := range os.Args[1:] {
+		if arg == "--step" && i < len(os.Args)-2 {
+			stepFilter = os.Args[i+2]
+			break
+		}
+	}
+
+	fmt.Println("\n" + strings.Repeat("═", 55))
+	fmt.Println("          Harness Validation Pipeline")
+	fmt.Println(strings.Repeat("═", 55) + "\n")
+
+	var results []StepResult
+
+	for _, step := range VALIDATION_STEPS {
+		if stepFilter != "" && step.Name != stepFilter {
+			continue
+		}
+
+		result := runStep(step)
+		results = append(results, result)
+
+		if !result.Success {
+			fmt.Printf("\n❌ Validation failed at step: %s\n", step.Name)
+			if result.Error != "" {
+				fmt.Printf("   %s\n\n", result.Error)
+			}
+			os.Exit(1)
+		}
+	}
+
+	// Summary
+	var totalDuration time.Duration
+	for _, r := range results {
+		totalDuration += r.Duration
+	}
+
+	fmt.Println("\n" + strings.Repeat("═", 55))
+	fmt.Println("                Validation Summary")
+	fmt.Println(strings.Repeat("═", 55) + "\n")
+
+	for _, result := range results {
+		icon := "✓"
+		if !result.Success {
+			icon = "✗"
+		}
+		fmt.Printf("  %s %-15s %.0fs\n", icon, result.Name+":", result.Duration.Seconds())
+	}
+
+	fmt.Printf("\n  Total: %.0fs\n", totalDuration.Seconds())
+	fmt.Println(strings.Repeat("═", 55) + "\n")
+
+	fmt.Println("✓ All validation steps passed!\n")
+	os.Exit(0)
+}

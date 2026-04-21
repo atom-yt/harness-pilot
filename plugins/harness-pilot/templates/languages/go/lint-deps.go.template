@@ -1,0 +1,294 @@
+#!/usr/bin/env go run
+// +build ignore
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+var LAYERS = map[string]int{
+	// Layer 0: Types (no internal dependencies)
+	"types":     0,
+	"models":    0,
+	"schemas":   0,
+
+	// Layer 1: Utils (depends on Layer 0)
+	"utils":     1,
+	"helpers":   1,
+	"common":    1,
+
+	// Layer 2: Libraries and configs (depends on Layer 0-1)
+	"lib":       2,
+	"config":    2,
+	"constants": 2,
+
+	// Layer 3: Services and business logic (depends on Layer 0-2)
+	"services":  3,
+	"core":      3,
+	"domain":    3,
+	"managers":  3,
+
+	// Layer 4: Interface layer (depends on Layer 0-3)
+	"api":       4,
+	"handlers":  4,
+	"controllers": 4,
+	"routes":    4,
+	"routers":   4,
+	"endpoints": 4,
+}
+
+var EXCLUDE_DIRS = map[string]bool{
+	"node_modules": true,
+	"vendor":       true,
+	"dist":         true,
+	"build":        true,
+	".git":         true,
+	"test":         true,
+	"tests":        true,
+}
+
+// ============================================================================
+// Data Structures
+// ============================================================================
+
+type Violation struct {
+	File         string
+	Line         int
+	ImportPath   string
+	CurrentLayer int
+	TargetLayer  int
+	Message      string
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+func getLayerFromPath(filePath string) int {
+	parts := strings.Split(filePath, string(filepath.Separator))
+	for _, part := range parts {
+		if layer, ok := LAYERS[part]; ok {
+			return layer
+		}
+	}
+	return -1
+}
+
+func getLayerFromImport(importPath string) int {
+	importPath = strings.ReplaceAll(importPath, "/", string(filepath.Separator))
+	for name, layer := range LAYERS {
+		if strings.Contains(importPath, name) {
+			return layer
+		}
+	}
+	return -1
+}
+
+func isInternalImport(importPath string, projectModule string) bool {
+	// Check if import starts with project module
+	if projectModule != "" && strings.HasPrefix(importPath, projectModule) {
+		return true
+	}
+	return false
+}
+
+// ============================================================================
+// AST Visitor
+// ============================================================================
+
+type ImportVisitor struct {
+	file         *ast.File
+	violations   []Violation
+	projectModule string
+}
+
+func (v *ImportVisitor) Visit(node ast.Node) ast.Visitor {
+	if node == nil {
+		return nil
+	}
+
+	if importSpec, ok := node.(*ast.ImportSpec); ok {
+		importPath := strings.Trim(importSpec.Path.Value, `"`)
+
+		// Only check internal imports
+		if v.projectModule == "" {
+			// Can't determine internal imports without project module
+			return v
+		}
+
+		if !isInternalImport(importPath, v.projectModule) {
+			return v
+		}
+
+		currentLayer := getLayerFromPath(v.file.Name.Name)
+		targetLayer := getLayerFromImport(importPath)
+
+		if currentLayer == -1 || targetLayer == -1 {
+			return v
+		}
+
+		// Check for violation: lower layer importing higher layer
+		if targetLayer > currentLayer {
+			v.violations = append(v.violations, Violation{
+				File:         v.file.Name.Name,
+				Line:         v.file.Pos().LineNumber(),
+				ImportPath:   importPath,
+				CurrentLayer: currentLayer,
+				TargetLayer:  targetLayer,
+				Message:      fmt.Sprintf("Layer %d cannot import Layer %d", currentLayer, targetLayer),
+			})
+		}
+	}
+	return v
+}
+
+// ============================================================================
+// File Analysis
+// ============================================================================
+
+func analyzeFile(filePath string, projectModule string) []Violation {
+	fset := token.NewFileSet()
+
+	node, err := parser.ParseFile(fset, filePath, nil, parser.ImportsOnly)
+	if err != nil {
+		return []Violation{}
+	}
+
+	currentLayer := getLayerFromPath(filePath)
+	if currentLayer == -1 {
+		return []Violation{}
+	}
+
+	var violations []Violation
+
+	// Simple import analysis based on file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return []Violation{}
+	}
+
+	lines := strings.Split(string(content), "\n")
+	importPath := strings.TrimPrefix(filePath, projectModule+"/")
+
+	for i, line := range lines {
+		importLine := strings.TrimSpace(line)
+		if strings.HasPrefix(importLine, """) && strings.HasSuffix(importLine, """) {
+			imp := strings.Trim(importLine, `"`)
+
+			if !isInternalImport(imp, projectModule) {
+				continue
+			}
+
+			targetLayer := getLayerFromImport(imp)
+			if targetLayer == -1 {
+				continue
+			}
+
+			if targetLayer > currentLayer {
+				violations = append(violations, Violation{
+					File:         filePath,
+					Line:         i + 1,
+					ImportPath:   imp,
+					CurrentLayer: currentLayer,
+					TargetLayer:  targetLayer,
+					Message:      fmt.Sprintf("Layer %d cannot import Layer %d", currentLayer, targetLayer),
+				})
+			}
+		}
+	}
+
+	return violations
+}
+
+func getAllGoFiles(root string, files *[]string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			if EXCLUDE_DIRS[info.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
+			*files = append(*files, path)
+		}
+
+		return nil
+	})
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+func main() {
+	projectModule := flag.String("module", "", "Project module name (e.g., github.com/user/project)")
+	flag.Parse()
+
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Try to detect project module from go.mod
+	if *projectModule == "" {
+		goModPath := filepath.Join(projectRoot, "go.mod")
+		if data, err := os.ReadFile(goModPath); err == nil {
+			lines := strings.Split(string(data), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "module ") {
+					*projectModule = strings.TrimSpace(strings.TrimPrefix(line, "module "))
+					break
+				}
+			}
+		}
+	}
+
+	var goFiles []string
+	if err := getAllGoFiles(projectRoot, &goFiles); err != nil {
+		fmt.Fprintf(os.Stderr, "Error scanning files: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n📦 Analyzing %d files for layer violations...\n\n", len(goFiles))
+
+	var allViolations []Violation
+
+	for _, file := range goFiles {
+		violations := analyzeFile(file, *projectModule)
+		allViolations = append(allViolations, violations...)
+	}
+
+	if len(allViolations) == 0 {
+		fmt.Println("✓ No layer violations found!\n")
+		os.Exit(0)
+	}
+
+	fmt.Printf("✗ Found %d layer violation(s):\n\n", len(allViolations))
+
+	for _, v := range allViolations {
+		fmt.Printf("❌ %s:%d\n", v.File, v.Line)
+		fmt.Printf("   Import: %s\n", v.ImportPath)
+		fmt.Printf("   %s\n", v.Message)
+		fmt.Printf("   Fix: Move import to a higher layer or use interface\n\n")
+	}
+
+	os.Exit(1)
+}

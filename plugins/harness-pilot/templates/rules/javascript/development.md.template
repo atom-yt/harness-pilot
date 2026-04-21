@@ -1,0 +1,369 @@
+---
+paths:
+  - "**/*.js"
+  - "**/*.jsx"
+---
+# JavaScript Development Rules
+
+> These rules apply to all JavaScript files in this project.
+> This file extends [common/safety.md](../common/safety.md) and [common/git-workflow.md](../common/git-workflow.md).
+
+## Code Style
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Classes | PascalCase | `class UserService {}` |
+| Functions/Methods | camelCase | `function getUserById()` |
+| Variables | camelCase | `const userId` |
+| Constants | UPPER_SNAKE_CASE | `const MAX_RETRIES = 3` |
+| Files | kebab-case | `user-service.js` |
+| Components | PascalCase | `UserProfile.jsx` |
+
+### JSDoc Comments
+
+Use JSDoc for functions and classes to document parameters, return types, and purpose:
+
+```javascript
+/**
+ * Get a user by their ID
+ * @param {string} userId - The user's unique identifier
+ * @returns {Promise<Object|null>} The user object or null if not found
+ * @throws {Error} If the user ID is invalid
+ */
+async function getUserById(userId) {
+  if (!userId || typeof userId !== 'string') {
+    throw new Error('Invalid user ID');
+  }
+  // ...
+}
+```
+
+### Modern JavaScript
+
+- Use `const` by default, `let` only when reassignment is needed
+- Never use `var`
+- Use template literals over string concatenation
+- Use arrow functions for callbacks (not for methods in classes)
+- Use destructuring for objects and arrays
+
+```javascript
+// Good
+const { userId, name } = user;
+const filtered = items.filter(item => item.active);
+
+// Bad
+const userId = user.userId;
+const name = user.name;
+var filtered = items.filter(function(item) {
+  return item.active;
+});
+```
+
+### Async/Await
+
+- Use `async/await` over `.then()` and `.catch()`
+- Always handle errors in async functions
+- Don't use `Promise` constructor when `async/await` suffices
+
+```javascript
+// Good
+async function fetchData() {
+  try {
+    const response = await fetch(url);
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch data:', error);
+    throw error;
+  }
+}
+
+// Bad
+function fetchData() {
+  return fetch(url).then(r => r.json());
+}
+```
+
+## Import Organization
+
+### Import Order
+
+1. External libraries
+2. Internal modules
+3. Relative imports
+
+```javascript
+// External libraries
+import { useState } from 'react';
+import { z } from 'zod';
+
+// Internal modules
+import { userService } from '@/services/user';
+
+// Relative imports
+import { Button } from './Button';
+```
+
+### Named vs Default Exports
+
+**Prefer named exports:**
+```javascript
+// Good
+export function foo() {}
+export const bar = 1;
+
+// Usage
+import { foo, bar } from './module';
+```
+
+**Default exports only for:**
+- Single-purpose components
+- React pages/route handlers
+
+## Framework-Specific Rules
+
+{{#if FRAMEWORK eq 'Next.js'}}
+
+### Next.js Specific
+
+- Use `'use client'` at the top of components that use client-side hooks (`useState`, `useEffect`)
+- Server Components cannot use client-side hooks
+- Don't use `import { Something } from 'next/dynamic'` - use `dynamic()` function
+- Image assets: Use `next/image` component, not `<img>` tag
+
+### API Routes
+
+- Use `async` function exports
+- Return `Response` or `NextResponse` objects
+- Always set proper status codes and content types
+
+{{/if}}
+
+{{#if FRAMEWORK eq 'React'}}
+
+### React Specific
+
+- Always define PropTypes for component props
+- Use functional components, not class components
+- Keep components pure (no side effects in render)
+- Use hooks, not HOCs or render props
+
+```javascript
+import PropTypes from 'prop-types';
+
+function UserProfile({ userId, onLogout }) {
+  // ...
+}
+
+UserProfile.propTypes = {
+  userId: PropTypes.string.isRequired,
+  onLogout: PropTypes.func,
+};
+```
+
+{{/if}}
+
+{{#if FRAMEWORK eq 'Express.js'}}
+
+### Express.js Specific
+
+- Use async handlers for async operations
+- Always set proper HTTP status codes
+- Use middleware for common concerns (auth, logging)
+- Don't mix route handlers and business logic
+
+```javascript
+// Good - routes separated from services
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const user = await userService.getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+```
+
+{{/if}}
+
+## Testing
+
+### Test File Naming
+
+- Test files end with `.test.js` or `.spec.js`
+- Test files colocated with source files: `UserService.js` → `UserService.test.js`
+
+### Test Structure
+
+```javascript
+describe('UserService', () => {
+  describe('getUserById', () => {
+    it('returns user when found', async () => {
+      // arrange
+      const userId = '123';
+      // act
+      const user = await userService.getUserById(userId);
+      // assert
+      expect(user).toBeDefined();
+      expect(user.id).toBe(userId);
+    });
+
+    it('throws when user not found', async () => {
+      await expect(
+        userService.getUserById('nonexistent')
+      ).rejects.toThrow('User not found');
+    });
+  });
+});
+```
+
+## Security
+
+### User Input
+
+- Always validate user input with schemas (Zod, Yup, Joi, etc.)
+- Sanitize data before using in queries/commands
+- Never trust client-side validation alone
+
+```javascript
+import { z } from 'zod';
+
+const userSchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+});
+
+function createUser(data) {
+  const validated = userSchema.parse(data);
+  // use validated data
+}
+```
+
+### Secrets Management
+
+- Use environment variables for secrets
+- Never commit `.env` files (add to `.gitignore`)
+- Use `.env.example` for template
+
+## Performance
+
+### Avoid Unnecessary Re-renders
+
+- Memoize expensive computations with `useMemo`
+- Memoize callback functions with `useCallback`
+- Use `React.memo` for components that only depend on props
+
+### Lazy Loading
+
+- Use dynamic imports for heavy modules
+- Use `React.lazy()` for code splitting
+- Use `next/dynamic` for Next.js components
+
+### Optimization Patterns
+
+```javascript
+// Good - debouncing
+const debouncedSearch = useMemo(
+  () => debounce(search, 300),
+  [search]
+);
+
+// Good - lazy initialization
+let expensiveValue;
+function getExpensiveValue() {
+  if (expensiveValue === undefined) {
+    expensiveValue = computeExpensiveValue();
+  }
+  return expensiveValue;
+}
+```
+
+## Common Anti-Patterns to Avoid
+
+### ❌ Don't Use `var`
+```javascript
+var name = 'John';  // Bad - function scoped
+let name = 'John';   // OK - block scoped
+const NAME = 'John'; // Best for constants
+```
+
+### ❌ Don't Ignore Promise Errors
+```javascript
+fetch(url);  // Bad - unhandled rejection
+
+fetch(url).catch(console.error);  // OK - at least log it
+
+const result = await fetch(url);  // Best - handle or bubble up
+```
+
+### ❌ Don't Use Loose Equality
+```javascript
+if (x == null) { ... }  // Bad - matches null and undefined
+if (x === null) { ... } // Good - strict equality
+```
+
+### ❌ Don't Mix Concerns in One File
+```javascript
+// Bad - mixing concerns
+class UserService { ... }
+const API_URL = '...';
+function validate() { ... }
+
+// Good - separate files
+// services/user.js
+// config/api.js
+// utils/validation.js
+```
+
+### ❌ Don't Modify Function Parameters
+```javascript
+// Bad - mutating parameter
+function process(user) {
+  user.active = true;
+  return user;
+}
+
+// Good - create new object
+function process(user) {
+  return { ...user, active: true };
+}
+```
+
+## Error Handling
+
+### Always Handle Errors
+
+- Use try/catch for async operations
+- Propagate errors up the call stack when appropriate
+- Provide meaningful error messages
+
+```javascript
+// Good
+async function fetchData() {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Fetch failed:', error);
+    throw error; // or return fallback value
+  }
+}
+```
+
+## Best Practices Summary
+
+1. **Use modern JavaScript** - const/let, arrow functions, template literals
+2. **Document with JSDoc** - Add comments to functions and classes
+3. **Handle errors** - Always use try/catch in async code
+4. **Validate inputs** - Use schemas for user input
+5. **Keep modules focused** - One responsibility per file
+6. **Use named exports** - Prefer named over default exports
+7. **Organize imports** - Follow the import order convention
+8. **Avoid global state** - Use proper module imports instead

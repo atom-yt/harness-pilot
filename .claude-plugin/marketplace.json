@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "Harness Pilot Marketplace",
+  "version": "1.0.0",
+  "description": "AI Agent harness infrastructure tools for any codebase",
+  "owner": {
+    "name": "harness-pilot",
+    "email": ""
+  },
+  "plugins": [
+    {
+      "name": "harness-pilot",
+      "version": "0.1.0",
+      "description": "Transform any project into a harness-compatible form with dry-run analysis, guided build, and auto-generation modes",
+      "source": "./plugins/harness-pilot",
+      "author": { "name": "harness-pilot" },
+      "keywords": ["harness", "project-structure", "lint", "architecture", "validation", "ai-agent"]
+    }
+  ]
+}

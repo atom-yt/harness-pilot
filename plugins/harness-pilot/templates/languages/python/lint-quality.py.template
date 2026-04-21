@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""
+Code Quality Checker
+Enforces code quality rules
+
+Usage: python scripts/lint-quality.py [--fix]
+"""
+
+import os
+import re
+import sys
+from pathlib import Path
+from typing import List, Optional, NamedTuple, Dict
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+RULES: Dict[str, bool | int] = {
+    'no_print': True,
+    'max_file_size': 500,
+    'no_debugger': True,
+    'no_hardcoded_urls': False,
+}
+
+# Extensions to check
+EXTENSIONS = ['.py']
+
+# Directories to exclude
+EXCLUDE_DIRS = {'node_modules', 'dist', 'build', '.git', '__pycache__', 'test', 'tests', '.venv', 'venv'}
+
+
+# ============================================================================
+# Data Classes
+# ============================================================================
+
+class Issue(NamedTuple):
+    file: str
+    line: int
+    rule: str
+    message: str
+    severity: str  # 'error' or 'warning'
+
+
+# ============================================================================
+# Rule Implementations
+# ============================================================================
+
+def check_no_print(content: str, file_path: str) -> List[Issue]:
+    """Check for print() statements (should use logging instead)."""
+    issues: List[Issue] = []
+    lines = content.split('\n')
+
+    for i, line in enumerate(lines):
+        if re.search(r'\bprint\s*\(', line):
+            issues.append(Issue(
+                file=file_path,
+                line=i + 1,
+                rule='no-print',
+                message='Use logger instead of print()',
+                severity='error'
+            ))
+
+    return issues
+
+
+def check_max_file_size(content: str, file_path: str) -> List[Issue]:
+    """Check if file exceeds max line limit."""
+    issues: List[Issue] = []
+    lines = content.split('\n')
+    max_size = int(RULES['max_file_size'])
+
+    if len(lines) > max_size:
+        issues.append(Issue(
+            file=file_path,
+            line=1,
+            rule='max-file-size',
+            message=f'File has {len(lines)} lines (max: {max_size})',
+            severity='error'
+        ))
+
+    return issues
+
+
+def check_no_debugger(content: str, file_path: str) -> List[Issue]:
+    """Check for debugger statements."""
+    issues: List[Issue] = []
+    lines = content.split('\n')
+
+    for i, line in enumerate(lines):
+        if re.search(r'\bdebugger\b', line):
+            issues.append(Issue(
+                file=file_path,
+                line=i + 1,
+                rule='no-debugger',
+                message='Remove debugger statement before commit',
+                severity='error'
+            ))
+
+    return issues
+
+
+def check_no_hardcoded_urls(content: str, file_path: str) -> List[Issue]:
+    """Check for hardcoded URLs."""
+    issues: List[Issue] = []
+    lines = content.split('\n')
+
+    # Pattern for common URL patterns
+    url_pattern = r'https?://[^\s"\'<>]+'
+    localhost_pattern = r'localhost:\d+'
+
+    for i, line in enumerate(lines):
+        if re.search(url_pattern, line) or re.search(localhost_pattern, line):
+            issues.append(Issue(
+                file=file_path,
+                line=i + 1,
+                rule='no-hardcoded-urls',
+                message='Move URLs to config file',
+                severity='warning'
+            ))
+
+    return issues
+
+
+def check_import_order(content: str, file_path: str) -> List[Issue]:
+    """Check PEP 8 import order: stdlib -> third-party -> local."""
+    issues: List[Issue] = []
+    lines = content.split('\n')
+
+    # Extract all import statements with line numbers
+    imports: List[tuple[int, str, str]] = []
+    for i, line in enumerate(lines):
+        match = re.match(r'^(import|from)\s+', line.strip())
+        if match:
+            imports.append((i + 1, match.group(1), line.strip()))
+
+    if len(imports) < 2:
+        return issues
+
+    # Check order
+    current_group = None
+    for line_num, import_type, import_line in imports:
+        # Determine import group
+        import_name = import_line.split()[1] if import_type == 'import' else import_line.split()[1]
+        is_stdlib = import_name in {'os', 'sys', 'pathlib', 're', 'json', 'typing', 'dataclasses',
+                                    'datetime', 'time', 'collections', 'itertools', 'functools'}
+        is_third_party = not is_stdlib and not import_name.startswith('.')
+        is_local = import_name.startswith('.') or (is_third_party and import_line.startswith('from .'))
+
+        new_group = 'stdlib' if is_stdlib else ('local' if is_local else 'third_party')
+
+        if current_group and new_group != current_group:
+            # Check if we're going backwards (PEP 8 violation)
+            if (current_group == 'local' and new_group != 'local') or \n               (current_group == 'third_party' and new_group == 'stdlib'):
+                issues.append(Issue(
+                    file=file_path,
+                    line=line_num,
+                    rule='import-order',
+                    message=f'Import order violation: {current_group} after {new_group}',
+                    severity='warning'
+                ))
+
+        current_group = new_group
+
+    return issues
+
+
+# ============================================================================
+# Main Analysis
+# ============================================================================
+
+def get_all_files(root_dir: Path, files: Optional[List[str]] = None) -> List[str]:
+    """Recursively get all Python files in a directory."""
+    if files is None:
+        files = []
+
+    for entry in root_dir.iterdir():
+        if entry.is_dir():
+            if entry.name not in EXCLUDE_DIRS:
+                get_all_files(entry, files)
+        elif entry.suffix in EXTENSIONS:
+            files.append(str(entry))
+
+    return files
+
+
+def analyze_file(file_path: str) -> List[Issue]:
+    """Analyze a single file for quality issues."""
+    issues: List[Issue] = []
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    if RULES.get('no_print'):
+        issues.extend(check_no_print(content, file_path))
+
+    if RULES.get('max_file_size'):
+        issues.extend(check_max_file_size(content, file_path))
+
+    if RULES.get('no_debugger'):
+        issues.extend(check_no_debugger(content, file_path))
+
+    if RULES.get('no_hardcoded_urls'):
+        issues.extend(check_no_hardcoded_urls(content, file_path))
+
+    # Always check import order
+    issues.extend(check_import_order(content, file_path))
+
+    return issues
+
+
+def main() -> None:
+    """Main entry point."""
+    project_root = Path.cwd()
+    files = get_all_files(project_root)
+    all_issues: List[Issue] = []
+
+    print(f'\n📏 Analyzing {len(files)} files for quality issues...\n')
+
+    for file_path in files:
+        issues = analyze_file(file_path)
+        all_issues.extend(issues)
+
+    if not all_issues:
+        print('✓ No quality issues found!\n')
+        sys.exit(0)
+
+    errors = [i for i in all_issues if i.severity == 'error']
+    warnings = [i for i in all_issues if i.severity == 'warning']
+
+    print(f'✗ Found {len(errors)} error(s), {len(warnings)} warning(s):\n')
+
+    for issue in all_issues:
+        icon = '❌' if issue.severity == 'error' else '⚠️'
+        print(f'{icon} {issue.file}:{issue.line}')
+        print(f'   [{issue.rule}] {issue.message}\n')
+
+    if errors:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

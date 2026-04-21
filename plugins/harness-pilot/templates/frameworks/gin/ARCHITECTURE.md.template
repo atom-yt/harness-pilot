@@ -1,0 +1,206 @@
+# {{PROJECT_NAME}} Architecture
+
+## Layer System (Gin)
+
+{{LAYER_RULES}}
+
+## Gin Specific Rules
+
+1. **Route Handler Organization**
+   - Route handlers (`handlers/*.go`) are Layer 4
+   - Keep handlers thin, delegate to services
+
+2. **Middleware Chain**
+   - Global middleware: Layer 4 (main.go)
+   - Route-specific middleware: in handler setup
+   - Custom middleware logic: Layer 2 (middleware/)
+
+3. **Service Layer Pattern**
+   - Services (`services/*.go`) are Layer 3
+   - Services should not depend on HTTP context
+
+4. **DTO/Response**
+   - Request/Response structs (`types/`) are Layer 0
+   - Use tags for JSON binding
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────┐
+│  HTTP Request                                   │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Middleware (main.go)                      │
+│       ↓                                         │
+│  Handler (handlers/*.go)                   │
+│       ↓                                         │
+│  Service Layer (services/*.go)             │
+│       ↓                                         │
+│  Utils / Lib (utils/*.go, lib/*.go)      │
+│       ↓                                         │
+│  Types / Models (types/*.go)               │
+└─────────────────────────────────────────────────┘
+```
+
+## Module Responsibilities
+
+| Layer | Directory | Responsibilities |
+|-------|-----------|----------------|
+| Layer 0 | types/ - Structs, interfaces, errors |
+| Layer 1 | utils/ - Utility functions, pure logic |
+| Layer 2 | lib/, middleware/ - External wrappers, middleware logic |
+| Layer 3 | services/ - Business logic, data operations |
+| Layer 4 | handlers/, main.go - HTTP handlers, app entry |
+
+## Violation Examples
+
+```
+❌ Invalid: Service importing handler
+   // services/user.go
+   import "github.com/project/handlers"
+   Fix: Move shared logic to Layer 2
+
+❌ Invalid: Handler importing another handler
+   // handlers/user.go
+   import "github.com/project/handlers/post"
+   Fix: Move shared logic to services/
+
+✓ Valid: Handler importing service
+   // handlers/user.go
+   import "github.com/project/services/user"
+
+✓ Valid: Service importing type
+   // services/user.go
+   import "github.com/project/types/user"
+```
+
+## Gin Best Practices
+
+1. **Handler Structure**
+   ```go
+   // handlers/user.go
+   package handlers
+
+   import (
+       "github.com/gin-gonic/gin"
+       "github.com/project/services/user"
+       "github.com/project/types/user"
+   )
+
+   func CreateUser(c *gin.Context) {
+       var req types.CreateUserRequest
+       if err := c.ShouldBindJSON(&req); err != nil {
+           c.JSON(400, gin.H{"error": err.Error()})
+           return
+       }
+
+       u, err := userService.Create(req)
+       if err != nil {
+           c.JSON(500, gin.H{"error": err.Error()})
+           return
+       }
+
+       c.JSON(201, u)
+   }
+   ```
+
+2. **Service Layer Pattern**
+   ```go
+   // services/user.go
+   package services
+
+   import (
+       "context"
+       "github.com/project/types/user"
+   )
+
+   type UserService struct {
+       db *sql.DB  // Layer 3 can import lib
+   }
+
+   func (s *UserService) Create(ctx context.Context, req types.CreateUserRequest) (*types.UserResponse, error) {
+       // Business logic
+       // Returns types, no HTTP concerns
+   }
+   ```
+
+3. **Middleware**
+   ```go
+   // middleware/auth.go
+   package middleware
+
+   import (
+       "github.com/gin-gonic/gin"
+   )
+
+   func AuthMiddleware() gin.HandlerFunc {
+       return func(c *gin.Context) {
+           token := c.GetHeader("Authorization")
+           // Validate token
+           c.Next()
+       }
+   }
+   ```
+
+4. **Type Definitions**
+   ```go
+   // types/user.go
+   package user
+
+   type CreateUserRequest struct {
+       Name  string `json:"name" binding:"required"`
+       Email string `json:"email" binding:"required,email"`
+   }
+
+   type UserResponse struct {
+       ID    int    `json:"id"`
+       Name  string `json:"name"`
+       Email string `json:"email"`
+   }
+   ```
+
+5. **Error Handling**
+   ```go
+   // types/errors.go
+   package types
+
+   import "errors"
+
+   var (
+       ErrNotFound      = errors.New("not found")
+       ErrInvalidInput  = errors.New("invalid input")
+       ErrUnauthorized  = errors.New("unauthorized")
+   )
+
+   // In handlers, map to appropriate status codes
+   ```
+
+## File Organization Example
+
+```
+handlers/
+  user.go      # User handlers
+  post.go      # Post handlers
+main.go        # App entry, router setup
+
+services/
+  user.go      # User service
+  post.go      # Post service
+
+lib/
+  database.go  # DB connection
+  logger.go    # Logging wrapper
+
+middleware/
+  auth.go      # Auth middleware
+  cors.go      # CORS middleware
+
+utils/
+  crypto.go    # Crypto utilities
+  validation.go # Validation utilities
+
+types/
+  user.go      # User types
+  post.go      # Post types
+  errors.go    # Error definitions
+```

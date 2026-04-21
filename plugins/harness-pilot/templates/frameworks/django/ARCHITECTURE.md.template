@@ -1,0 +1,144 @@
+# {{PROJECT_NAME}} Architecture
+
+## Layer System (Django)
+
+{{LAYER_RULES}}
+
+## Django Specific Rules
+
+1. **MTV Pattern Mapping**
+   - Models (`models.py`) are Layer 0 (types/models)
+   - Views (`views.py`) are Layer 3 or 4
+   - Templates (`templates/`) are Layer 3
+   - URL configuration (`urls.py`) is Layer 4
+
+2. **App Organization**
+   - Each Django app follows layer constraints
+   - Services (`services.py`) are Layer 3
+   - Managers/Querysets are Layer 2
+
+3. **Middleware**
+   - Global middleware: Layer 4 (project level)
+   - App-specific middleware: Layer 2
+
+4. **Signals**
+   - Signal receivers: Layer 2 (lib/ or services/)
+   - Don't access request/response in signals
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────┐
+│  HTTP Request                                   │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  URL Config (urls.py)                      │
+│       ↓                                         │
+│  Middleware (Layer 4)                           │
+│       ↓                                         │
+│  View (views.py)                           │
+│       ↓                                         │
+│  Service / Manager (services.py)         │
+│       ↓                                         │
+│  Model / QuerySet (models.py)             │
+│       ↓                                         │
+│  Utils / Helpers (utils.py)               │
+└─────────────────────────────────────────────────┘
+```
+
+## Module Responsibilities
+
+| Layer | Directory/File | Responsibilities |
+|-------|----------------|----------------|
+| Layer 0 | types/, models.py - Data models, schemas |
+| Layer 1 | utils/, helpers/ - Utility functions |
+| Layer 2 | lib/, managers/, middleware/ - External wrappers, custom managers |
+| Layer 3 | services/, views/ - Business logic, view logic |
+| Layer 4 | urls.py, admin.py - Routing, admin interface |
+
+## Violation Examples
+
+```
+❌ Invalid: View importing another view
+   # app/views.py
+   from other_app.views import AnotherView
+   Fix: Move shared logic to services/
+
+❌ Invalid: Utility importing view
+   # utils/format.py
+   from .views import format_response
+   Fix: Move utility to views/ or pass data
+
+✓ Valid: View importing service
+   # app/views.py
+   from .services import get_user_data
+
+✓ Valid: Service importing manager
+   # app/services.py
+   from .managers import UserManager
+```
+
+## Django Best Practices
+
+1. **Service Layer Pattern**
+   ```python
+   # services.py
+   from django.db import transaction
+   from .models import User
+
+   class UserService:
+       @staticmethod
+       def create_user(data):
+           with transaction.atomic():
+               user = User.objects.create(**data)
+               # Additional business logic
+               return user
+   ```
+
+2. **View Organization**
+   - Use Django REST Framework class-based views
+   - Keep views thin, delegate to services
+   - Serializers in `serializers.py` (Layer 2)
+
+3. **URL Structure**
+   ```python
+   # urls.py
+   from django.urls import path
+   from .views import UserListView, UserDetailView
+
+   urlpatterns = [
+       path('users/', UserListView.as_view(), name='user-list'),
+       path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+   ]
+   ```
+
+4. **Model Design**
+   ```python
+   # models.py
+   from django.db import models
+
+   class User(models.Model):
+       # Layer 0: Only depends on types
+       email = models.EmailField(unique=True)
+       created_at = models.DateTimeField(auto_now_add=True)
+
+       class Meta:
+           ordering = ['-created_at']
+
+   class UserManager(models.Manager):
+       # Layer 2: Can import utils, lib
+       def active(self):
+           return self.filter(is_active=True)
+   ```
+
+## Django REST Framework
+
+- ViewSets: Layer 3
+- Serializers: Layer 2
+- Permissions: Layer 2
+
+## Admin Configuration
+
+- `admin.py` is Layer 4
+- Can import models (Layer 0)
+- Can import managers (Layer 2)

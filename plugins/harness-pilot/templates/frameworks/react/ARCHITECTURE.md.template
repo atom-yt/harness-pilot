@@ -1,0 +1,100 @@
+# {{PROJECT_NAME}} Architecture
+
+## Layer System (React)
+
+{{LAYER_RULES}}
+
+## React Specific Rules
+
+1. **Component Organization**
+   - Page-level components (`pages/*.jsx`) are Layer 4
+   - Feature components (`components/*.jsx`) are Layer 3
+   - Reusable UI components can be Layer 2
+
+2. **Hooks and Context**
+   - Custom hooks (`hooks/*.jsx`) are Layer 2
+   - Context providers (`contexts/*.jsx`) are Layer 2
+
+3. **Route Protection**
+   - Pages can import any Layers 0-3
+   - Components should avoid importing other pages
+
+4. **State Management**
+   - Local state: use within components (Layer 3)
+   - Global state: Context providers (Layer 2)
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────┐
+│  User Interaction                               │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Page Components (pages/*.jsx)             │
+│       ↓                                         │
+│  Feature Components (components/*.jsx)     │
+│       ↓                                         │
+│  Hooks / Context (hooks/*.jsx)            │
+│       ↓                                         │
+│  Services (services/*.jsx)                │
+│       ↓                                         │
+│  Utils / Lib (utils/*.jsx, lib/*.jsx)    │
+│       ↓                                         │
+│  Types (types/*.jsx)                        │
+└─────────────────────────────────────────────────┘
+```
+
+## Module Responsibilities
+
+| Layer | Directory | Responsibilities |
+|-------|-----------|----------------|
+| Layer 0 | types/ - Type definitions, interfaces, JSDoc |
+| Layer 1 | utils/ - Utility functions, pure logic |
+| Layer 2 | lib/, hooks/, contexts/ - External wrappers, shared state |
+| Layer 3 | services/, components/ - Business logic, UI features |
+| Layer 4 | pages/, app/ - Route handlers, application entry |
+
+## Violation Examples
+
+```
+❌ Invalid: Page importing another page
+   // pages/Home.jsx
+   import { AboutPage } from './About'
+   Fix: Move shared components to Layer 3
+
+❌ Invalid: Utility importing service
+   // utils/format.js
+   import { api } from '../services/api'
+   Fix: Pass data as parameter instead
+
+✓ Valid: Page importing service
+   // pages/Home.jsx
+   import { fetchUsers } from '../services/user'
+
+✓ Valid: Component importing hook
+   // components/UserCard.jsx
+   import { useAuth } from '../hooks/useAuth'
+```
+
+## React Router Integration
+
+- Route components (`<Route element={<Home />} />`) are Layer 4
+- Layout components can be Layer 3
+- Route loaders/actions are Layer 2 (services)
+
+## Component Best Practices
+
+1. **Separation of Concerns**
+   - Keep components focused on UI
+   - Move business logic to services
+   - Use hooks for reusable logic
+
+2. **Prop Types**
+   - Always define PropTypes for components
+   - Use TypeScript if available
+   - Document required vs optional props
+
+3. **Performance**
+   - Use React.memo for expensive renders
+   - Lazy load routes with React.lazy()
+   - Code-split by route

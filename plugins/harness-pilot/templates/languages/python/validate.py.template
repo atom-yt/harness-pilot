@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""
+Unified Validation Pipeline
+Runs all validation steps in order
+
+Usage: python scripts/validate.py [--step <name>]
+"""
+
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from typing import List, Optional
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+@dataclass
+class ValidationStep:
+    name: str
+    description: str
+    command: str
+    timeout: int = 120
+
+
+VALIDATION_STEPS: List[ValidationStep] = [
+    ValidationStep(
+        name='build',
+        description='Build project',
+        command='python -m pip install -e .',
+        timeout=120,
+    ),
+    ValidationStep(
+        name='lint-arch',
+        description='Architecture lint',
+        command='python scripts/lint-deps.py',
+        timeout=60,
+    ),
+    ValidationStep(
+        name='lint-quality',
+        description='Quality lint',
+        command='python scripts/lint-quality.py',
+        timeout=60,
+    ),
+    ValidationStep(
+        name='test',
+        description='Run tests',
+        command='pytest',
+        timeout=300,
+    ),
+]
+
+
+# ============================================================================
+# Result Classes
+# ============================================================================
+
+@dataclass
+class StepResult:
+    name: str
+    success: bool
+    duration: float
+    output: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ============================================================================
+# Runner
+# ============================================================================
+
+def run_step(step: ValidationStep) -> StepResult:
+    """Run a single validation step."""
+    start = time.time()
+
+    print(f'\n🔧 Running {step.name}...')
+    print(f'   Command: {step.command}')
+
+    try:
+        result = subprocess.run(
+            step.command,
+            shell=True,
+            timeout=step.timeout,
+            capture_output=True,
+            text=True,
+        )
+
+        duration = round(time.time() - start)
+
+        if result.returncode == 0:
+            print(f'   ✓ {step.name} passed ({duration}s)')
+            return StepResult(
+                name=step.name,
+                success=True,
+                duration=duration,
+                output=result.stdout,
+            )
+        else:
+            print(f'   ✗ {step.name} failed ({duration}s)')
+            if result.stderr:
+                print(f'   Error: {result.stderr[:200]}')
+            return StepResult(
+                name=step.name,
+                success=False,
+                duration=duration,
+                error=result.stderr or result.stdout,
+            )
+
+    except subprocess.TimeoutExpired:
+        duration = round(time.time() - start)
+        print(f'   ✗ {step.name} timed out ({duration}s)')
+        return StepResult(
+            name=step.name,
+            success=False,
+            duration=duration,
+            error=f'Timeout after {step.timeout}s',
+        )
+    except Exception as e:
+        duration = round(time.time() - start)
+        print(f'   ✗ {step.name} failed ({duration}s)')
+        return StepResult(
+            name=step.name,
+            success=False,
+            duration=duration,
+            error=str(e),
+        )
+
+
+def main() -> None:
+    """Main entry point."""
+    print('\n' + '═' * 55)
+    print('          Harness Validation Pipeline')
+    print('═' * 55 + '\n')
+
+    results: List[StepResult] = []
+    step_filter = None
+
+    # Parse --step argument
+    for i, arg in enumerate(sys.argv[1:], start=1):
+        if arg == '--step' and i < len(sys.argv) - 1:
+            step_filter = sys.argv[i + 1]
+            break
+
+    for step in VALIDATION_STEPS:
+        if step_filter and step.name != step_filter:
+            continue
+
+        result = run_step(step)
+        results.append(result)
+
+        if not result.success:
+            print(f'\n❌ Validation failed at step: {step.name}')
+            if result.error:
+                print(f'   {result.error}\n')
+            sys.exit(1)
+
+    # Summary
+    total_duration = sum(r.duration for r in results)
+    print('\n' + '═' * 55)
+    print('                Validation Summary')
+    print('═' * 55 + '\n')
+
+    for result in results:
+        icon = '✓' if result.success else '✗'
+        print(f'  {icon} {result.name.ljust(15)} {result.duration}s')
+
+    print(f'\n  Total: {total_duration}s')
+    print('═' * 55 + '\n')
+
+    print('✓ All validation steps passed!\n')
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

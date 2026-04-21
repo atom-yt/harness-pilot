@@ -1,0 +1,181 @@
+# {{PROJECT_NAME}} Architecture
+
+## Layer System (FastAPI)
+
+{{LAYER_RULES}}
+
+## FastAPI Specific Rules
+
+1. **Route Handler Organization**
+   - Route handlers (`api/*.py`) are Layer 4
+   - Keep handlers thin, delegate to services
+
+2. **Pydantic Models**
+   - Request/response models (`schemas/`) are Layer 0
+   - Database models (`models/`) are Layer 0
+
+3. **Dependency Injection**
+   - Dependencies (`deps.py`) are Layer 2
+   - Can be reused across routes
+
+4. **Middleware**
+   - Global middleware: Layer 4 (main.py)
+   - Custom middleware logic: Layer 2
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────┐
+│  HTTP Request                                   │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Middleware (main.py)                     │
+│       ↓                                         │
+│  Route Handler (api/*.py)                  │
+│       ↓                                         │
+│  Service Layer (services/*.py)             │
+│       ↓                                         │
+│  Utils / Lib (utils/*.py, lib/*.py)      │
+│       ↓                                         │
+│  Schemas / Models (schemas/*.py)        │
+└─────────────────────────────────────────────────┘
+```
+
+## Module Responsibilities
+
+| Layer | Directory | Responsibilities |
+|-------|-----------|----------------|
+| Layer 0 | schemas/, models/ - Pydantic models, DB models |
+| Layer 1 | utils/ - Utility functions, pure logic |
+| Layer 2 | lib/, deps/ - External wrappers, dependencies |
+| Layer 3 | services/ - Business logic, data operations |
+| Layer 4 | api/, main.py - Route handlers, app entry |
+
+## Violation Examples
+
+```
+❌ Invalid: Service importing route
+   # services/user.py
+   from api.routes import user_router
+   Fix: Move shared logic to Layer 2
+
+❌ Invalid: Schema importing service
+   # schemas/user.py
+   from services.user import get_user
+   Fix: Use only types in schemas
+
+✓ Valid: Route importing service
+   # api/routes/user.py
+   from services.user import UserService
+
+✓ Valid: Service importing dependency
+   # services/user.py
+   from deps.database import get_db
+```
+
+## FastAPI Best Practices
+
+1. **Route Handler Structure**
+   ```python
+   # api/routes/user.py
+   from fastapi import APIRouter, Depends
+   from schemas.user import UserCreate, UserResponse
+   from services.user import UserService
+   from deps.auth import get_current_user
+
+   router = APIRouter()
+
+   @router.post("/users", response_model=UserResponse)
+   async def create_user(
+       data: UserCreate,
+       service: UserService = Depends()
+   ):
+       return await service.create_user(data)
+   ```
+
+2. **Service Layer Pattern**
+   ```python
+   # services/user.py
+   from typing import List
+   from schemas.user import UserCreate, UserResponse
+   from models.user import User
+
+   class UserService:
+       def __init__(self, db=Depends(get_db)):
+           self.db = db
+
+       async def create_user(self, data: UserCreate) -> UserResponse:
+           user = User(**data.dict())
+           self.db.add(user)
+           await self.db.commit()
+           await self.db.refresh(user)
+           return UserResponse.from_orm(user)
+   ```
+
+3. **Dependency Injection**
+   ```python
+   # deps/database.py
+   from sqlalchemy.ext.asyncio import AsyncSession
+
+   async def get_db():
+       async with AsyncSession() as session:
+           yield session
+
+   # deps/auth.py
+   from fastapi import Depends, HTTPException, Header
+
+   async def get_current_user(authorization: str = Header(...)):
+       # Validate token
+       return user
+   ```
+
+4. **Pydantic Schemas**
+   ```python
+   # schemas/user.py
+   from pydantic import BaseModel, EmailStr
+   from datetime import datetime
+
+   class UserBase(BaseModel):
+       # Layer 0: Only basic types
+       email: EmailStr
+
+   class UserCreate(UserBase):
+       password: str
+
+   class UserResponse(UserBase):
+       id: int
+       created_at: datetime
+
+       class Config:
+           orm_mode = True
+   ```
+
+## File Organization Example
+
+```
+api/
+  routes/
+    user.py      # User routes
+    post.py      # Post routes
+main.py          # App entry, middleware
+
+services/
+  user.py        # User service
+  post.py        # Post service
+
+lib/
+  deps.py        # Dependencies
+  middleware.py  # Custom middleware
+
+utils/
+  security.py    # Security utilities
+  date.py        # Date utilities
+
+schemas/
+  user.py        # User schemas
+  post.py        # Post schemas
+
+models/
+  user.py        # User DB model
+  post.py        # Post DB model
+```
