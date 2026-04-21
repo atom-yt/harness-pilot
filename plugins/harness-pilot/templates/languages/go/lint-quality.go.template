@@ -68,7 +68,12 @@ func checkNoPrint(content string, filePath string) []Issue {
 				File:     filePath,
 				Line:     lineNum,
 				Rule:     "no-print",
-				Message:  "Use logger instead of fmt.Print",
+				Message:  "fmt.Print*() found.\n" +
+					"   Rule: Use structured logger instead of fmt.Print*.\n" +
+					"   Why:  fmt.Print output is unstructured and goes to stdout only. It cannot be\n" +
+					"         filtered by level, routed to files, or integrated with monitoring.\n" +
+					"   Fix:  Replace with log.Info(), log.Debug(), or log.Error() from your logger.\n" +
+					"         Use slog (Go 1.21+) or zerolog/zap for structured logging.",
 				Severity: "error",
 			})
 		}
@@ -86,7 +91,12 @@ func checkMaxFileSize(content string, filePath string) []Issue {
 			File:     filePath,
 			Line:     1,
 			Rule:     "max-file-size",
-			Message:  fmt.Sprintf("File has %d lines (max: %d)", len(lines), RULES.MaxFileSize),
+			Message:  fmt.Sprintf("File has %d lines (max: %d).\n", len(lines), RULES.MaxFileSize) +
+				fmt.Sprintf("   Rule: Single file must not exceed %d lines.\n", RULES.MaxFileSize) +
+				"   Why:  Large files are harder to navigate, review, and test. They often indicate\n" +
+				"         mixed responsibilities that should be split into separate packages.\n" +
+				"   Fix:  Extract related functions into separate files. Group by responsibility,\n" +
+				"         not by type (e.g., split by feature, not \"all helpers in one file\").",
 			Severity: "error",
 		})
 	}
@@ -109,7 +119,12 @@ func checkNoDebug(content string, filePath string) []Issue {
 				File:     filePath,
 				Line:     lineNum,
 				Rule:     "no-debug",
-				Message:  "Remove debug statements before commit",
+				Message:  "Debug statement found.\n" +
+					"   Rule: Remove all debug statements before commit.\n" +
+					"   Why:  debug.PrintStack() dumps stack traces to stderr. In production this\n" +
+					"         creates noise in logs and may expose internal implementation details.\n" +
+					"   Fix:  Delete the debug line. Use structured error wrapping (fmt.Errorf with %w)\n" +
+					"         to capture stack context in a production-safe way.",
 				Severity: "error",
 			})
 		}

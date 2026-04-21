@@ -1,6 +1,6 @@
 ---
 name: harness-pilot
-description: Transform any project into a harness-compatible form with dry-run analysis, guided build, and auto-generation modes
+description: Transform any project into a harness-compatible form with dry-run analysis and guided/auto generation modes
 ---
 
 # Harness Creator
@@ -9,11 +9,10 @@ description: Transform any project into a harness-compatible form with dry-run a
 
 ## Overview
 
-Harness Creator is a tool that transforms any codebase into a harness-compatible form. It provides three modes:
+Harness Creator is a tool that transforms any codebase into a harness-compatible form. It provides two modes:
 
-1. **harness-analyze** (dryrun) - Analyze project structure and generate health report without making changes
-2. **harness-guide** (guide mode) - Interactive guided build with step-by-step configuration
-3. **harness-apply** (auto mode) - One-click generation with default settings
+1. **harness-analyze** - Analyze project structure and generate health report without making changes
+2. **harness-apply** - Generate harness infrastructure (interactive guided mode by default, `--auto` for auto mode)
 
 ## Mode Selection
 
@@ -22,8 +21,9 @@ Ask user which mode they want to use:
 ```
 Available modes:
   1. harness-analyze  - Analyze project only (no changes)
-  2. harness-guide    - Interactive guided build
-  3. harness-apply    - Auto-generate with defaults
+  2. harness-apply    - Generate harness infrastructure (interactive by default, --auto for auto mode)
+  3. harness-execute  - Execute development tasks within harness (plan, delegate, validate)
+  4. harness-improve  - Audit harness health and self-improve
 
 Which mode? (or describe what you want to accomplish)
 ```
@@ -42,11 +42,13 @@ Performs read-only analysis of the project and outputs a health report covering:
 
 No files are modified in this mode.
 
-### harness-guide Mode
+### harness-apply Mode
 
-**Required sub-skill:** Use `harness-pilot:harness-guide`
+**Required sub-skill:** Use `harness-pilot:harness-apply`
 
-Interactive 6-step guided flow:
+Generates complete harness infrastructure including rules. Two sub-modes:
+
+**Interactive mode (default)** — 6-step guided flow:
 
 1. **Project Detection** - Detect language, framework, directory structure
 2. **Component Selection** - Choose which harness components to create
@@ -57,19 +59,41 @@ Interactive 6-step guided flow:
 
 Each step shows detected defaults and allows customization before proceeding.
 
-### harness-apply Mode
-
-**Required sub-skill:** Use `harness-pilot:harness-apply`
-
-Generates complete harness infrastructure with automatic defaults:
+**Auto mode (`--auto`)** — One-click generation with detected defaults:
 
 - Detects project language and framework
 - Uses recommended layer mapping
 - Uses default quality rule set
-- Creates all files: AGENTS.md, docs/, scripts/, harness/
+- Creates all files: AGENTS.md, docs/, scripts/, harness/, rules/
 - Validates generated scripts
 
 Best for standard-structure projects or when defaults are acceptable.
+
+### harness-execute Mode
+
+**Required sub-skill:** Use `harness-pilot:harness-execute`
+
+Executes development tasks within the harness infrastructure. Manages the full lifecycle:
+
+- **Environment detection** — Loads AGENTS.md, ARCHITECTURE.md, memory
+- **Complexity assessment** — Simple (direct) / Medium (subagent) / Complex (subagent + worktree)
+- **Task planning** — Dispatches planner agent for non-trivial tasks
+- **Subagent delegation** — Coordinator never writes code for medium+ tasks
+- **Validation pipeline** — build → lint-arch → test → verify
+- **Checkpoints** — Saves progress for resumability
+- **Memory recording** — Records experiences and failures
+
+### harness-improve Mode
+
+**Required sub-skill:** Use `harness-pilot:harness-improve`
+
+Audits harness health and self-improves:
+
+- Runs health check (reuses harness-analyze scoring)
+- Analyzes failure patterns from harness/trace/
+- Detects lint coverage gaps and stale documentation
+- Generates improvement suggestions
+- Optionally auto-applies fixes
 
 ## Generated Files
 
@@ -144,13 +168,13 @@ Would you like to:
 
 | Issue | Solution |
 |-------|----------|
-| "Language not detected" | Project may use uncommon structure; use guide mode for manual selection |
-| "Layer detection failed" | Use guide mode to manually configure layer mappings |
+| "Language not detected" | Project may use uncommon structure; use harness-apply interactive mode for manual selection |
+| "Layer detection failed" | Use harness-apply interactive mode to manually configure layer mappings |
 | "Scripts not executable" | Run `chmod +x scripts/*.ts` on generated files |
 | "Validation fails" | Check project has required build/test commands configured |
 
 ## References
 
 - [Harness Creator Design](../design-harness-pilot.md)
-- [Harness Report](../harness-report.md)
+- [Harness Report](../../../docs/harness-report.md)
 - [AGENTS.md Standard](https://github.com/agentsmd/agents.md)

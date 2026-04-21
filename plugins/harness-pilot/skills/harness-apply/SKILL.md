@@ -1,25 +1,29 @@
 ---
 name: harness-apply
-description: Auto-generate complete harness infrastructure with default settings
+description: Generate harness infrastructure with interactive guided mode (default) or auto mode
 ---
 
-# Harness Apply (Auto Mode)
+# Harness Apply
 
-**Announce at start:** "I'm using harness-apply to auto-generate harness infrastructure with default settings."
-
-**Context:** Generates complete harness infrastructure automatically using detected language/framework defaults.
+**Announce at start:** "I'm using harness-apply to generate harness infrastructure for this project."
 
 ## Overview
 
-One-click generation mode that:
+Unified generation command that creates complete harness infrastructure for any project. Supports two modes:
 
-1. Detects project language and framework automatically
-2. Uses recommended layer mapping for detected structure
-3. Uses default quality rule set
-4. Creates all files: AGENTS.md, docs/, scripts/, harness/
-5. Validates generated scripts are executable
+1. **Interactive mode (default)** — 6-step guided flow with customization at each step
+2. **Auto mode (`--auto`)** — One-click generation with detected defaults
 
-Best for: Standard-structure projects, quick setup, acceptable defaults.
+Best for: All projects. Use interactive mode for full control, auto mode for quick setup.
+
+## Mode Selection
+
+Determine mode based on user input:
+
+- **Interactive (default)**: User says "harness-apply", "apply", "guide", "harness-guide", "harness-build", "generate-rules", "harness-rules", or any variant without `--auto`
+- **Auto**: User explicitly says "harness-apply --auto", "auto mode", "harness-auto", or similar
+
+When unsure, use interactive mode.
 
 ## Template Engine Integration
 
@@ -38,7 +42,9 @@ node plugins/harness-pilot/scripts/template-engine.js \
   '{"PROJECT_NAME":"my-app","LANGUAGE":"typescript"}'
 ```
 
-## Auto Detection
+## Shared Detection Logic
+
+Both modes share the same detection functions.
 
 ### Language Detection
 
@@ -116,9 +122,17 @@ detect_structure() {
 }
 ```
 
-## Auto Configuration
+## Template Resolution Order
 
-### Default Layer Mappings
+When looking for templates, use this priority:
+
+```
+1. frameworks/{framework}/ - Framework-specific templates
+2. languages/{language}/ - Language-specific templates
+3. base/ - Base templates (fallback)
+```
+
+## Default Layer Mappings
 
 | Framework | Layer Mapping |
 |-----------|---------------|
@@ -129,9 +143,7 @@ detect_structure() {
 | **FastAPI** | 0:types/,models/, 1:utils/, 2:services/,managers/, 3:api/, 4:main.py |
 | **Gin** | 0:types/, 1:utils/, 2:services/, 3:handlers/, 4:main.go |
 
-### Default Quality Rules
-
-Always enabled by default:
+## Default Quality Rules
 
 ```javascript
 {
@@ -142,9 +154,352 @@ Always enabled by default:
 }
 ```
 
-## Generation Steps
+---
 
-### Step 1: Detect Project Info
+## Interactive Mode (Default)
+
+6-step guided flow that walks the user through building complete harness infrastructure with customization at each step.
+
+### Step 1: Project Detection
+
+**Goal**: Detect and confirm project language, framework, and directory structure.
+
+#### Detection Logic
+
+```bash
+# Detect language
+if [ -f "tsconfig.json" ] || grep -q '"typescript"' package.json; then
+  LANGUAGE="TypeScript"
+elif [ -f "package.json" ]; then
+  LANGUAGE="JavaScript"
+elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
+  LANGUAGE="Python"
+elif [ -f "go.mod" ]; then
+  LANGUAGE="Go"
+elif [ -f "Cargo.toml" ]; then
+  LANGUAGE="Rust"
+else
+  LANGUAGE="Unknown"
+fi
+
+# Detect framework
+if [ "$LANGUAGE" = "TypeScript" ]; then
+  if grep -q '"next"' package.json || [ -d "app/" ]; then
+    FRAMEWORK="Next.js"
+  elif grep -q '"react"' package.json; then
+    FRAMEWORK="React"
+  fi
+elif [ "$LANGUAGE" = "Python" ]; then
+  if [ -f "settings.py" ] || [ -f "manage.py" ]; then
+    FRAMEWORK="Django"
+  elif grep -q "fastapi" requirements.txt pyproject.toml; then
+    FRAMEWORK="FastAPI"
+  elif grep -q "flask" requirements.txt; then
+    FRAMEWORK="Flask"
+  fi
+elif [ "$LANGUAGE" = "Go" ]; then
+  if grep -q "gin" go.mod; then
+    FRAMEWORK="Gin"
+  fi
+fi
+
+# Detect directory structure
+SRC_DIR=$(find . -maxdepth 1 -type d -name "src" -o -name "lib" -o -name "app" | head -1)
+TYPES_DIR=$(find . -maxdepth 2 -type d -name "types" -o -name "types" | head -1)
+UTILS_DIR=$(find . -maxdepth 2 -type d -name "utils" -o -name "util" | head -1)
+```
+
+#### Output Template
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Project Detection                                  │
+├─────────────────────────────────────────────────────────┤
+│                                                  │
+│  Language: [TypeScript/JavaScript/Python/Go/Rust] │
+│  Framework: [Next.js/React/Django/etc.]              │
+│  Directory: [src/lib/app]                           │
+│  Source dirs: [types/, utils/, components/, etc.]  │
+│                                                  │
+│  Is this correct?                                    │
+│  [Yes] [No - Edit manually]                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+If user confirms, proceed to Step 2. If user says no, ask for correct values.
+
+### Step 2: Component Selection
+
+**Goal**: Select which harness components to create.
+
+#### Available Components
+
+| Component | Description | Size |
+|-----------|-------------|------|
+| AGENTS.md | Navigation map (~100 lines) | Small |
+| docs/ARCHITECTURE.md | Architecture, layers, rules | Medium |
+| docs/DEVELOPMENT.md | Build/test/lint commands | Small |
+| scripts/lint-deps | Layer dependency checker | Medium |
+| scripts/lint-quality | Code quality rules | Medium |
+| scripts/validate | Unified validation pipeline | Medium |
+| scripts/verify/ | E2E verification scripts | Large |
+| scripts/verify-action | Pre-validation for structural operations | Medium |
+| harness/memory/ | Three types of memory | Medium |
+| harness/tasks/ | Task state and checkpoints | Small |
+| harness/trace/ | Failure records | Small |
+| rules/ | AI rules for safety, git, language-specific | Medium |
+
+#### Output Template
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Select Harness Components                           │
+├─────────────────────────────────────────────────────────┤
+│                                                  │
+│  Core Components:                                  │
+│  ☑ AGENTS.md (navigation map)                   │
+│  ☑ docs/ARCHITECTURE.md (architecture rules)      │
+│  ☑ docs/DEVELOPMENT.md (dev commands)            │
+│  ☑ docs/PRODUCT_SENSE.md (business context)      │
+│                                                  │
+│  Validation Scripts:                                 │
+│  ☑ scripts/lint-deps (layer checking)              │
+│  ☑ scripts/lint-quality (code quality)              │
+│  ☑ scripts/validate (unified pipeline)             │
+│  ☑ scripts/verify-action (pre-validation)          │
+│  ☐ scripts/verify/ (E2E tests)                  │
+│                                                  │
+│  Harness Storage:                                   │
+│  ☑ harness/memory/ (experience storage)              │
+│  ☑ harness/tasks/ (task state)                    │
+│  ☑ harness/trace/ (failure records)                │
+│                                                  │
+│  AI Rules:                                           │
+│  ☑ rules/common/safety.md (safety constraints)   │
+│  ☑ rules/common/git-workflow.md (commit standards) │
+│  ☑ rules/{{LANGUAGE}}/development.md (language rules) │
+│                                                  │
+│  [Select All] [Minimum Recommended]                │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Rules Explanation:**
+- `rules/common/safety.md` - Safety constraints (no destructive operations, no credential exposure)
+- `rules/common/git-workflow.md` - Git workflow standards (commit format, branch naming)
+- `rules/{{LANGUAGE}}/development.md` - Language-specific development rules
+
+Save user selection for Step 6 generation.
+
+### Step 3: Layer Mapping
+
+**Goal**: Configure dependency layer rules.
+
+#### Default Layer Mapping by Framework
+
+**Next.js (TypeScript)**:
+```
+Layer 0: types/             → No internal dependencies
+Layer 1: utils/             → Tools, depends on Layer 0
+Layer 2: lib/               → External library wrappers, depends on Layer 0-1
+Layer 3: components/, services/ → Business logic, depends on Layer 0-2
+Layer 4: app/, api/        → Interface layer, depends on Layer 0-3
+```
+
+**React**:
+```
+Layer 0: types/
+Layer 1: utils/
+Layer 2: hooks/, contexts/
+Layer 3: components/, services/
+Layer 4: pages/, app/
+```
+
+**Django (Python)**:
+```
+Layer 0: models.py, types/
+Layer 1: utils/, helpers/
+Layer 2: services/, managers/
+Layer 3: views/, api/
+Layer 4: urls.py, admin.py
+```
+
+#### Output Template
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Layer Mapping Configuration                       │
+├─────────────────────────────────────────────────────────┤
+│                                                  │
+│  Detected directories:                             │
+│    [types/], [utils/], [lib/], [components/]  │
+│                                                  │
+│  Recommended Layer Mapping:                          │
+│  Layer 0: [types/] (no internal deps)            │
+│  Layer 1: [utils/] (depends on Layer 0)          │
+│  Layer 2: [lib/] (depends on Layer 0-1)           │
+│  Layer 3: [components/, services/] (Layer 0-2)     │
+│  Layer 4: [app/, api/] (Layer 0-3)              │
+│                                                  │
+│  Rule: Higher layers can import lower layers.           │
+│        Lower layers CANNOT import higher layers.         │
+│                                                  │
+│  [Use This Mapping] [Customize]               │
+└─────────────────────────────────────────────────────────┘
+```
+
+If user selects Customize, ask for manual layer configuration.
+
+### Step 4: Quality Rules
+
+**Goal**: Select code quality rules to enforce.
+
+#### Available Rules
+
+| Rule | Description | Default |
+|------|-------------|---------|
+| no_console_log | Prohibit console.log / print(), require structured logging | ☑ |
+| max_file_size | Single file not to exceed 500 lines | ☑ |
+| no_hardcoded_strings | No hardcoded brand or config strings | ☐ |
+| typescript_strict_mode | Force TypeScript strict mode | ☑ |
+
+#### Output Template
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Quality Rules Selection                           │
+├─────────────────────────────────────────────────────────┤
+│                                                  │
+│  Select rules to enforce:                          │
+│  ☑ No console.log / print() (use logger)          │
+│  ☑ Max 500 lines per file                         │
+│  ☑ TypeScript strict mode                           │
+│  ☐ No hardcoded strings                           │
+│                                                  │
+│  [All Recommended] [Customize]                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Step 5: Validation Pipeline
+
+**Goal**: Configure build/lint/test/verify commands.
+
+#### Default Commands by Language
+
+**TypeScript/JavaScript**:
+```json
+{
+  "build": "npm run build",
+  "test": "npm test",
+  "lint": "npm run lint",
+  "lint_arch": "ts-node scripts/lint-deps.ts",
+  "validate": "ts-node scripts/validate.ts"
+}
+```
+
+**Python**:
+```json
+{
+  "build": "pip install -e .",
+  "test": "pytest",
+  "lint": "ruff check .",
+  "lint_arch": "python scripts/lint-deps.py",
+  "validate": "python scripts/validate.py"
+}
+```
+
+**Go**:
+```json
+{
+  "build": "go build ./...",
+  "test": "go test ./...",
+  "lint": "golangci-lint run",
+  "lint_arch": "go run scripts/lint-deps.go",
+  "validate": "go run scripts/validate.go"
+}
+```
+
+#### Output Template
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Validation Pipeline Configuration                  │
+├─────────────────────────────────────────────────────────┤
+│                                                  │
+│  Detected commands:                                │
+│    Build: [npm run build]                       │
+│    Test:  [npm test]                             │
+│    Lint:   [npm run lint]                           │
+│                                                  │
+│  Harness validation:                              │
+│    lint_arch: [ts-node scripts/lint-deps.ts]     │
+│    validate:  [ts-node scripts/validate.ts]        │
+│                                                  │
+│  Validation order:                                │
+│    build → lint_arch → test → validate            │
+│                                                  │
+│  [Use These Commands] [Customize]              │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Step 6: Confirm & Generate
+
+**Goal**: Preview all selected components and confirm before generation.
+
+#### Preview Template
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Harness Generation Preview                        │
+├─────────────────────────────────────────────────────────┤
+│                                                  │
+│  Project: [Project Name]                           │
+│  Language: [TypeScript]                           │
+│  Framework: [Next.js]                              │
+│                                                  │
+│  Components to Create:                              │
+│    ✓ AGENTS.md                                    │
+│    ✓ docs/ARCHITECTURE.md                          │
+│    ✓ docs/DEVELOPMENT.md                           │
+│    ✓ scripts/lint-deps.ts                         │
+│    ✓ scripts/lint-quality.ts                        │
+│    ✓ scripts/validate.ts                           │
+│    ✓ harness/memory/                                │
+│    ✓ harness/tasks/                                 │
+│    ✓ harness/trace/                                │
+│    ✓ rules/common/safety.md                        │
+│    ✓ rules/common/git-workflow.md                   │
+│    ✓ rules/typescript/development.md                │
+│                                                  │
+│  Files to create: 12                              │
+│  Directories to create: 6                          │
+│                                                  │
+│  [Confirm & Generate] [Go Back]                │
+└─────────────────────────────────────────────────────────┘
+```
+
+After user confirms, execute the shared generation flow (see below).
+
+---
+
+## Auto Mode (--auto)
+
+**Announce at start:** "I'm using harness-apply in auto mode to generate harness infrastructure with default settings."
+
+**Context:** Generates complete harness infrastructure automatically using detected language/framework defaults. No user interaction required.
+
+One-click generation mode that:
+
+1. Detects project language and framework automatically
+2. Uses recommended layer mapping for detected structure
+3. Uses default quality rule set
+4. Creates all files: AGENTS.md, docs/, scripts/, harness/, rules/
+5. Validates generated scripts are executable
+
+Best for: Standard-structure projects, quick setup, acceptable defaults.
+
+### Auto Mode Steps
+
+#### Step 1: Detect Project Info
 
 ```bash
 LANGUAGE=$(detect_language)
@@ -157,9 +512,7 @@ echo "  Framework: $FRAMEWORK"
 echo "  Project: $PROJECT_NAME"
 ```
 
-### Step 2: Build Context for Template Engine
-
-Create a JSON context for template rendering:
+#### Step 2: Build Context for Template Engine
 
 ```bash
 CONTEXT="{
@@ -170,7 +523,7 @@ CONTEXT="{
 }"
 ```
 
-### Step 3: Create Directory Structure
+#### Step 3: Create Directory Structure
 
 ```bash
 mkdir -p docs docs/design-docs docs/exec-plans
@@ -182,9 +535,17 @@ mkdir -p rules/common
 mkdir -p rules/$LANGUAGE
 ```
 
-### Step 4: Render and Generate Files
+#### Step 4: Generate All Files
 
-#### AGENTS.md
+Uses the shared generation flow (see below) with all components selected and default configuration.
+
+---
+
+## Shared Generation Flow
+
+Both modes use the same generation logic after configuration is finalized.
+
+### Render AGENTS.md
 
 ```bash
 TEMPLATE="plugins/harness-pilot/templates/base/AGENTS.md.template"
@@ -194,7 +555,7 @@ if [ -f "$TEMPLATE" ]; then
 fi
 ```
 
-#### docs/ARCHITECTURE.md
+### Render docs/ARCHITECTURE.md
 
 ```bash
 # Priority: framework > language > base
@@ -211,7 +572,7 @@ node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > d
 echo "  ✓ docs/ARCHITECTURE.md"
 ```
 
-#### docs/DEVELOPMENT.md
+### Render docs/DEVELOPMENT.md
 
 ```bash
 TEMPLATE="plugins/harness-pilot/templates/base/DEVELOPMENT.md.template"
@@ -219,7 +580,17 @@ node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > d
 echo "  ✓ docs/DEVELOPMENT.md"
 ```
 
-#### Scripts (Language-specific)
+### Render docs/PRODUCT_SENSE.md
+
+```bash
+TEMPLATE="plugins/harness-pilot/templates/base/PRODUCT_SENSE.md.template"
+if [ -f "$TEMPLATE" ]; then
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > docs/PRODUCT_SENSE.md
+  echo "  ✓ docs/PRODUCT_SENSE.md"
+fi
+```
+
+### Render Scripts (Language-specific)
 
 ```bash
 # Determine file extension
@@ -264,9 +635,17 @@ if [ -f "$TEMPLATE" ]; then
   chmod +x scripts/validate.$EXT
   echo "  ✓ scripts/validate.$EXT"
 fi
+
+# verify-action (pre-validation)
+TEMPLATE="plugins/harness-pilot/templates/languages/$LANGUAGE/verify-action.$EXT.template"
+if [ -f "$TEMPLATE" ]; then
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > scripts/verify-action.$EXT
+  chmod +x scripts/verify-action.$EXT
+  echo "  ✓ scripts/verify-action.$EXT"
+fi
 ```
 
-#### Rules
+### Render Rules
 
 ```bash
 # Common rules
@@ -286,9 +665,7 @@ if [ -f "$TEMPLATE" ]; then
 fi
 ```
 
-### Step 5: Create Empty Harness Directories
-
-The harness/ directory structure is created in Step 3. Add placeholder README files:
+### Create Harness Placeholders
 
 ```bash
 echo "# Harness Memory\n\nThis directory stores agent memories:\n- episodic/ - Event memories\n- procedural/ - Process memories\n- failures/ - Failure analysis\n" > harness/memory/README.md
@@ -322,13 +699,15 @@ Files created:
 
 Next steps:
   1. Review AGENTS.md to understand the structure
-  2. Run \`npm run lint\` or \`make lint\` to check existing code
-  3. Run \`npm run validate\` or \`make validate\` to test verification pipeline
-  4. Read docs/ARCHITECTURE.md to understand layer rules
+  2. Review rules/ to understand mandatory constraints
+  3. Run `npm run lint` or `make lint` to check existing code
+  4. Run `npm run validate` or `make validate` to test verification pipeline
+  5. Read docs/ARCHITECTURE.md to understand layer rules
 
 Would you like to:
   [ ] Run lint now to see existing issues
   [ ] Open AGENTS.md for review
+  [ ] Review rules/ for mandatory constraints
   [ ] Create a test file to verify harness works
 ```
 
@@ -341,15 +720,14 @@ Would you like to:
 | File already exists | Ask user to overwrite or skip |
 | Permission denied | Inform user and suggest chmod |
 
-## Template Resolution Order
+## Template Variables
 
-When looking for templates, use this priority:
-
-```
-1. frameworks/{framework}/ - Framework-specific templates
-2. languages/{language}/ - Language-specific templates
-3. base/ - Base templates (fallback)
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `PROJECT_NAME` | Project name from package.json or directory | my-app |
+| `LANGUAGE` | Detected language | typescript |
+| `FRAMEWORK` | Detected framework | nextjs |
+| `CURRENT_YEAR` | Current year | 2026 |
 
 ## After Generation
 
@@ -357,4 +735,4 @@ Offer follow-up options:
 
 1. **harness-analyze** - Verify health of generated harness
 2. **Begin development** - Start using harness for tasks
-3. **harness-guide** - Regenerate with different settings
+3. **Regenerate** - Run harness-apply again with different settings

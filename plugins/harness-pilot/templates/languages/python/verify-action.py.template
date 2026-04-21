@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""
+Pre-validation: Verify Action
+Checks whether a structural operation is valid BEFORE execution.
+
+Usage:
+    python scripts/verify-action.py --action "create file types/user.py"
+    python scripts/verify-action.py --action "import services from types/models.py"
+"""
+
+import argparse
+import re
+import sys
+from typing import Dict, Optional, Tuple
+
+# ============================================================================
+# Layer Configuration (must match lint-deps.py)
+# ============================================================================
+
+LAYERS: Dict[str, int] = {
+    'types': 0, 'models': 0, 'schemas': 0, 'dtos': 0,
+    'utils': 1, 'helpers': 1, 'common': 1,
+    'lib': 2, 'config': 2, 'constants': 2,
+    'services': 3, 'core': 3, 'domain': 3, 'managers': 3,
+    'api': 4, 'views': 4, 'controllers': 4, 'handlers': 4,
+    'routers': 4, 'routes': 4, 'endpoints': 4,
+}
+
+LAYER_NAMES: Dict[int, str] = {
+    0: 'Types (pure definitions, no internal dependencies)',
+    1: 'Utils (tools, depends on Layer 0 only)',
+    2: 'Libraries & Config (depends on Layer 0-1)',
+    3: 'Services & Business Logic (depends on Layer 0-2)',
+    4: 'Interface Layer (depends on Layer 0-3, no mutual imports)',
+}
+
+# ============================================================================
+# Helpers
+# ============================================================================
+
+def get_layer_from_path(file_path: str) -> Optional[int]:
+    parts = file_path.replace('\\', '/').split('/')
+    for part in parts:
+        if part in LAYERS:
+            return LAYERS[part]
+    return None
+
+
+def parse_action(action: str) -> dict:
+    # "create file types/user.py"
+    m = re.match(r'^create\s+file\s+(.+)$', action, re.IGNORECASE)
+    if m:
+        return {'type': 'create', 'path': m.group(1).strip()}
+
+    # "import services from types/models.py"
+    m = re.match(r'^import\s+(\S+)\s+from\s+(\S+)$', action, re.IGNORECASE)
+    if m:
+        return {'type': 'import', 'target': m.group(1).strip(), 'source': m.group(2).strip()}
+
+    # "move file types/old.py to utils/new.py"
+    m = re.match(r'^move\s+file\s+(\S+)\s+to\s+(\S+)$', action, re.IGNORECASE)
+    if m:
+        return {'type': 'move', 'source': m.group(1).strip(), 'target': m.group(2).strip()}
+
+    return {'type': 'unknown'}
+
+
+# ============================================================================
+# Validators
+# ============================================================================
+
+def validate_create_file(file_path: str) -> Tuple[bool, str]:
+    layer = get_layer_from_path(file_path)
+    known = ', '.join(f'{k}/ (L{v})' for k, v in sorted(LAYERS.items(), key=lambda x: x[1]))
+
+    if layer is None:
+        return False, '\n'.join([
+            f'? UNKNOWN: "{file_path}" is not mapped to any known layer.',
+            f'  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md,',
+            f'          or confirm with the team which layer it belongs to.',
+            f'  Known layers: {known}',
+        ])
+
+    return True, '\n'.join([
+        f'✓ VALID: "{file_path}" is in Layer {layer} — {LAYER_NAMES[layer]}.',
+        f'  This location is appropriate for the file.',
+    ])
+
+
+def validate_import(source_path: str, target_path: str) -> Tuple[bool, str]:
+    source_layer = get_layer_from_path(source_path)
+    target_layer = get_layer_from_path(target_path)
+
+    if source_layer is None or target_layer is None:
+        unknown = source_path if source_layer is None else target_path
+        return False, '\n'.join([
+            f'? UNKNOWN: "{unknown}" is not mapped to any known layer.',
+            f'  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md.',
+        ])
+
+    if target_layer > source_layer:
+        return False, '\n'.join([
+            f'✗ INVALID: "{source_path}" (Layer {source_layer}) cannot import "{target_path}" (Layer {target_layer}).',
+            f'  Rule: Layer {source_layer} packages must only depend on Layer 0-{max(0, source_layer - 1)}.',
+            f'  Why: {LAYER_NAMES[source_layer]} should not depend on {LAYER_NAMES[target_layer]}.',
+            f'       Allowing this would create upward dependencies that break modularity.',
+            f'  Fix: Move the needed logic to Layer {source_layer} or lower,',
+            f'       or pass the dependency as a parameter/interface from a higher layer.',
+        ])
+
+    # Same-layer imports in Layer 4 are not allowed across different modules
+    if source_layer == 4 and target_layer == 4 and source_path != target_path:
+        source_dir = source_path.split('/')[0]
+        target_dir = target_path.split('/')[0]
+        if source_dir != target_dir:
+            return False, '\n'.join([
+                f'✗ INVALID: "{source_path}" (Layer 4) cannot import "{target_path}" (Layer 4).',
+                f'  Rule: Layer 4 interface modules must not import each other.',
+                f'  Why: api/, views/, controllers/, handlers/ are all entry points.',
+                f'       Mutual imports between them create circular dependencies.',
+                f'  Fix: Extract shared logic into Layer 3 (services) or lower,',
+                f'       then have both modules depend on the shared layer.',
+            ])
+
+    return True, '\n'.join([
+        f'✓ VALID: "{source_path}" (Layer {source_layer}) can import "{target_path}" (Layer {target_layer}).',
+        f'  Layer {source_layer} is allowed to depend on Layer {target_layer} (higher importing lower).',
+    ])
+
+
+def validate_move(from_path: str, to_path: str) -> Tuple[bool, str]:
+    to_valid, to_msg = validate_create_file(to_path)
+    if not to_valid:
+        return to_valid, to_msg
+
+    from_layer = get_layer_from_path(from_path)
+    to_layer = get_layer_from_path(to_path)
+
+    return True, '\n'.join([
+        f'✓ VALID: Move "{from_path}" (Layer {from_layer}) to "{to_path}" (Layer {to_layer}).',
+        f'  Note: After moving, check that all existing imports of this file still respect layer rules.',
+        f'  Run: python scripts/lint-deps.py to verify no new violations.',
+    ])
+
+
+# ============================================================================
+# Main
+# ============================================================================
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description='Pre-validate structural operations against layer rules')
+    parser.add_argument('--action', required=True, help='Action to validate')
+    args = parser.parse_args()
+
+    parsed = parse_action(args.action)
+
+    if parsed['type'] == 'create':
+        valid, message = validate_create_file(parsed['path'])
+    elif parsed['type'] == 'import':
+        valid, message = validate_import(parsed['source'], parsed['target'])
+    elif parsed['type'] == 'move':
+        valid, message = validate_move(parsed['source'], parsed['target'])
+    else:
+        valid = False
+        message = '\n'.join([
+            f'? Unrecognized action: "{args.action}"',
+            f'  Supported: "create file <path>", "import <target> from <source>", "move file <from> to <to>"',
+        ])
+
+    print()
+    print(message)
+    print()
+    sys.exit(0 if valid else 1)
+
+
+if __name__ == '__main__':
+    main()

@@ -49,7 +49,12 @@ function checkNoConsoleLog(content: string, filePath: string): Issue[] {
         file: filePath,
         line: index + 1,
         rule: 'no-console-log',
-        message: 'Use structured logger instead of console.log',
+        message: 'console.log() found.\n'
+          + '   Rule: Use structured logger instead of console.log.\n'
+          + '   Why:  console.log output is unstructured, cannot be filtered by level,\n'
+          + '         and is lost in production. Structured logging enables monitoring and debugging.\n'
+          + '   Fix:  Replace with logger.info(), logger.debug(), or logger.error().\n'
+          + '         Import the project logger from utils/ or lib/.',
         severity: 'error',
       });
     }
@@ -67,7 +72,12 @@ function checkMaxFileSize(content: string, filePath: string): Issue[] {
       file: filePath,
       line: 1,
       rule: 'max-file-size',
-      message: `File has ${lines.length} lines (max: ${RULES.maxFileSize})`,
+      message: `File has ${lines.length} lines (max: ${RULES.maxFileSize}).\n`
+        + `   Rule: Single file must not exceed ${RULES.maxFileSize} lines.\n`
+        + '   Why:  Large files are harder to navigate, review, and test. They often indicate\n'
+        + '         mixed responsibilities that should be split into separate modules.\n'
+        + '   Fix:  Extract related functions into separate files. Group by responsibility,\n'
+        + '         not by type (e.g., split by feature, not "all helpers in one file").',
       severity: 'error',
     });
   }
@@ -85,7 +95,11 @@ function checkNoDebugger(content: string, filePath: string): Issue[] {
         file: filePath,
         line: index + 1,
         rule: 'no-debugger',
-        message: 'Remove debugger statement before commit',
+        message: 'debugger statement found.\n'
+          + '   Rule: Remove all debugger statements before commit.\n'
+          + '   Why:  debugger pauses execution in browser DevTools. If shipped to production,\n'
+          + '         it freezes the application for end users.\n'
+          + '   Fix:  Delete the debugger line. Use conditional breakpoints in DevTools instead.',
         severity: 'error',
       });
     }
@@ -104,7 +118,12 @@ function checkNoAny(content: string, filePath: string): Issue[] {
         file: filePath,
         line: index + 1,
         rule: 'no-any',
-        message: 'Avoid using "any" type',
+        message: '"any" type found.\n'
+          + '   Rule: Avoid using the "any" type in TypeScript.\n'
+          + '   Why:  "any" disables type checking, defeating the purpose of TypeScript.\n'
+          + '         It hides bugs that the compiler would otherwise catch at build time.\n'
+          + '   Fix:  Use a specific type, generic, or "unknown" if the type is truly dynamic.\n'
+          + '         If interfacing with untyped JS, create a type declaration file.',
         severity: 'warning',
       });
     }

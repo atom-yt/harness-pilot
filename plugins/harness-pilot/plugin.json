@@ -4,6 +4,27 @@
   "description": "Transform any project into a harness-compatible form with dry-run analysis, guided build, and auto-generation modes",
   "author": "harness-pilot",
   "keywords": ["harness", "project-structure", "lint", "architecture", "validation"],
+  "hooks": [
+    {
+      "type": "SessionStart",
+      "command": "plugins/harness-pilot/hooks/session-start",
+      "description": "Auto-load harness context (AGENTS.md) on session start"
+    }
+  ],
+  "agents": [
+    {
+      "name": "planner",
+      "description": "Expert planning specialist for complex features. Creates detailed execution plans with task breakdown, impact analysis, and verification steps."
+    },
+    {
+      "name": "code-reviewer",
+      "description": "Senior code reviewer that checks implementation against plan, architecture rules, and quality standards."
+    },
+    {
+      "name": "harness-guardian",
+      "description": "Harness infrastructure guardian that pre-validates structural operations against layer rules and enforces architecture constraints."
+    }
+  ],
   "skills": [
     {
       "name": "harness-analyze",
@@ -11,30 +32,30 @@
       "trigger": ["analyze", "harness-analyze", "project-analysis"]
     },
     {
-      "name": "harness-guide",
-      "description": "Interactive guided build mode with step-by-step configuration",
-      "trigger": ["harness-guide", "guide", "harness-build"]
-    },
-    {
       "name": "harness-apply",
-      "description": "Auto-generate complete harness infrastructure with default settings",
-      "trigger": ["harness-apply", "apply-harness", "harness-auto"]
+      "description": "Generate harness infrastructure with interactive guided mode (default) or auto mode",
+      "trigger": ["harness-apply", "apply-harness", "harness-auto", "harness-guide", "guide", "harness-build", "harness-generate-rules", "generate-rules", "harness-rules"]
     },
     {
-      "name": "harness-generate-rules",
-      "description": "Generate AI rules for safety, git workflow, and language-specific development guidelines",
-      "trigger": ["harness-generate-rules", "generate-rules", "harness-rules"]
+      "name": "harness-execute",
+      "description": "Execute development tasks within harness infrastructure with planning, subagent delegation, validation, and memory",
+      "trigger": ["execute", "harness-execute", "dev", "implement", "build-feature"]
+    },
+    {
+      "name": "harness-improve",
+      "description": "Audit harness health and self-improve by analyzing failure patterns, detecting lint coverage gaps, and applying targeted fixes",
+      "trigger": ["improve", "harness-improve", "harness-health", "harness-audit"]
     }
   ],
   "supportedLanguages": ["typescript", "javascript", "python", "go", "rust"],
   "supportedFrameworks": ["nextjs", "react", "express", "django", "fastapi", "flask", "gin"],
   "templates": {
-    "base": ["AGENTS.md", "ARCHITECTURE.md", "DEVELOPMENT.md"],
+    "base": ["AGENTS.md", "ARCHITECTURE.md", "DEVELOPMENT.md", "PRODUCT_SENSE.md", "exec-plan.md"],
     "languages": {
-      "typescript": ["lint-deps.ts", "lint-quality.ts", "validate.ts"],
+      "typescript": ["lint-deps.ts", "lint-quality.ts", "validate.ts", "verify-action.ts"],
       "javascript": ["development.md"],
-      "python": ["lint-deps.py", "lint-quality.py", "validate.py", "development.md"],
-      "go": ["lint-deps.go", "lint-quality.go", "validate.go", "development.md"]
+      "python": ["lint-deps.py", "lint-quality.py", "validate.py", "verify-action.py", "development.md"],
+      "go": ["lint-deps.go", "lint-quality.go", "validate.go", "verify-action.go", "development.md"]
     },
     "frameworks": {
       "nextjs": ["ARCHITECTURE.md"],

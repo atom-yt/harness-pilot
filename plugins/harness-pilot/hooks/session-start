@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# harness-pilot session-start hook
+# Auto-loads harness context (AGENTS.md) when a session starts.
+# Supports Claude Code, Codex, and Cursor platforms.
+
+set -euo pipefail
+
+AGENTS_FILE="AGENTS.md"
+HARNESS_DIR="harness"
+MAX_AGENTS_LINES=100
+
+build_output() {
+  local output=""
+
+  if [ -f "$AGENTS_FILE" ]; then
+    # Read AGENTS.md (truncate if too long)
+    local line_count
+    line_count=$(wc -l < "$AGENTS_FILE" | tr -d ' ')
+    if [ "$line_count" -gt "$MAX_AGENTS_LINES" ]; then
+      agents_content=$(head -n "$MAX_AGENTS_LINES" "$AGENTS_FILE")
+      agents_content="${agents_content}\n\n... (truncated, full file: ${AGENTS_FILE})"
+    else
+      agents_content=$(cat "$AGENTS_FILE")
+    fi
+    output="[harness-pilot] Harness detected. Project context loaded from AGENTS.md.\n\n${agents_content}"
+
+    # Check for active tasks
+    if [ -d "$HARNESS_DIR/tasks" ]; then
+      active_tasks=$(find "$HARNESS_DIR/tasks" -name "*.md" -maxdepth 1 2>/dev/null | head -5)
+      if [ -n "$active_tasks" ]; then
+        output="${output}\n\n--- Active Tasks ---"
+        for task_file in $active_tasks; do
+          task_name=$(basename "$task_file" .md)
+          output="${output}\n- ${task_name}"
+        done
+      fi
+    fi
+
+    # Check for recent failures
+    if [ -d "$HARNESS_DIR/trace/failures" ]; then
+      failure_count=$(find "$HARNESS_DIR/trace/failures" -name "*.md" -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$failure_count" -gt 0 ]; then
+        output="${output}\n\n--- Recent Failures: ${failure_count} recorded (see harness/trace/failures/) ---"
+      fi
+    fi
+  else
+    output="[harness-pilot] No harness detected in this project. Run 'harness-analyze' to assess or 'harness-apply' to generate harness infrastructure."
+  fi
+
+  echo "$output"
+}
+
+# Build context output
+raw_output=$(build_output)
+
+# Escape for JSON
+json_output=$(echo "$raw_output" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+
+# Platform-specific output format
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  # Cursor: snake_case format
+  echo "{\"additional_context\": \"${json_output}\"}"
+elif [ -n "${CODEX_PLUGIN_ROOT:-}" ]; then
+  # Codex: SDK standard format
+  echo "{\"additionalContext\": \"${json_output}\"}"
+else
+  # Claude Code (default): nested format
+  echo "{\"hookSpecificOutput\": {\"additionalContext\": \"${json_output}\"}}"
+fi

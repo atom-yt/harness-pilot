@@ -1,0 +1,64 @@
+# {{PROJECT_NAME}} — Product Context
+
+## What This Project Does
+
+<!-- One paragraph describing the product's purpose and value proposition -->
+
+## Target Users
+
+<!-- Who uses this product and what are their key characteristics -->
+
+## Core User Journeys
+
+<!-- The 3-5 most important user workflows. Each journey should describe: who, what, why -->
+
+1. **[Journey Name]**: [User] does [action] to achieve [goal]
+2. **[Journey Name]**: [User] does [action] to achieve [goal]
+3. **[Journey Name]**: [User] does [action] to achieve [goal]
+
+## Business Rules
+
+<!-- Non-obvious business logic that affects implementation decisions -->
+
+| Rule | Description | Affected Modules |
+|------|-------------|-----------------|
+| | | |
+
+## Domain Terminology
+
+<!-- Key terms and their meanings specific to this project's context -->
+
+| Term | Meaning | Example |
+|------|---------|---------|
+| | | |
+
+## External Dependencies
+
+<!-- Third-party services, APIs, or systems this project depends on -->
+
+| Dependency | Purpose | Criticality |
+|-----------|---------|-------------|
+| | | |
+
+## What NOT to Change Without Discussion
+
+<!-- Critical paths, external contracts, API schemas, or behaviors that are stable and should not be modified without team consensus -->
+
+- [ ] 
+- [ ] 
+- [ ] 
+
+## Performance Expectations
+
+<!-- Key performance requirements or SLAs -->
+
+| Metric | Target | Current |
+|--------|--------|---------|
+| | | |
+
+## Security Considerations
+
+<!-- Security-sensitive areas that require extra care -->
+
+- [ ] 
+- [ ] 

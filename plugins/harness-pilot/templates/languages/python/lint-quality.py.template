@@ -57,7 +57,12 @@ def check_no_print(content: str, file_path: str) -> List[Issue]:
                 file=file_path,
                 line=i + 1,
                 rule='no-print',
-                message='Use logger instead of print()',
+                message='print() found.\n'
+                    '   Rule: Use logger instead of print().\n'
+                    '   Why:  print() output is unstructured and goes to stdout only. It cannot be\n'
+                    '         filtered by level, routed to files, or integrated with monitoring.\n'
+                    '   Fix:  Replace with logging.info(), logging.debug(), or logging.error().\n'
+                    '         Import logging and configure it at module level.',
                 severity='error'
             ))
 
@@ -75,7 +80,12 @@ def check_max_file_size(content: str, file_path: str) -> List[Issue]:
             file=file_path,
             line=1,
             rule='max-file-size',
-            message=f'File has {len(lines)} lines (max: {max_size})',
+            message=f'File has {len(lines)} lines (max: {max_size}).\n'
+                f'   Rule: Single file must not exceed {max_size} lines.\n'
+                '   Why:  Large files are harder to navigate, review, and test. They often indicate\n'
+                '         mixed responsibilities that should be split into separate modules.\n'
+                '   Fix:  Extract related functions into separate files. Group by responsibility,\n'
+                '         not by type (e.g., split by feature, not "all helpers in one file").',
             severity='error'
         ))
 
@@ -88,12 +98,16 @@ def check_no_debugger(content: str, file_path: str) -> List[Issue]:
     lines = content.split('\n')
 
     for i, line in enumerate(lines):
-        if re.search(r'\bdebugger\b', line):
+        if re.search(r'\bdebugger\b', line) or re.search(r'\bbreakpoint\s*\(\s*\)', line) or re.search(r'\bpdb\.set_trace\s*\(\s*\)', line):
             issues.append(Issue(
                 file=file_path,
                 line=i + 1,
                 rule='no-debugger',
-                message='Remove debugger statement before commit',
+                message='Debugger statement found.\n'
+                    '   Rule: Remove all debugger/breakpoint statements before commit.\n'
+                    '   Why:  breakpoint() and pdb.set_trace() pause execution and wait for\n'
+                    '         interactive input. If shipped to production, the process hangs.\n'
+                    '   Fix:  Delete the debugger line. Use conditional breakpoints in your IDE instead.',
                 severity='error'
             ))
 

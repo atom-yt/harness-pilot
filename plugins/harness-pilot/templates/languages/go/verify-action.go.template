@@ -1,0 +1,225 @@
+// +build ignore
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// ============================================================================
+// Layer Configuration (must match lint-deps.go)
+// ============================================================================
+
+var LAYERS = map[string]int{
+	"types": 0, "models": 0, "schemas": 0,
+	"utils": 1, "helpers": 1, "common": 1,
+	"lib": 2, "config": 2, "constants": 2,
+	"services": 3, "core": 3, "domain": 3, "managers": 3,
+	"api": 4, "handlers": 4, "controllers": 4, "routes": 4, "routers": 4, "endpoints": 4,
+}
+
+var LAYER_NAMES = map[int]string{
+	0: "Types (pure definitions, no internal dependencies)",
+	1: "Utils (tools, depends on Layer 0 only)",
+	2: "Libraries & Config (depends on Layer 0-1)",
+	3: "Services & Business Logic (depends on Layer 0-2)",
+	4: "Interface Layer (depends on Layer 0-3, no mutual imports)",
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+func getLayerFromPath(filePath string) (int, bool) {
+	parts := strings.Split(filepath.ToSlash(filePath), "/")
+	for _, part := range parts {
+		if layer, ok := LAYERS[part]; ok {
+			return layer, true
+		}
+	}
+	return -1, false
+}
+
+func knownLayersStr() string {
+	seen := map[string]bool{}
+	var parts []string
+	for k, v := range LAYERS {
+		key := fmt.Sprintf("%s/ (L%d)", k, v)
+		if !seen[key] {
+			seen[key] = true
+			parts = append(parts, key)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// ============================================================================
+// Validators
+// ============================================================================
+
+func validateCreateFile(filePath string) (bool, string) {
+	layer, ok := getLayerFromPath(filePath)
+	if !ok {
+		return false, fmt.Sprintf(
+			"? UNKNOWN: \"%s\" is not mapped to any known layer.\n"+
+				"  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md,\n"+
+				"          or confirm with the team which layer it belongs to.\n"+
+				"  Known layers: %s", filePath, knownLayersStr())
+	}
+	return true, fmt.Sprintf(
+		"✓ VALID: \"%s\" is in Layer %d — %s.\n"+
+			"  This location is appropriate for the file.", filePath, layer, LAYER_NAMES[layer])
+}
+
+func validateImport(sourcePath, targetPath string) (bool, string) {
+	sourceLayer, sourceOk := getLayerFromPath(sourcePath)
+	targetLayer, targetOk := getLayerFromPath(targetPath)
+
+	if !sourceOk || !targetOk {
+		unknown := sourcePath
+		if sourceOk {
+			unknown = targetPath
+		}
+		return false, fmt.Sprintf(
+			"? UNKNOWN: \"%s\" is not mapped to any known layer.\n"+
+				"  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md.", unknown)
+	}
+
+	if targetLayer > sourceLayer {
+		maxDep := sourceLayer - 1
+		if maxDep < 0 {
+			maxDep = 0
+		}
+		return false, fmt.Sprintf(
+			"✗ INVALID: \"%s\" (Layer %d) cannot import \"%s\" (Layer %d).\n"+
+				"  Rule: Layer %d packages must only depend on Layer 0-%d.\n"+
+				"  Why: %s should not depend on %s.\n"+
+				"       Allowing this would create upward dependencies that break modularity.\n"+
+				"  Fix: Move the needed logic to Layer %d or lower,\n"+
+				"       or pass the dependency as a parameter/interface from a higher layer.",
+			sourcePath, sourceLayer, targetPath, targetLayer,
+			sourceLayer, maxDep, LAYER_NAMES[sourceLayer], LAYER_NAMES[targetLayer], sourceLayer)
+	}
+
+	// Same-layer imports in Layer 4 are not allowed across different modules
+	if sourceLayer == 4 && targetLayer == 4 && sourcePath != targetPath {
+		sourceDir := strings.Split(filepath.ToSlash(sourcePath), "/")[0]
+		targetDir := strings.Split(filepath.ToSlash(targetPath), "/")[0]
+		if sourceDir != targetDir {
+			return false, fmt.Sprintf(
+				"✗ INVALID: \"%s\" (Layer 4) cannot import \"%s\" (Layer 4).\n"+
+					"  Rule: Layer 4 interface modules must not import each other.\n"+
+					"  Why: api/, handlers/, controllers/ are all entry points.\n"+
+					"       Mutual imports between them create circular dependencies.\n"+
+					"  Fix: Extract shared logic into Layer 3 (services) or lower,\n"+
+					"       then have both modules depend on the shared layer.",
+				sourcePath, targetPath)
+		}
+	}
+
+	return true, fmt.Sprintf(
+		"✓ VALID: \"%s\" (Layer %d) can import \"%s\" (Layer %d).\n"+
+			"  Layer %d is allowed to depend on Layer %d (higher importing lower).",
+		sourcePath, sourceLayer, targetPath, targetLayer, sourceLayer, targetLayer)
+}
+
+func validateMove(fromPath, toPath string) (bool, string) {
+	toValid, toMsg := validateCreateFile(toPath)
+	if !toValid {
+		return toValid, toMsg
+	}
+
+	fromLayer, _ := getLayerFromPath(fromPath)
+	toLayer, _ := getLayerFromPath(toPath)
+
+	return true, fmt.Sprintf(
+		"✓ VALID: Move \"%s\" (Layer %d) to \"%s\" (Layer %d).\n"+
+			"  Note: After moving, check that all existing imports of this file still respect layer rules.\n"+
+			"  Run: go run scripts/lint-deps.go to verify no new violations.",
+		fromPath, fromLayer, toPath, toLayer)
+}
+
+// ============================================================================
+// Action Parsing
+// ============================================================================
+
+func parseAction(action string) (string, string, string) {
+	lower := strings.ToLower(action)
+
+	// "create file <path>"
+	if strings.HasPrefix(lower, "create file ") {
+		path := strings.TrimSpace(action[len("create file "):])
+		return "create", path, ""
+	}
+
+	// "import <target> from <source>"
+	parts := strings.SplitN(lower, " from ", 2)
+	if len(parts) == 2 && strings.HasPrefix(parts[0], "import ") {
+		target := strings.TrimSpace(action[len("import "):strings.Index(lower, " from ")])
+		source := strings.TrimSpace(action[strings.Index(lower, " from ")+len(" from "):])
+		return "import", source, target
+	}
+
+	// "move file <from> to <to>"
+	if strings.HasPrefix(lower, "move file ") {
+		rest := action[len("move file "):]
+		moveParts := strings.SplitN(strings.ToLower(rest), " to ", 2)
+		if len(moveParts) == 2 {
+			from := strings.TrimSpace(rest[:strings.Index(strings.ToLower(rest), " to ")])
+			to := strings.TrimSpace(rest[strings.Index(strings.ToLower(rest), " to ")+len(" to "):])
+			return "move", from, to
+		}
+	}
+
+	return "unknown", "", ""
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+func main() {
+	action := flag.String("action", "", "Action to validate (e.g., \"create file types/user.go\")")
+	flag.Parse()
+
+	if *action == "" {
+		fmt.Println("Usage: go run scripts/verify-action.go --action \"<action>\"")
+		fmt.Println()
+		fmt.Println("Actions:")
+		fmt.Println("  create file <path>            — Check if file location is valid")
+		fmt.Println("  import <target> from <source>  — Check if import respects layer rules")
+		fmt.Println("  move file <from> to <to>       — Check if move is valid")
+		os.Exit(1)
+	}
+
+	actionType, arg1, arg2 := parseAction(*action)
+
+	var valid bool
+	var message string
+
+	switch actionType {
+	case "create":
+		valid, message = validateCreateFile(arg1)
+	case "import":
+		valid, message = validateImport(arg1, arg2)
+	case "move":
+		valid, message = validateMove(arg1, arg2)
+	default:
+		valid = false
+		message = fmt.Sprintf("? Unrecognized action: \"%s\"\n"+
+			"  Supported: \"create file <path>\", \"import <target> from <source>\", \"move file <from> to <to>\"", *action)
+	}
+
+	fmt.Println()
+	fmt.Println(message)
+	fmt.Println()
+
+	if valid {
+		os.Exit(0)
+	}
+	os.Exit(1)
+}

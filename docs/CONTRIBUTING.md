@@ -45,11 +45,14 @@ harness-pilot/
 │           ├── frameworks/          # Framework-specific templates
 │           └── rules/               # Rule templates
 ├── test-projects/                      # Test projects for validation
-├── API.md                              # API documentation
-├── CONTRIBUTING.md                     # This file
-├── README.md                           # Project README
-├── design-harness-creator.md           # Design document
-└── OPTIMIZATION_PLAN.md                # Optimization roadmap
+├── docs/                                  # Documentation
+│   ├── API.md                          # API documentation
+│   ├── CONTRIBUTING.md                 # This file
+│   ├── design-harness-creator.md       # Design document
+│   ├── FAQ.md                          # FAQ
+│   ├── harness-report.md              # Harness report
+│   └── OPTIMIZATION_PLAN.md           # Optimization roadmap
+├── README.md                              # Project README
 ```
 
 ## Adding a New Language

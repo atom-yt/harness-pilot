@@ -284,10 +284,27 @@ func main() {
 	fmt.Printf("✗ Found %d layer violation(s):\n\n", len(allViolations))
 
 	for _, v := range allViolations {
+		currentName := "unknown"
+		targetName := "unknown"
+		for name, layer := range LAYERS {
+			if layer == v.CurrentLayer {
+				currentName = name
+			}
+			if layer == v.TargetLayer {
+				targetName = name
+			}
+		}
+		maxDep := v.CurrentLayer - 1
+		if maxDep < 0 {
+			maxDep = 0
+		}
 		fmt.Printf("❌ %s:%d\n", v.File, v.Line)
-		fmt.Printf("   Import: %s\n", v.ImportPath)
-		fmt.Printf("   %s\n", v.Message)
-		fmt.Printf("   Fix: Move import to a higher layer or use interface\n\n")
+		fmt.Printf("   %s imports %s (Layer %d → Layer %d).\n", v.File, v.ImportPath, v.CurrentLayer, v.TargetLayer)
+		fmt.Printf("   Rule: Layer %d (%s/) must only depend on Layer 0-%d.\n", v.CurrentLayer, currentName, maxDep)
+		fmt.Printf("   Why:  Lower layers must remain independent so higher layers can safely depend on them.\n")
+		fmt.Printf("         Upward dependencies break modularity and create hidden coupling.\n")
+		fmt.Printf("   Fix:  Move the needed logic to Layer %d or lower,\n", v.CurrentLayer)
+		fmt.Printf("         or pass the dependency as a parameter/interface from a higher layer.\n\n")
 	}
 
 	os.Exit(1)

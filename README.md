@@ -104,8 +104,8 @@ my-project/
 
 ## Documentation
 
-- [Harness Report](harness-report.md) - A reader-friendly introduction
-- [Design Document](design-harness-creator.md) - Technical design details
+- [Harness Report](docs/harness-report.md) - A reader-friendly introduction
+- [Design Document](docs/design-harness-creator.md) - Technical design details
 
 ## AI Rules
 

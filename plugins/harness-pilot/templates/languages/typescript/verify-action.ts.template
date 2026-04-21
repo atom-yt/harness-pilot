@@ -1,0 +1,221 @@
+#!/usr/bin/env ts-node
+/**
+ * Pre-validation: Verify Action
+ * Checks whether a structural operation is valid BEFORE execution.
+ *
+ * Usage:
+ *   ts-node scripts/verify-action.ts --action "create file types/user.ts"
+ *   ts-node scripts/verify-action.ts --action "import services from types/index.ts"
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// Layer Configuration (must match lint-deps.ts)
+// ============================================================================
+
+const LAYERS: Record<string, number> = {
+  'types': 0, 'interfaces': 0, 'models': 0,
+  'utils': 1, 'helpers': 1, 'common': 1,
+  'lib': 2, 'config': 2, 'constants': 2,
+  'services': 3, 'core': 3, 'domain': 3,
+  'api': 4, 'handlers': 4, 'controllers': 4, 'app': 4, 'pages': 4, 'components': 4,
+};
+
+const LAYER_NAMES: Record<number, string> = {
+  0: 'Types (pure definitions, no internal dependencies)',
+  1: 'Utils (tools, depends on Layer 0 only)',
+  2: 'Libraries & Config (depends on Layer 0-1)',
+  3: 'Services & Business Logic (depends on Layer 0-2)',
+  4: 'Interface Layer (depends on Layer 0-3, no mutual imports)',
+};
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function getLayerFromPath(filePath: string): number | null {
+  const parts = filePath.replace(/\\/g, '/').split('/');
+  for (const part of parts) {
+    if (LAYERS[part] !== undefined) return LAYERS[part];
+  }
+  return null;
+}
+
+function parseAction(action: string): { type: string; source?: string; target?: string; path?: string } {
+  // "create file types/user.ts"
+  const createMatch = action.match(/^create\s+file\s+(.+)$/i);
+  if (createMatch) {
+    return { type: 'create', path: createMatch[1].trim() };
+  }
+
+  // "import services from types/index.ts" or "import {Foo} from ../services/bar"
+  const importMatch = action.match(/^import\s+(\S+)\s+from\s+(\S+)$/i);
+  if (importMatch) {
+    return { type: 'import', target: importMatch[1].trim(), source: importMatch[2].trim() };
+  }
+
+  // "move file types/old.ts to utils/new.ts"
+  const moveMatch = action.match(/^move\s+file\s+(\S+)\s+to\s+(\S+)$/i);
+  if (moveMatch) {
+    return { type: 'move', source: moveMatch[1].trim(), target: moveMatch[2].trim() };
+  }
+
+  return { type: 'unknown' };
+}
+
+// ============================================================================
+// Validators
+// ============================================================================
+
+function validateCreateFile(filePath: string): { valid: boolean; message: string } {
+  const layer = getLayerFromPath(filePath);
+
+  if (layer === null) {
+    return {
+      valid: false,
+      message: [
+        `? UNKNOWN: "${filePath}" is not mapped to any known layer.`,
+        `  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md,`,
+        `          or confirm with the team which layer it belongs to.`,
+        `  Known layers: ${Object.entries(LAYERS).map(([k, v]) => `${k}/ (L${v})`).join(', ')}`,
+      ].join('\n'),
+    };
+  }
+
+  return {
+    valid: true,
+    message: [
+      `✓ VALID: "${filePath}" is in Layer ${layer} — ${LAYER_NAMES[layer]}.`,
+      `  This location is appropriate for the file.`,
+    ].join('\n'),
+  };
+}
+
+function validateImport(sourcePath: string, targetPath: string): { valid: boolean; message: string } {
+  const sourceLayer = getLayerFromPath(sourcePath);
+  const targetLayer = getLayerFromPath(targetPath);
+
+  if (sourceLayer === null || targetLayer === null) {
+    const unknown = sourceLayer === null ? sourcePath : targetPath;
+    return {
+      valid: false,
+      message: [
+        `? UNKNOWN: "${unknown}" is not mapped to any known layer.`,
+        `  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md.`,
+      ].join('\n'),
+    };
+  }
+
+  if (targetLayer > sourceLayer) {
+    return {
+      valid: false,
+      message: [
+        `✗ INVALID: "${sourcePath}" (Layer ${sourceLayer}) cannot import "${targetPath}" (Layer ${targetLayer}).`,
+        `  Rule: Layer ${sourceLayer} packages must only depend on Layer 0-${sourceLayer - 1 >= 0 ? sourceLayer - 1 : 0}.`,
+        `  Why: ${LAYER_NAMES[sourceLayer]} should not depend on ${LAYER_NAMES[targetLayer]}.`,
+        `        Allowing this would create upward dependencies that break modularity.`,
+        `  Fix: Move the needed logic to Layer ${sourceLayer} or lower,`,
+        `       or pass the dependency as a parameter/interface from a higher layer.`,
+      ].join('\n'),
+    };
+  }
+
+  // Same-layer imports in Layer 4 (interface layer) are not allowed
+  if (sourceLayer === 4 && targetLayer === 4 && sourcePath !== targetPath) {
+    const sourceDir = sourcePath.split('/')[0];
+    const targetDir = targetPath.split('/')[0];
+    if (sourceDir !== targetDir) {
+      return {
+        valid: false,
+        message: [
+          `✗ INVALID: "${sourcePath}" (Layer 4) cannot import "${targetPath}" (Layer 4).`,
+          `  Rule: Layer 4 interface modules must not import each other.`,
+          `  Why: api/, handlers/, controllers/, app/, pages/ are all entry points.`,
+          `        Mutual imports between them create circular dependencies.`,
+          `  Fix: Extract shared logic into Layer 3 (services) or lower,`,
+          `       then have both modules depend on the shared layer.`,
+        ].join('\n'),
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    message: [
+      `✓ VALID: "${sourcePath}" (Layer ${sourceLayer}) can import "${targetPath}" (Layer ${targetLayer}).`,
+      `  Layer ${sourceLayer} is allowed to depend on Layer ${targetLayer} (higher importing lower).`,
+    ].join('\n'),
+  };
+}
+
+function validateMove(fromPath: string, toPath: string): { valid: boolean; message: string } {
+  const fromResult = validateCreateFile(fromPath);
+  const toResult = validateCreateFile(toPath);
+
+  if (!toResult.valid) return toResult;
+
+  const fromLayer = getLayerFromPath(fromPath);
+  const toLayer = getLayerFromPath(toPath);
+
+  return {
+    valid: true,
+    message: [
+      `✓ VALID: Move "${fromPath}" (Layer ${fromLayer}) to "${toPath}" (Layer ${toLayer}).`,
+      `  Note: After moving, check that all existing imports of this file still respect layer rules.`,
+      `  Run: ts-node scripts/lint-deps.ts to verify no new violations.`,
+    ].join('\n'),
+  };
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+function main(): void {
+  const args = process.argv.slice(2);
+  const actionIdx = args.indexOf('--action');
+
+  if (actionIdx === -1 || !args[actionIdx + 1]) {
+    console.log('Usage: ts-node scripts/verify-action.ts --action "<action>"');
+    console.log('');
+    console.log('Actions:');
+    console.log('  create file eate file <path>          — Check if file location is valid');
+    console.log('  import <target> from <source> — Check if import respects layer rules');
+    console.log('  move file <from> to <to>     — Check if move is valid');
+    process.exit(1);
+  }
+
+  const action = args[actionIdx + 1];
+  const parsed = parseAction(action);
+
+  let result: { valid: boolean; message: string };
+
+  switch (parsed.type) {
+    case 'create':
+      result = validateCreateFile(parsed.path!);
+      break;
+    case 'import':
+      result = validateImport(parsed.source!, parsed.target!);
+      break;
+    case 'move':
+      result = validateMove(parsed.source!, parsed.target!);
+      break;
+    default:
+      result = {
+        valid: false,
+        message: [
+          `? Unrecognized action: "${action}"`,
+          `  Supported actions: "create file <path>", "import <target> from <source>", "move file <from> to <to>"`,
+        ].join('\n'),
+      };
+  }
+
+  console.log('');
+  console.log(result.message);
+  console.log('');
+  process.exit(result.valid ? 0 : 1);
+}
+
+main();

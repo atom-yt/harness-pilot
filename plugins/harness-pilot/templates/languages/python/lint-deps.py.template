@@ -202,10 +202,15 @@ def main() -> None:
     print(f'✗ Found {len(all_violations)} layer violation(s):\n')
 
     for v in all_violations:
+        current_name = next((k for k, l in LAYERS.items() if l == v.current_layer), 'unknown')
+        target_name = next((k for k, l in LAYERS.items() if l == v.target_layer), 'unknown')
         print(f'❌ {v.file}:{v.line}')
-        print(f'   Import: {v.import_name}')
-        print(f'   {v.message}')
-        print(f'   Fix: Move import to a higher layer or use interface\n')
+        print(f'   {v.file} imports {v.import_name} (Layer {v.current_layer} → Layer {v.target_layer}).')
+        print(f'   Rule: Layer {v.current_layer} ({current_name}/) must only depend on Layer 0-{max(0, v.current_layer - 1)}.')
+        print(f'   Why:  Lower layers must remain independent so higher layers can safely depend on them.')
+        print(f'         Upward dependencies break modularity and create hidden coupling.')
+        print(f'   Fix:  Move the needed logic to Layer {v.current_layer} or lower,')
+        print(f'         or pass the dependency as a parameter/interface from a higher layer.\n')
 
     sys.exit(1)
 

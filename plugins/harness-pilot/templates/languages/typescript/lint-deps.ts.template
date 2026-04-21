@@ -191,10 +191,15 @@ function main(): void {
   console.log(`✗ Found ${allViolations.length} layer violation(s):\n`);
 
   for (const v of allViolations) {
+    const currentName = Object.entries(LAYERS).find(([_, l]) => l === v.currentLayer)?.[0] || 'unknown';
+    const targetName = Object.entries(LAYERS).find(([_, l]) => l === v.targetLayer)?.[0] || 'unknown';
     console.log(`❌ ${v.file}:${v.line}`);
-    console.log(`   Import: ${v.import}`);
-    console.log(`   ${v.message}`);
-    console.log(`   Fix: Move import to a higher layer or use interface\n`);
+    console.log(`   ${v.file} imports ${v.import} (Layer ${v.currentLayer} → Layer ${v.targetLayer}).`);
+    console.log(`   Rule: Layer ${v.currentLayer} (${currentName}/) must only depend on Layer 0-${Math.max(0, v.currentLayer - 1)}.`);
+    console.log(`   Why:  Lower layers must remain independent so higher layers can safely depend on them.`);
+    console.log(`         Upward dependencies break modularity and create hidden coupling.`);
+    console.log(`   Fix:  Move the needed logic to Layer ${v.currentLayer} or lower,`);
+    console.log(`         or pass the dependency as a parameter/interface from a higher layer.\n`);
   }
 
   process.exit(1);
