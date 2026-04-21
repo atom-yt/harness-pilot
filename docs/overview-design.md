@@ -572,11 +572,11 @@ LLM → Middleware → Tools → Environment → Eval
 
 ### 新项目
 
-最简单——告诉 creator 你要做什么，它会问几个基本问题，然后直接生成全套基础设施。
+最简单——告诉 harness-apply 你要做什么，它会问几个基本问题，然后直接生成全套基础设施。
 
 ### 老项目
 
-也不难，creator 会扫描代码库、分析 import 关系、推断层级映射，生成反映代码现状的文档。
+也不难，harness-apply 会扫描代码库、分析 import 关系、推断层级映射，生成反映代码现状的文档。
 
 ### 最小起步
 
@@ -620,7 +620,7 @@ Layer 4: api/ cli/ ui/  → 接口层，依赖 Layer 0-3，彼此不互相引用
 - 这个月搭完整的验证管道
 - 之后开启 Critic → Refiner 反馈循环，让 Harness 跟着代码一起长
 
-最佳实践是先用 creator 把 Harness 建到 70 分以上，再开始用 executor 日常开发。
+最佳实践是先用 harness-apply 把 Harness 建到 70 分以上，再开始日常开发。
 
 ---
 
