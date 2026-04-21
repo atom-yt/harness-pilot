@@ -11,6 +11,7 @@ Harness Creator is a Claude Code plugin that transforms any codebase into a harn
 - **harness-analyze** (dryrun) - Analyze project structure and generate health report without making changes
 - **harness-guide** (guide mode) - Interactive guided build with step-by-step configuration
 - **harness-apply** (auto mode) - One-click generation with default settings
+- **harness-generate-rules** - Generate AI rules for safety, git workflow, and language-specific development
 
 ## Quick Start
 
@@ -23,6 +24,9 @@ Harness Creator is a Claude Code plugin that transforms any codebase into a harn
 
 # Auto-generate with defaults
 /harness-creator:harness-apply
+
+# Generate AI rules only
+/harness-creator:harness-generate-rules
 ```
 
 ## What is a Harness?
@@ -39,10 +43,16 @@ my-project/
 │   ├── lint-deps.*        # Layer dependency checking
 │   ├── lint-quality.*     # Code quality rules
 │   └── validate.*         # Unified validation pipeline
-└── harness/
-    ├── memory/            # Three types of memory
-    ├── tasks/             # Task state and checkpoints
-    └── trace/             # Execution trace and failure records
+├── harness/
+│   ├── memory/            # Three types of memory
+│   ├── tasks/             # Task state and checkpoints
+│   └── trace/             # Execution trace and failure records
+└── rules/
+    ├── common/
+    │   ├── safety.md      # AI safety constraints
+    │   └── git-workflow.md # Git workflow rules
+    └── {language}/
+        └── development.md # Language-specific guidelines
 ```
 
 ## Supported Languages
@@ -51,8 +61,8 @@ my-project/
 |----------|--------|
 | TypeScript | ✓ |
 | JavaScript | ✓ |
-| Python | Planned |
-| Go | Planned |
+| Python | ✓ (rules only) |
+| Go | ✓ (rules only) |
 | Rust | Planned |
 
 ## Supported Frameworks
@@ -70,6 +80,16 @@ my-project/
 
 - [Harness Report](harness-report.md) - A reader-friendly introduction
 - [Design Document](design-harness-creator.md) - Technical design details
+
+## AI Rules
+
+The `rules/` directory contains AI-enforceable constraints that guide agent behavior:
+
+- **rules/common/safety.md** - Safety constraints (no destructive operations, secrets management)
+- **rules/common/git-workflow.md** - Git workflow rules (commit format, branch naming)
+- **rules/{language}/development.md** - Language-specific development guidelines
+
+Rules are automatically detected and enforced when AI agents work on the codebase. Use `harness-generate-rules` to generate rules for your project.
 
 ## License
 
