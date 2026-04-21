@@ -11,9 +11,8 @@
 | 功能 | 状态 | 说明 |
 |------|------|------|
 | harness-analyze | ✅ | Dryrun 分析模式，健康评分 |
-| harness-guide | ✅ | 6步交互式引导构建 |
-| harness-apply | ✅ | 自动生成模式 |
-| harness-generate-rules | ✅ | AI 规则生成 |
+| harness-apply (interactive) | ✅ | 6步交互式引导构建 |
+| harness-apply (auto) | ✅ | 自动生成模式（--auto） |
 | TypeScript 模板 | ✅ | 完整的 lint 脚本 |
 | Python/Go 规则 | ✅ | development.md 模板 |
 

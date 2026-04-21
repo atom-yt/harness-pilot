@@ -16,9 +16,9 @@ Harness Pilot is a Claude Code plugin. To use it:
 
 ### harness-analyze
 
-Analyzes project structure and generates a health report without making changes.
+Analyzes project structure, audits harness health, and generates a health report without making changes.
 
-**Trigger:** `analyze`, `harness-analyze`, `project-analysis`
+**Trigger:** `analyze`, `harness-analyze`, `project-analysis`, `improve`, `harness-improve`, `harness-health`, `harness-audit`
 
 **Usage:**
 ```
@@ -30,6 +30,8 @@ I'm using harness-analyze to perform a dryrun analysis of this project.
 - Architecture constraints score
 - Quality rules score
 - Import relationship analysis
+- Documentation freshness audit (if harness exists)
+- Lint coverage gap detection (if harness exists)
 - Actionable recommendations
 
 ### harness-apply
@@ -61,24 +63,6 @@ I'm using harness-apply --auto to auto-generate harness infrastructure.
 - Uses default quality rule set
 - Creates all files: AGENTS.md, docs/, .harness/scripts/, .harness/rules/, .harness/memory/, .harness/tasks/, .harness/trace/
 - Validates generated scripts are executable
-
-### harness-improve
-
-Audits harness health and self-improves by analyzing failure patterns, detecting lint coverage gaps, and applying targeted fixes.
-
-**Trigger:** `improve`, `harness-improve`, `harness-health`, `harness-audit`
-
-**Usage:**
-```
-I'm using harness-improve to audit and strengthen the harness infrastructure.
-```
-
-**What it does:**
-- Runs health check (reuses harness-analyze scoring)
-- Analyzes failure patterns from .harness/trace/
-- Detects lint coverage gaps and stale documentation
-- Generates improvement suggestions
-- Optionally auto-applies fixes
 
 ## Template Engine
 
@@ -134,7 +118,6 @@ my-project/
 | JavaScript | ✓ | development.md |
 | Python | ✓ | lint-deps.py, lint-quality.py, validate.py, development.md |
 | Go | ✓ | lint-deps.go, lint-quality.go, validate.go, development.md |
-| Rust | Planned | N/A |
 
 ## Supported Frameworks
 
@@ -148,21 +131,6 @@ my-project/
 | Gin | Go | Template available |
 
 ## Configuration
-
-### plugin.json
-
-The `plugin.json` file defines the plugin configuration:
-
-```json
-{
-  "name": "harness-pilot",
-  "version": "0.1.0",
-  "skills": [...],
-  "supportedLanguages": [...],
-  "supportedFrameworks": [...],
-  "templates": {...}
-}
-```
 
 ### Layer Configuration
 

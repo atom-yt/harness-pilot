@@ -6,11 +6,10 @@
 
 ## What is Harness Pilot?
 
-Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form. It provides three modes:
+Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form. It provides two modes:
 
-- **harness-analyze** (dryrun) - Analyze project structure and generate health report without making changes
+- **harness-analyze** (dryrun) - Analyze project structure, audit harness health, and generate health report without making changes
 - **harness-apply** (build) - Generate harness infrastructure with interactive guided mode (default) or auto mode (`--auto`)
-- **harness-improve** (audit) - Audit harness health and self-improve by analyzing failure patterns and applying targeted fixes
 
 ## Installation
 
@@ -49,9 +48,6 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
 
 # Auto-generate with defaults
 /harness-pilot:harness-apply --auto
-
-# Audit and self-improve harness
-/harness-pilot:harness-improve
 ```
 
 ## What is a Harness?
@@ -102,8 +98,12 @@ my-project/
 
 ## Documentation
 
+- [API Documentation](docs/API.md) - Full API reference
+- [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute
 - [Harness Report](docs/harness-report.md) - A reader-friendly introduction
 - [Design Document](docs/design-harness-creator.md) - Technical design details
+- [FAQ](docs/FAQ.md) - Frequently asked questions
+- [Optimization Plan](docs/OPTIMIZATION_PLAN.md) - Optimization roadmap
 
 ## AI Rules
 

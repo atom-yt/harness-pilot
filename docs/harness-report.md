@@ -301,12 +301,12 @@ my-project/
 │   ├── DEVELOPMENT.md     ← 开发命令、怎么测试
 │   ├── design-docs/       ← 组件设计文档
 │   └── exec-plans/       ← 执行计划（active / completed）
-├── scripts/
-│   ├── lint-deps.*        ← 检查依赖方向对不对
-│   ├── lint-quality.*     ← 检查代码质量
-│   ├── verify/            ← 端到端功能验证
-│   └── validate.*        ← 统一验证流程
-└── harness/
+└── .harness/
+    ├── scripts/
+    │   ├── lint-deps.*        ← 检查依赖方向对不对
+    │   ├── lint-quality.*     ← 检查代码质量
+    │   ├── verify/            ← 端到端功能验证
+    │   └── validate.*        ← 统一验证流程
     ├── memory/            ← 三种记忆
     ├── tasks/             ← 任务状态
     └── trace/             ← 失败轨迹

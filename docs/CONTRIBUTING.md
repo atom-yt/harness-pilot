@@ -31,27 +31,34 @@ We welcome contributions in the following areas:
 harness-pilot/
 ├── plugins/
 │   └── harness-pilot/
-│       ├── plugin.json              # Plugin configuration
+│       ├── agents/                    # AI agent definitions
+│       │   ├── code-reviewer.md
+│       │   ├── harness-guardian.md
+│       │   └── planner.md
+│       ├── hooks/                     # Session hooks
+│       │   ├── hooks.json
+│       │   └── session-start
 │       ├── scripts/
-│       │   └── template-engine.js   # Template rendering engine
+│       │   └── template-engine.js     # Template rendering engine
 │       ├── skills/
-│       │   ├── harness-analyze/     # Dryrun analysis mode
-│       │   ├── harness-apply/       # Interactive & auto-generation mode
-│       │   └── harness-improve/     # Self-improvement mode
-│       └── templates/
-│           ├── base/                # Base templates
-│           ├── languages/           # Language-specific templates
-│           ├── frameworks/          # Framework-specific templates
-│           └── rules/               # Rule templates
-├── test-projects/                      # Test projects for validation
-├── docs/                                  # Documentation
-│   ├── API.md                          # API documentation
-│   ├── CONTRIBUTING.md                 # This file
-│   ├── design-harness-creator.md       # Design document
-│   ├── FAQ.md                          # FAQ
+│       │   ├── harness-analyze/       # Dryrun analysis mode
+│       │   └── harness-apply/         # Interactive & auto-generation mode
+│       ├── templates/
+│       │   ├── base/                  # Base templates
+│       │   ├── languages/             # Language-specific templates
+│       │   ├── frameworks/            # Framework-specific templates
+│       │   └── rules/                 # Rule templates
+│       └── tests/
+│           └── template-engine.test.js
+├── test-projects/                     # Test projects for validation
+├── docs/                              # Documentation
+│   ├── API.md                         # API documentation
+│   ├── CONTRIBUTING.md                # This file
+│   ├── design-harness-creator.md      # Design document
+│   ├── FAQ.md                         # FAQ
 │   ├── harness-report.md              # Harness report
 │   └── OPTIMIZATION_PLAN.md           # Optimization roadmap
-├── README.md                              # Project README
+├── README.md                          # Project README
 ```
 
 ## Adding a New Language
@@ -73,9 +80,7 @@ To add support for a new language:
    templates/rules/{language}/development.md.template
    ```
 
-4. Update `plugin.json`:
-   - Add language to `supportedLanguages` array
-   - Add templates to `templates.languages` object
+4. Update the skill's SKILL.md to include detection for the new language
 
 5. Test the templates using a test project in `test-projects/`
 
@@ -95,9 +100,7 @@ To add support for a new framework:
 
 3. Define layer mapping in the ARCHITECTURE template
 
-4. Update `plugin.json`:
-   - Add framework to `supportedFrameworks` array
-   - Add template to `templates.frameworks` object
+4. Update the skill's SKILL.md to include detection for the new framework
 
 5. Create a test project in `test-projects/`
 

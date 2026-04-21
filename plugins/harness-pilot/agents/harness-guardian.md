@@ -68,7 +68,7 @@ When dispatched for repeated failures:
    - Missing directory in layer mapping?
    - Ambiguous linter error message?
    - Missing documentation for a convention?
-4. Suggest harness improvement (feed into harness-improve)
+4. Suggest harness improvement (feed into harness-analyze)
 
 ## Constraints
 

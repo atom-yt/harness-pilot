@@ -1,6 +1,6 @@
 ---
 name: harness-analyze
-description: Analyze project structure and generate harness health report without making changes
+description: Analyze project structure, audit harness health, detect documentation staleness and lint coverage gaps, and generate health report without making changes
 ---
 
 # Harness Analyze (Dryrun Mode)
@@ -17,8 +17,16 @@ This is a **dryrun** - no files are created or modified. Use this to:
 
 - Assess a new project before applying harness
 - Identify gaps in existing harness
+- Audit harness health (documentation staleness, lint coverage gaps)
 - Get recommendations for improvements
 - Evaluate project readiness for AI Agent collaboration
+
+## When to Activate
+
+- User says "analyze", "harness-analyze", "project-analysis"
+- User says "improve", "harness-improve", "harness-health", "harness-audit"
+- Periodic health check (recommended: weekly or after major features)
+- After a series of agent failures
 
 ## Analysis Steps
 
@@ -165,7 +173,63 @@ import\s+\(.*
 - Detect circular dependencies
 - Identify potential layer violations (based on inferred structure)
 
-### Step 6: Generate Health Report
+### Step 6: Audit Analysis (Optional)
+
+When the project already has a harness (AGENTS.md and docs/ARCHITECTURE.md exist), perform deeper audit checks:
+
+#### Documentation Freshness
+
+Compare file modification times to detect stale documentation:
+
+```bash
+# Check if ARCHITECTURE.md is older than source code changes
+ARCH_MTIME=$(stat -f %m docs/ARCHITECTURE.md 2>/dev/null || stat -c %Y docs/ARCHITECTURE.md 2>/dev/null)
+LATEST_SRC=$(find . -name "*.ts" -o -name "*.py" -o -name "*.go" | \
+  xargs stat -f %m 2>/dev/null | sort -rn | head -1)
+
+if [ "$LATEST_SRC" -gt "$ARCH_MTIME" ]; then
+  echo "STALE: docs/ARCHITECTURE.md is older than latest source changes"
+fi
+
+# Also check AGENTS.md and DEVELOPMENT.md
+```
+
+#### Lint Coverage Gaps
+
+Check whether all project directories are covered by lint rules:
+
+```bash
+SOURCE_DIRS=$(find . -maxdepth 2 -type d \
+  -not -path '*/node_modules/*' \
+  -not -path '*/.git/*' \
+  -not -path '*/dist/*' \
+  -not -path '*/build/*' \
+  -not -name '.*' | sort)
+
+for dir in $SOURCE_DIRS; do
+  dir_name=$(basename "$dir")
+  if ! grep -q "$dir_name" docs/ARCHITECTURE.md 2>/dev/null; then
+    echo "UNCOVERED: $dir is not in layer mapping"
+  fi
+done
+```
+
+#### Audit Output
+
+```
+=== Documentation Freshness ===
+  docs/ARCHITECTURE.md  — [Fresh/Stale] (last updated: [date], source changed: [date])
+  docs/DEVELOPMENT.md   — [Fresh/Stale]
+  AGENTS.md             — [Fresh/Stale]
+
+=== Lint Coverage Analysis ===
+Covered directories: [count]/[total]
+Uncovered directories:
+  - [dir1] — Not in layer mapping (suggested: Layer [N])
+  - [dir2] — Not in layer mapping (suggested: Layer [N])
+```
+
+### Step 7: Generate Health Report
 
 Compile scores into a structured report:
 
@@ -204,6 +268,10 @@ Total Score: [0-100]
   Potential violations: [count]
   Circular dependencies: [yes/no]
 
+📝 Audit (if harness exists):
+  Documentation freshness: [Fresh/Stale summary]
+  Lint coverage: [count]/[total] directories covered
+
 🎯 Recommendations:
   1. [actionable recommendation]
   2. [actionable recommendation]
@@ -211,7 +279,6 @@ Total Score: [0-100]
 
 Next Steps:
   - Run harness-apply for interactive build (default) or auto-generation (--auto)
-  - Run harness-improve to audit and strengthen existing harness
 
 **Available Templates:**
   - Base templates: AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md
@@ -235,8 +302,7 @@ Always output the health report using the template above. End with next steps:
 ```bash
 Would you like to:
   1. Run harness-apply for interactive build (or --auto for auto-generation)
-  2. Run harness-improve to audit and strengthen existing harness
-  3. Review specific recommendations
+  2. Review specific recommendations
 
 Choose an option or describe what you'd like to do next.
 ```
@@ -279,7 +345,6 @@ If not in a git repo or no source files found, inform user.
 Always offer follow-up actions:
 
 1. **harness-apply** - Build harness with interactive configuration (default) or auto-generate with `--auto`
-2. **harness-improve** - Audit and strengthen existing harness
-3. **Specific recommendation** - Address a particular gap
+2. **Specific recommendation** - Address a particular gap
 
 Do not automatically proceed to any mode. Wait for user confirmation.

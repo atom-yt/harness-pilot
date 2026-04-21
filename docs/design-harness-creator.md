@@ -366,12 +366,12 @@ my-project/
 │   ├── DEVELOPMENT.md           # 构建/测试/lint 命令
 │   ├── design-docs/            # 组件设计文档
 │   └── exec-plans/            # 执行计划（active / completed）
-├── scripts/
-│   ├── lint-deps.*            # 层级依赖检查
-│   ├── lint-quality.*         # 代码质量规则
-│   ├── verify/                # 端到端功能验证
-│   └── validate.*            # 统一验证管道
-└── harness/
+└── .harness/
+    ├── scripts/
+    │   ├── lint-deps.*            # 层级依赖检查
+    │   ├── lint-quality.*         # 代码质量规则
+    │   ├── verify/                # 端到端功能验证
+    │   └── validate.*            # 统一验证管道
     ├── tasks/                 # 任务状态和检查点
     ├── trace/                # 执行轨迹和失败记录
     └── memory/              # 经验教训存储

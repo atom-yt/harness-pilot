@@ -41,10 +41,8 @@ A harness provides:
 
 | Mode | When to Use |
 |------|-------------|
-| harness-analyze | Assess a new project before applying harness |
-| harness-guide | First time setup with customization |
-| harness-apply | Standard projects, quick setup |
-| harness-generate-rules | Add rules to existing project |
+| harness-analyze | Assess a new project, audit harness health, get recommendations |
+| harness-apply | Interactive guided setup (default) or auto-generate with `--auto` |
 
 ### What files are created?
 
@@ -135,7 +133,7 @@ The validate script runs a pipeline:
 
 **Cause:** Project uses non-standard structure.
 
-**Solution:** Use `harness-guide` mode for manual language selection.
+**Solution:** Use `harness-apply` interactive mode for manual language selection.
 
 ### "Template not found"
 
@@ -175,7 +173,7 @@ chmod +x .harness/scripts/*.go
 
 ### Can I use Harness Pilot on existing projects?
 
-Yes! Use `harness-analyze` first to assess the project, then `harness-guide` to customize setup for existing code.
+Yes! Use `harness-analyze` first to assess the project, then `harness-apply` to customize setup for existing code.
 
 ### Does Harness Pilot work with monorepos?
 
@@ -197,7 +195,7 @@ To update harness rules or templates:
 
 To add new components:
 - Manually create files
-- Or use `harness-guide` to select additional components
+- Or use `harness-apply` to select additional components
 
 ### Can I share harness between projects?
 
