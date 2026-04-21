@@ -9,9 +9,9 @@
 Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form. It provides four modes:
 
 - **harness-analyze** (dryrun) - Analyze project structure and generate health report without making changes
-- **harness-guide** (guide mode) - Interactive guided build with step-by-step configuration
-- **harness-apply** (auto mode) - One-click generation with default settings
-- **harness-generate-rules** - Generate AI rules for safety, git workflow, and language-specific development
+- **harness-apply** (build) - Generate harness infrastructure with interactive guided mode (default) or auto mode (`--auto`)
+- **harness-execute** (dev) - Execute development tasks within harness infrastructure with planning, subagent delegation, and validation
+- **harness-improve** (audit) - Audit harness health and self-improve by analyzing failure patterns and applying targeted fixes
 
 ## Installation
 
@@ -45,14 +45,17 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
 # Analyze project health (no changes made)
 /harness-pilot:harness-analyze
 
-# Interactive guided build
-/harness-pilot:harness-guide
-
-# Auto-generate with defaults
+# Generate harness infrastructure (interactive guided mode)
 /harness-pilot:harness-apply
 
-# Generate AI rules only
-/harness-pilot:harness-generate-rules
+# Auto-generate with defaults
+/harness-pilot:harness-apply --auto
+
+# Execute development tasks within harness
+/harness-pilot:harness-execute
+
+# Audit and self-improve harness
+/harness-pilot:harness-improve
 ```
 
 ## What is a Harness?
@@ -85,22 +88,21 @@ my-project/
 
 | Language | Status |
 |----------|--------|
-| TypeScript | ✓ |
-| JavaScript | ✓ |
-| Python | ✓ (rules only) |
-| Go | ✓ (rules only) |
-| Rust | Planned |
+| TypeScript | Full support (lint scripts + rules) |
+| JavaScript | Rules only |
+| Python | Full support (lint scripts + rules) |
+| Go | Full support (lint scripts + rules) |
 
 ## Supported Frameworks
 
 | Framework | Language | Status |
 |-----------|----------|--------|
-| Next.js | TypeScript | ✓ |
-| React | TypeScript/JS | Planned |
-| Express.js | JavaScript | Planned |
-| Django | Python | Planned |
-| FastAPI | Python | Planned |
-| Gin | Go | Planned |
+| Next.js | TypeScript | Full support |
+| React | TypeScript/JS | Template available |
+| Express.js | JavaScript | Template available |
+| Django | Python | Template available |
+| FastAPI | Python | Template available |
+| Gin | Go | Template available |
 
 ## Documentation
 
@@ -115,7 +117,7 @@ The `rules/` directory contains AI-enforceable constraints that guide agent beha
 - **rules/common/git-workflow.md** - Git workflow rules (commit format, branch naming)
 - **rules/{language}/development.md** - Language-specific development guidelines
 
-Rules are automatically detected and enforced when AI agents work on the codebase. Use `harness-generate-rules` to generate rules for your project.
+Rules are automatically detected and enforced when AI agents work on the codebase. Use `harness-apply` to generate rules for your project.
 
 ## License
 

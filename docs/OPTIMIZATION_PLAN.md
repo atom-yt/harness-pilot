@@ -21,10 +21,10 @@
 
 | 缺口 | 优先级 | 影响范围 |
 |------|--------|----------|
-| JavaScript 规则目录为空 | 🔴 高 | JS 项目无法使用 |
-| Python/Go 无 lint 脚本 | 🔴 高 | 非 TS 项目缺少关键工具 |
-| 框架模板仅 Next.js | 🟡 中 | 其他框架支持不足 |
-| 无模板引擎实现 | 🔴 高 | SKILL 文件中仅有占位符 |
+| ~~JavaScript 规则目录为空~~ | ~~🔴 高~~ | ✅ 已完成 |
+| ~~Python/Go 无 lint 脚本~~ | ~~🔴 高~~ | ✅ 已完成 |
+| ~~框架模板仅 Next.js~~ | ~~🟡 中~~ | ✅ 已完成（React, Express, Django, FastAPI, Gin） |
+| ~~无模板引擎实现~~ | ~~🔴 高~~ | ✅ 已完成 |
 | 无增量更新支持 | 🟡 中 | 无法更新现有 harness |
 | 无配置文件 | 🟡 中 | 自定义图层映射困难 |
 
@@ -35,30 +35,30 @@
 ### Phase 1: 补全现有语言支持 (高优先级)
 
 #### 1.1 JavaScript 规则模板
-- [ ] 创建 `templates/rules/javascript/development.md.template`
-- [ ] 覆盖：命名规范、模块化、异步模式、测试、安全、性能
-- [ ] 参考 TypeScript 规则，移除类型相关内容
+- [x] 创建 `templates/rules/javascript/development.md.template`
+- [x] 覆盖：命名规范、模块化、异步模式、测试、安全、性能
+- [x] 参考 TypeScript 规则，移除类型相关内容
 
 #### 1.2 Python Lint 脚本
-- [ ] `templates/languages/python/lint-deps.py.template`
+- [x] `templates/languages/python/lint-deps.py.template`
   - 5 层依赖模型
   - import 语句解析
   - 循环依赖检测
-- [ ] `templates/languages/python/lint-quality.py.template`
+- [x] `templates/languages/python/lint-quality.py.template`
   - no print() / logging 规则
   - 文件行数限制
   - PEP8 风格检查
-- [ ] `templates/languages/python/validate.py.template`
+- [x] `templates/languages/python/validate.py.template`
   - 统一验证流水线
 
 #### 1.3 Go Lint 脚本
-- [ ] `templates/languages/go/lint-deps.go.template`
+- [x] `templates/languages/go/lint-deps.go.template`
   - Go module 解析
   - 依赖包分析
-- [ ] `templates/languages/go/lint-quality.go.template`
+- [x] `templates/languages/go/lint-quality.go.template`
   - golint 集成
   - 复杂度检查
-- [ ] `templates/languages/go/validate.go.template`
+- [x] `templates/languages/go/validate.go.template`
   - build → test → lint 流水线
 
 **交付物**: 7 个新模板文件
@@ -68,21 +68,21 @@
 ### Phase 2: 扩展框架支持 (中优先级)
 
 #### 2.1 React 框架
-- [ ] `templates/frameworks/react/ARCHITECTURE.md.template`
-- [ ] 图层映射: 0:types, 1:utils, 2:hooks/contexts, 3:components/services, 4:pages/app
+- [x] `templates/frameworks/react/ARCHITECTURE.md.template`
+- [x] 图层映射: 0:types, 1:utils, 2:hooks/contexts, 3:components/services, 4:pages/app
 
 #### 2.2 Express.js 框架
-- [ ] `templates/frameworks/express/ARCHITECTURE.md.template`
-- [ ] 图层映射: 0:types, 1:utils, 2:services, 3:routes, 4:server.js
+- [x] `templates/frameworks/express/ARCHITECTURE.md.template`
+- [x] 图层映射: 0:types, 1:utils, 2:services, 3:routes, 4:server.js
 
 #### 2.3 Python 框架
-- [ ] `templates/frameworks/django/ARCHITECTURE.md.template`
+- [x] `templates/frameworks/django/ARCHITECTURE.md.template`
   - 图层: models → utils → services → views → urls/admin
-- [ ] `templates/frameworks/fastapi/ARCHITECTURE.md.template`
+- [x] `templates/frameworks/fastapi/ARCHITECTURE.md.template`
   - 图层: types/models → utils → services → api → main.py
 
 #### 2.4 Go 框架
-- [ ] `templates/frameworks/gin/ARCHITECTURE.md.template`
+- [x] `templates/frameworks/gin/ARCHITECTURE.md.template`
   - 图层: types → utils → services → handlers → main.go
 
 #### 2.5 E2E 验证脚本
@@ -99,7 +99,7 @@
 当前 SKILL 文件中包含 `{{VARIABLE}}` 占位符，但无实际渲染逻辑。
 
 #### 3.1 基础模板引擎
-- [ ] 创建 `scripts/template-engine.js`
+- [x] 创建 `scripts/template-engine.js`
   - 简单变量替换: `{{VAR}}`
   - 条件渲染: `{{#if VAR}}...{{/if}}`
   - 循环渲染: `{{#each ITEMS}}...{{/each}}`
@@ -167,19 +167,19 @@
 ### Phase 5: 质量保证 (中优先级)
 
 #### 5.1 测试套件
-- [ ] 单元测试 (模板引擎)
+- [x] 单元测试 (模板引擎)
 - [ ] 集成测试 (完整流程)
 - [ ] E2E 测试 (实际项目上运行)
 
 #### 5.2 示例项目
-- [ ] 创建测试项目 harness-test-nextjs
-- [ ] 创建测试项目 harness-test-python
+- [x] 创建测试项目 harness-test-nextjs
+- [x] 创建测试项目 harness-test-python
 - [ ] 验证各模式功能
 
 #### 5.3 文档完善
-- [ ] API 文档
-- [ ] 贡献指南
-- [ ] 常见问题 FAQ
+- [x] API 文档
+- [x] 贡献指南
+- [x] 常见问题 FAQ
 
 #### 5.4 CI/CD 集成
 - [ ] GitHub Actions 模板

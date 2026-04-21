@@ -47,15 +47,14 @@
       "trigger": ["improve", "harness-improve", "harness-health", "harness-audit"]
     }
   ],
-  "supportedLanguages": ["typescript", "javascript", "python", "go", "rust"],
-  "supportedFrameworks": ["nextjs", "react", "express", "django", "fastapi", "flask", "gin"],
+  "supportedLanguages": ["typescript", "javascript", "python", "go"],
+  "supportedFrameworks": ["nextjs", "react", "express", "django", "fastapi", "gin"],
   "templates": {
     "base": ["AGENTS.md", "ARCHITECTURE.md", "DEVELOPMENT.md", "PRODUCT_SENSE.md", "exec-plan.md"],
     "languages": {
       "typescript": ["lint-deps.ts", "lint-quality.ts", "validate.ts", "verify-action.ts"],
-      "javascript": ["development.md"],
-      "python": ["lint-deps.py", "lint-quality.py", "validate.py", "verify-action.py", "development.md"],
-      "go": ["lint-deps.go", "lint-quality.go", "validate.go", "verify-action.go", "development.md"]
+      "python": ["lint-deps.py", "lint-quality.py", "validate.py", "verify-action.py"],
+      "go": ["lint-deps.go", "lint-quality.go", "validate.go", "verify-action.go"]
     },
     "frameworks": {
       "nextjs": ["ARCHITECTURE.md"],

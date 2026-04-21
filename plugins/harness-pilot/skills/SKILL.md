@@ -3,13 +3,13 @@ name: harness-pilot
 description: Transform any project into a harness-compatible form with dry-run analysis and guided/auto generation modes
 ---
 
-# Harness Creator
+# Harness Pilot
 
 **Announce at start:** "I'm using harness-pilot to analyze and build harness infrastructure for this project."
 
 ## Overview
 
-Harness Creator is a tool that transforms any codebase into a harness-compatible form. It provides two modes:
+Harness Pilot is a tool that transforms any codebase into a harness-compatible form. It provides two modes:
 
 1. **harness-analyze** - Analyze project structure and generate health report without making changes
 2. **harness-apply** - Generate harness infrastructure (interactive guided mode by default, `--auto` for auto mode)
@@ -122,20 +122,19 @@ my-project/
 
 | Language | Templates | Status |
 |----------|-----------|--------|
-| TypeScript | lint-deps, lint-quality, validate | ✓ |
-| JavaScript | lint-deps, lint-quality | ✓ |
-| Python | lint-deps, lint-quality, validate | ✓ |
-| Go | lint-deps, validate | ✓ |
-| Rust | lint-deps, validate | ✓ |
+| TypeScript | lint-deps, lint-quality, validate, verify-action | Full support |
+| JavaScript | development rules | Rules only |
+| Python | lint-deps, lint-quality, validate, verify-action | Full support |
+| Go | lint-deps, lint-quality, validate, verify-action | Full support |
 
 | Framework | Language | Status |
 |---------|---------|--------|
-| Next.js | TypeScript | ✓ |
-| React | TypeScript/JS | ✓ |
-| Express.js | JavaScript | ✓ |
-| Django | Python | ✓ |
-| FastAPI | Python | ✓ |
-| Gin | Go | ✓ |
+| Next.js | TypeScript | Full support |
+| React | TypeScript/JS | Template available |
+| Express.js | JavaScript | Template available |
+| Django | Python | Template available |
+| FastAPI | Python | Template available |
+| Gin | Go | Template available |
 
 ## After Generation
 
@@ -175,6 +174,6 @@ Would you like to:
 
 ## References
 
-- [Harness Creator Design](../design-harness-pilot.md)
+- [Harness Creator Design](../../../docs/design-harness-creator.md)
 - [Harness Report](../../../docs/harness-report.md)
 - [AGENTS.md Standard](https://github.com/agentsmd/agents.md)

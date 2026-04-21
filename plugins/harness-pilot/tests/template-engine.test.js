@@ -4,7 +4,7 @@
 
 import { TemplateEngine } from '../scripts/template-engine.js';
 
-// Test helper: compare output
+// Test helper: compare output (whitespace-normalized)
 function expectEqual(actual, expected) {
   const cleanActual = actual.replace(/\s+/g, ' ').trim();
   const cleanExpected = expected.replace(/\s+/g, ' ').trim();
@@ -12,6 +12,15 @@ function expectEqual(actual, expected) {
     console.error('Expected:', cleanExpected);
     console.error('Got:', cleanActual);
     throw new Error('Output does not match expected');
+  }
+}
+
+// Test helper: exact comparison (whitespace-sensitive)
+function expectExact(actual, expected) {
+  if (actual !== expected) {
+    console.error('Expected:', JSON.stringify(expected));
+    console.error('Got:', JSON.stringify(actual));
+    throw new Error('Output does not match expected (exact)');
   }
 }
 
@@ -244,7 +253,7 @@ function testNewlinePreservation() {
   const result = engine.render(template);
   const expected = 'Line 1\nLine 2\ntest\nLine 4';
 
-  expectEqual(result, expected);
+  expectExact(result, expected);
   console.log('✓ Pass\n');
 }
 
@@ -287,14 +296,6 @@ function runAllTests() {
   console.log('═'.repeat(50));
 
   return failed === 0 ? 0 : 1;
-}
-
-// Export for Node.js
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    runAllTests,
-    TemplateEngine,
-  };
 }
 
 // Run if executed directly

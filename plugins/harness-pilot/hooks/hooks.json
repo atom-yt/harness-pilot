@@ -1,9 +1,0 @@
-{
-  "hooks": [
-    {
-      "type": "SessionStart",
-      "command": "plugins/harness-pilot/hooks/session-start",
-      "description": "Auto-load harness context (AGENTS.md) on session start"
-    }
-  ]
-}

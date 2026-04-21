@@ -36,9 +36,9 @@ harness-pilot/
 │       │   └── template-engine.js   # Template rendering engine
 │       ├── skills/
 │       │   ├── harness-analyze/     # Dryrun analysis mode
-│       │   ├── harness-guide/       # Interactive mode
-│       │   ├── harness-apply/       # Auto-generation mode
-│       │   └── harness-generate-rules/ # Rules generation
+│       │   ├── harness-apply/       # Interactive & auto-generation mode
+│       │   ├── harness-execute/     # Task execution mode
+│       │   └── harness-improve/     # Self-improvement mode
 │       └── templates/
 │           ├── base/                # Base templates
 │           ├── languages/           # Language-specific templates

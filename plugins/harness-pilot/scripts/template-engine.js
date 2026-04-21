@@ -91,7 +91,7 @@ class TemplateEngine {
    * Render loop blocks
    */
   renderLoops(template) {
-    const pattern = /\{\{#each\s+(\w+)\}\}(.*?)\{\{\/each\}\}/gs;
+    const pattern = /\{\{#each\s+(\w+(?:\.\w+)*)\}\}(.*?)\{\{\/each\}\}/gs;
 
     return template.replace(pattern, (match, varName, content) => {
       const value = this.getContextValue(varName);
@@ -101,18 +101,17 @@ class TemplateEngine {
       }
 
       return value.map((item, index) => {
-        // Create a temporary context with {{@index}} and item properties
+        // Create a temporary context with item properties first, then metadata
+        // This ensures @index/@first/@last cannot be overwritten by item properties
         const tempContext = {
           ...this.context,
+          ...(typeof item === 'object' && item !== null ? item : {}),
           '@index': index,
           '@first': index === 0,
           '@last': index === value.length - 1,
         };
 
-        // If item is an object, merge its properties into context
-        if (typeof item === 'object' && item !== null) {
-          Object.assign(tempContext, item);
-        } else {
+        if (typeof item !== 'object' || item === null) {
           // If item is a primitive, use it as {{this}}
           tempContext.this = item;
         }

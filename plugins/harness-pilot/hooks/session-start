@@ -47,14 +47,14 @@ build_output() {
     output="[harness-pilot] No harness detected in this project. Run 'harness-analyze' to assess or 'harness-apply' to generate harness infrastructure."
   fi
 
-  echo "$output"
+  printf '%s' "$output"
 }
 
 # Build context output
 raw_output=$(build_output)
 
-# Escape for JSON
-json_output=$(echo "$raw_output" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+# Escape for JSON (handle backslash, quotes, tabs, carriage returns, newlines)
+json_output=$(printf '%s' "$raw_output" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' -e 's/\r/\\r/g' | sed ':a;N;$!ba;s/\n/\\n/g')
 
 # Platform-specific output format
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then

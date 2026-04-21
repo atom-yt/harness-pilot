@@ -32,18 +32,22 @@ I'm using harness-analyze to perform a dryrun analysis of this project.
 - Import relationship analysis
 - Actionable recommendations
 
-### harness-guide
+### harness-apply
 
-Interactive guided build mode with 6-step configuration.
+Generates complete harness infrastructure including rules. Supports interactive guided mode (default) and auto mode.
 
-**Trigger:** `harness-guide`, `guide`, `harness-build`
+**Trigger:** `harness-apply`, `apply-harness`, `harness-auto`, `harness-guide`, `guide`, `harness-build`, `harness-generate-rules`, `generate-rules`, `harness-rules`
 
 **Usage:**
 ```
-I'm using harness-guide to interactively build harness infrastructure for this project.
+# Interactive guided mode (default)
+I'm using harness-apply to build harness infrastructure for this project.
+
+# Auto mode
+I'm using harness-apply --auto to auto-generate harness infrastructure.
 ```
 
-**Steps:**
+**Interactive mode (default) -- 6-step guided flow:**
 1. Project Detection - Confirm language, framework, directory structure
 2. Component Selection - Choose which harness components to create
 3. Layer Mapping - Configure dependency layer rules
@@ -51,39 +55,50 @@ I'm using harness-guide to interactively build harness infrastructure for this p
 5. Validation Pipeline - Configure build/lint/test/verify commands
 6. Confirm & Generate - Preview and confirm changes
 
-### harness-apply
-
-Auto-generates complete harness infrastructure with default settings.
-
-**Trigger:** `harness-apply`, `apply-harness`, `harness-auto`
-
-**Usage:**
-```
-I'm using harness-apply to auto-generate harness infrastructure with default settings.
-```
-
-**What it does:**
+**Auto mode (`--auto`):**
 - Detects project language and framework automatically
 - Uses recommended layer mapping
 - Uses default quality rule set
-- Creates all files: AGENTS.md, docs/, scripts/, harness/
+- Creates all files: AGENTS.md, docs/, scripts/, harness/, rules/
 - Validates generated scripts are executable
 
-### harness-generate-rules
+### harness-execute
 
-Generates AI rules for safety, git workflow, and language-specific development guidelines.
+Executes development tasks within the harness infrastructure with planning, subagent delegation, validation, and memory.
 
-**Trigger:** `harness-generate-rules`, `generate-rules`, `harness-rules`
+**Trigger:** `execute`, `harness-execute`, `dev`, `implement`, `build-feature`
 
 **Usage:**
 ```
-I'm using harness-generate-rules to generate AI rules for this project.
+I'm using harness-execute to implement this feature within harness infrastructure.
 ```
 
-**Generated files:**
-- `rules/common/safety.md` - AI safety constraints
-- `rules/common/git-workflow.md` - Git workflow rules
-- `rules/{language}/development.md` - Language-specific development guidelines
+**What it does:**
+- Environment detection -- Loads AGENTS.md, ARCHITECTURE.md, memory
+- Complexity assessment -- Simple (direct) / Medium (subagent) / Complex (subagent + worktree)
+- Task planning -- Dispatches planner agent for non-trivial tasks
+- Subagent delegation -- Coordinator never writes code for medium+ tasks
+- Validation pipeline -- build -> lint-arch -> test -> verify
+- Checkpoints -- Saves progress for resumability
+- Memory recording -- Records experiences and failures
+
+### harness-improve
+
+Audits harness health and self-improves by analyzing failure patterns, detecting lint coverage gaps, and applying targeted fixes.
+
+**Trigger:** `improve`, `harness-improve`, `harness-health`, `harness-audit`
+
+**Usage:**
+```
+I'm using harness-improve to audit and strengthen the harness infrastructure.
+```
+
+**What it does:**
+- Runs health check (reuses harness-analyze scoring)
+- Analyzes failure patterns from harness/trace/
+- Detects lint coverage gaps and stale documentation
+- Generates improvement suggestions
+- Optionally auto-applies fixes
 
 ## Template Engine
 
@@ -145,13 +160,12 @@ my-project/
 
 | Framework | Language | Status |
 |-----------|----------|--------|
-| Next.js | TypeScript | ✓ |
-| React | TypeScript/JavaScript | ✓ |
-| Express.js | JavaScript | ✓ |
-| Django | Python | ✓ |
-| FastAPI | Python | ✓ |
-| Flask | Python | Planned |
-| Gin | Go | ✓ |
+| Next.js | TypeScript | Full support |
+| React | TypeScript/JavaScript | Template available |
+| Express.js | JavaScript | Template available |
+| Django | Python | Template available |
+| FastAPI | Python | Template available |
+| Gin | Go | Template available |
 
 ## Configuration
 
