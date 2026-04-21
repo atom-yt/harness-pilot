@@ -3,7 +3,7 @@
 Layer Dependency Checker
 Analyzes import statements and detects layer violations
 
-Usage: python scripts/lint-deps.py [--fix]
+Usage: python .harness/scripts/lint-deps.py [--fix]
 """
 
 import os

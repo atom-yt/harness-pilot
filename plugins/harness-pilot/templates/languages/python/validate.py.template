@@ -3,7 +3,7 @@
 Unified Validation Pipeline
 Runs all validation steps in order
 
-Usage: python scripts/validate.py [--step <name>]
+Usage: python .harness/scripts/validate.py [--step <name>]
 """
 
 import subprocess
@@ -34,13 +34,13 @@ VALIDATION_STEPS: List[ValidationStep] = [
     ValidationStep(
         name='lint-arch',
         description='Architecture lint',
-        command='python scripts/lint-deps.py',
+        command='python .harness/scripts/lint-deps.py',
         timeout=60,
     ),
     ValidationStep(
         name='lint-quality',
         description='Quality lint',
-        command='python scripts/lint-quality.py',
+        command='python .harness/scripts/lint-quality.py',
         timeout=60,
     ),
     ValidationStep(

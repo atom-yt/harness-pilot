@@ -39,21 +39,21 @@ Validation Pipeline: [score]/100
 Overall Score: [score]/100 (Grade: [A/B/C/D])
 ```
 
-Compare with previous score if available (stored in `harness/trace/health-history.md`).
+Compare with previous score if available (stored in `.harness/trace/health-history.md`).
 
 ```bash
 # Save health history
-echo "$(date +%Y-%m-%d) | Score: $SCORE | Grade: $GRADE" >> harness/trace/health-history.md
+echo "$(date +%Y-%m-%d) | Score: $SCORE | Grade: $GRADE" >> .harness/trace/health-history.md
 ```
 
 ## Step 2: Analyze Failure Patterns (Critic)
 
-Scan `harness/trace/failures/` for recorded failures and identify patterns:
+Scan `.harness/trace/failures/` for recorded failures and identify patterns:
 
 ```bash
 # Count failures by type
-if [ -d "harness/trace/failures" ]; then
-  failure_files=$(find harness/trace/failures -name "*.md" -type f)
+if [ -d ".harness/trace/failures" ]; then
+  failure_files=$(find .harness/trace/failures -name "*.md" -type f)
   failure_count=$(echo "$failure_files" | wc -l | tr -d ' ')
 fi
 ```
@@ -85,7 +85,7 @@ Pattern 1: [type] — [count] occurrences
 
 Pattern 2: ...
 
-No patterns found (if harness/trace/failures/ is empty or has no recurring issues).
+No patterns found (if .harness/trace/failures/ is empty or has no recurring issues).
 ```
 
 ## Step 3: Detect Lint Coverage Gaps
@@ -174,7 +174,7 @@ A good error message includes:
 ```bash
 # Analyze lint-deps output format
 # Look for error messages that are too short or missing fix suggestions
-grep -n "message\|Message\|print\|fmt.Print\|console.log" scripts/lint-deps.* | \
+grep -n "message\|Message\|print\|fmt.Print\|console.log" .harness/scripts/lint-deps.* | \
   grep -v "Fix:" && echo "WARNING: Some error messages may lack fix suggestions"
 ```
 
@@ -242,14 +242,14 @@ When user approves, apply fixes automatically:
 For each approved fix:
   1. Make the change
   2. Run validation to confirm no regressions
-  3. Record the improvement in harness/trace/improvements.md
+  3. Record the improvement in .harness/trace/improvements.md
   4. Update health score
 ```
 
 ### Record Improvements
 
 ```bash
-cat >> harness/trace/improvements.md << EOF
+cat >> .harness/trace/improvements.md << EOF
 
 ## $(date +%Y-%m-%d) Improvement Cycle
 

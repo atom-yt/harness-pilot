@@ -3,7 +3,7 @@
 Code Quality Checker
 Enforces code quality rules
 
-Usage: python scripts/lint-quality.py [--fix]
+Usage: python .harness/scripts/lint-quality.py [--fix]
 """
 
 import os

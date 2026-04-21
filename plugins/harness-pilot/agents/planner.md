@@ -23,7 +23,7 @@ Break complex tasks into bite-sized, independently verifiable steps. The planner
    - Read `AGENTS.md` for project navigation
    - Read `docs/ARCHITECTURE.md` for layer rules and dependency constraints
    - Read `docs/DEVELOPMENT.md` for build/test/lint commands
-   - Query `harness/memory/procedural/` for similar past tasks
+   - Query `.harness/memory/procedural/` for similar past tasks
 
 2. **Analyze Scope**
    - Identify all affected files and modules

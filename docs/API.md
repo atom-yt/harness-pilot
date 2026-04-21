@@ -59,7 +59,7 @@ I'm using harness-apply --auto to auto-generate harness infrastructure.
 - Detects project language and framework automatically
 - Uses recommended layer mapping
 - Uses default quality rule set
-- Creates all files: AGENTS.md, docs/, scripts/, harness/, rules/
+- Creates all files: AGENTS.md, docs/, .harness/scripts/, .harness/rules/, .harness/memory/, .harness/tasks/, .harness/trace/
 - Validates generated scripts are executable
 
 ### harness-improve
@@ -75,7 +75,7 @@ I'm using harness-improve to audit and strengthen the harness infrastructure.
 
 **What it does:**
 - Runs health check (reuses harness-analyze scoring)
-- Analyzes failure patterns from harness/trace/
+- Analyzes failure patterns from .harness/trace/
 - Detects lint coverage gaps and stale documentation
 - Generates improvement suggestions
 - Optionally auto-applies fixes
@@ -109,21 +109,21 @@ my-project/
 │   ├── DEVELOPMENT.md     # Build/test/lint commands
 │   ├── design-docs/       # Component design documents
 │   └── exec-plans/       # Execution plans
-├── scripts/
-│   ├── lint-deps.*        # Layer dependency checking
-│   ├── lint-quality.*     # Code quality rules
-│   ├── verify/            # End-to-end verification
-│   └── validate.*        # Unified validation pipeline
-├── harness/
-│   ├── memory/            # Three types of memory
-│   ├── tasks/             # Task state and checkpoints
-│   └── trace/             # Execution trace and failure records
-└── rules/
-    ├── common/
-    │   ├── safety.md      # AI safety constraints
-    │   └── git-workflow.md # Git workflow rules
-    └── {language}/
-        └── development.md  # Language-specific guidelines
+└── .harness/
+    ├── scripts/
+    │   ├── lint-deps.*        # Layer dependency checking
+    │   ├── lint-quality.*     # Code quality rules
+    │   ├── verify/            # End-to-end verification
+    │   └── validate.*        # Unified validation pipeline
+    ├── memory/            # Three types of memory
+    ├── tasks/             # Task state and checkpoints
+    ├── trace/             # Execution trace and failure records
+    └── rules/
+        ├── common/
+        │   ├── safety.md      # AI safety constraints
+        │   └── git-workflow.md # Git workflow rules
+        └── {language}/
+            └── development.md  # Language-specific guidelines
 ```
 
 ## Supported Languages
@@ -189,16 +189,16 @@ Layer mappings are configured per framework in the template files. Default mappi
 | "Language not detected" | Project uses uncommon structure | Use guide mode for manual selection |
 | "Template not found" | No template for language/framework | Base template will be used as fallback |
 | "Node.js not found" | Template engine requires Node.js | Install Node.js or use manual generation |
-| "Permission denied" | Cannot set executable permissions | Run `chmod +x scripts/*` manually |
+| "Permission denied" | Cannot set executable permissions | Run `chmod +x .harness/scripts/*` manually |
 
 ## Troubleshooting
 
 ### Scripts not executable
 
 ```bash
-chmod +x scripts/*.ts
-chmod +x scripts/*.py
-chmod +x scripts/*.go
+chmod +x .harness/scripts/*.ts
+chmod +x .harness/scripts/*.py
+chmod +x .harness/scripts/*.go
 ```
 
 ### Template engine not found

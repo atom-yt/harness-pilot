@@ -52,15 +52,15 @@ A harness provides:
 AGENTS.md                    # Navigation map
 docs/ARCHITECTURE.md         # Architecture, layers, rules
 docs/DEVELOPMENT.md          # Build/test/lint commands
-scripts/lint-deps.*          # Layer dependency checker
-scripts/lint-quality.*       # Code quality checker
-scripts/validate.*           # Validation pipeline
-harness/memory/              # Agent memory storage
-harness/tasks/               # Task tracking
-harness/trace/               # Execution traces
-rules/common/safety.md       # AI safety constraints
-rules/common/git-workflow.md # Git workflow rules
-rules/{language}/development.md # Language guidelines
+.harness/scripts/lint-deps.*          # Layer dependency checker
+.harness/scripts/lint-quality.*       # Code quality checker
+.harness/scripts/validate.*           # Validation pipeline
+.harness/memory/              # Agent memory storage
+.harness/tasks/               # Task tracking
+.harness/trace/               # Execution traces
+.harness/rules/common/safety.md       # AI safety constraints
+.harness/rules/common/git-workflow.md # Git workflow rules
+.harness/rules/{language}/development.md # Language guidelines
 ```
 
 ### Can I customize the generated files?
@@ -149,9 +149,9 @@ The validate script runs a pipeline:
 
 **Solution:** Run manually:
 ```bash
-chmod +x scripts/*.ts
-chmod +x scripts/*.py
-chmod +x scripts/*.go
+chmod +x .harness/scripts/*.ts
+chmod +x .harness/scripts/*.py
+chmod +x .harness/scripts/*.go
 ```
 
 ### "Validation fails"

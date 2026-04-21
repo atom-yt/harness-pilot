@@ -3,7 +3,7 @@
  * Layer Dependency Checker
  * Analyzes import statements and detects layer violations
  *
- * Usage: ts-node scripts/lint-deps.ts [--fix]
+ * Usage: ts-node .harness/scripts/lint-deps.ts [--fix]
  */
 
 import * as fs from 'fs';

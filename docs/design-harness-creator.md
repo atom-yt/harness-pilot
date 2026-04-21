@@ -238,7 +238,7 @@ verify → frameworks/nextjs/verify/*.ts.template
 ### 三种记忆类型
 
 ```
-harness/memory/
+.harness/memory/
 ├── episodic/          # 情景记忆 - 具体事件和教训
 ├── procedural/         # 程序记忆 - 成功的操作步骤
 └── failures/          # 失败记忆 - 供 Critic 分析
@@ -305,7 +305,7 @@ macOS 下 /var 是 /private/var 的符号链接，会导致工作区路径比较
 │                                                         │
 │   Agent 执行                                             │
 │      ↓                                                   │
-│   验证失败 → 记录到 harness/trace/failures/              │
+│   验证失败 → 记录到 .harness/trace/failures/              │
 │      ↓                                                   │
 │   Critic 分析 → 识别模式和根因                             │
 │      ↓                                                   │
@@ -317,7 +317,7 @@ macOS 下 /var 是 /private/var 的符号链接，会导致工作区路径比较
 
 ### Critic 分析
 
-定期分析 `harness/trace/failures/`，找出：
+定期分析 `.harness/trace/failures/`，找出：
 
 | 模式类型 | 示例 |
 |-----------|------|
@@ -384,11 +384,11 @@ my-project/
 | AGENTS.md | 给 Agent 看的导航地图，~100 行，只做索引 |
 | docs/ARCHITECTURE.md | 项目架构、分层规则、数据流 |
 | docs/DEVELOPMENT.md | 构建、测试、lint 命令 |
-| scripts/lint-deps.* | 检查依赖方向，确保层级规则 |
-| scripts/lint-quality.* | 强制代码质量规范 |
-| scripts/validate.* | 统一验证入口：build → lint → test → verify |
-| harness/memory/ | 三种记忆系统，积累项目经验 |
-| harness/trace/ | 失败记录，供 Critic 分析 |
+| .harness/scripts/lint-deps.* | 检查依赖方向，确保层级规则 |
+| .harness/scripts/lint-quality.* | 强制代码质量规范 |
+| .harness/scripts/validate.* | 统一验证入口：build → lint → test → verify |
+| .harness/memory/ | 三种记忆系统，积累项目经验 |
+| .harness/trace/ | 失败记录，供 Critic 分析 |
 
 ---
 
@@ -411,11 +411,11 @@ build → lint-arch → test → verify
 
 ```bash
 # 验证创建文件
-python3 scripts/verify_action.py --action "create file internal/types/user.go"
+python3 .harness/scripts/verify_action.py --action "create file internal/types/user.go"
 # ✓ VALID: internal/types/ is Layer 0, user.go follows naming convention
 
 # 验证跨层 import
-python3 scripts/verify_action.py --action "import internal/core from internal/handler"
+python3 .harness/scripts/verify_action.py --action "import internal/core from internal/handler"
 # ✗ INVALID: internal/handler (L4) cannot import internal/core (L3)
 #   Fix: handler should depend on core through interfaces
 ```
@@ -524,8 +524,8 @@ User: 对的
 Agent: 请选择要创建的组件：
        ☑ AGENTS.md (导航地图)
        ☑ docs/ARCHITECTURE.md (架构文档)
-       ☑ scripts/lint-deps.ts (依赖检查)
-       ☐ scripts/validate.ts (验证管道)
+       ☑ .harness/scripts/lint-deps.ts (依赖检查)
+       ☐ .harness/scripts/validate.ts (验证管道)
 
 User: 全选
 
@@ -803,13 +803,13 @@ Mock 依赖
 
 ### 内存管理：引入分层存储
 
-当前 `harness/memory/` 已有分类，可增加：
+当前 `.harness/memory/` 已有分类，可增加：
 
 | 层级 | 存储位置 | 访问频率 |
 |------|----------|----------|
 | **热内存** | 任务上下文 | 每次操作 |
-| **温内存** | harness/tasks/ | 阶段检查 |
-| **冷内存** | harness/trace/ | Critic 分析时 |
+| **温内存** | .harness/tasks/ | 阶段检查 |
+| **冷内存** | .harness/trace/ | Critic 分析时 |
 
 ### 测试验证：增加 JiT 测试生成
 

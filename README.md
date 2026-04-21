@@ -64,20 +64,20 @@ my-project/
 ├── docs/
 │   ├── ARCHITECTURE.md    # Architecture, layers, dependency rules
 │   └── DEVELOPMENT.md     # Build, test, lint commands
-├── scripts/
-│   ├── lint-deps.*        # Layer dependency checking
-│   ├── lint-quality.*     # Code quality rules
-│   └── validate.*         # Unified validation pipeline
-├── harness/
-│   ├── memory/            # Three types of memory
-│   ├── tasks/             # Task state and checkpoints
-│   └── trace/             # Execution trace and failure records
-└── rules/
-    ├── common/
-    │   ├── safety.md      # AI safety constraints
-    │   └── git-workflow.md # Git workflow rules
-    └── {language}/
-        └── development.md # Language-specific guidelines
+└── .harness/
+    ├── scripts/
+    │   ├── lint-deps.*        # Layer dependency checking
+    │   ├── lint-quality.*     # Code quality rules
+    │   └── validate.*         # Unified validation pipeline
+    ├── memory/            # Three types of memory
+    ├── tasks/             # Task state and checkpoints
+    ├── trace/             # Execution trace and failure records
+    └── rules/
+        ├── common/
+        │   ├── safety.md      # AI safety constraints
+        │   └── git-workflow.md # Git workflow rules
+        └── {language}/
+            └── development.md # Language-specific guidelines
 ```
 
 ## Supported Languages
@@ -107,11 +107,11 @@ my-project/
 
 ## AI Rules
 
-The `rules/` directory contains AI-enforceable constraints that guide agent behavior:
+The `.harness/rules/` directory contains AI-enforceable constraints that guide agent behavior:
 
-- **rules/common/safety.md** - Safety constraints (no destructive operations, secrets management)
-- **rules/common/git-workflow.md** - Git workflow rules (commit format, branch naming)
-- **rules/{language}/development.md** - Language-specific development guidelines
+- **.harness/rules/common/safety.md** - Safety constraints (no destructive operations, secrets management)
+- **.harness/rules/common/git-workflow.md** - Git workflow rules (commit format, branch naming)
+- **.harness/rules/{language}/development.md** - Language-specific development guidelines
 
 Rules are automatically detected and enforced when AI agents work on the codebase. Use `harness-apply` to generate rules for your project.
 

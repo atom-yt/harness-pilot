@@ -62,7 +62,7 @@ For unknown paths:
 
 When dispatched for repeated failures:
 
-1. Read `harness/trace/failures/` for recent failure records
+1. Read `.harness/trace/failures/` for recent failure records
 2. Identify patterns: same file, same rule, same type of violation
 3. Diagnose root cause:
    - Missing directory in layer mapping?

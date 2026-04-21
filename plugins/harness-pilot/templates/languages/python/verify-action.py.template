@@ -4,8 +4,8 @@ Pre-validation: Verify Action
 Checks whether a structural operation is valid BEFORE execution.
 
 Usage:
-    python scripts/verify-action.py --action "create file types/user.py"
-    python scripts/verify-action.py --action "import services from types/models.py"
+    python .harness/scripts/verify-action.py --action "create file types/user.py"
+    python .harness/scripts/verify-action.py --action "import services from types/models.py"
 """
 
 import argparse
@@ -139,7 +139,7 @@ def validate_move(from_path: str, to_path: str) -> Tuple[bool, str]:
     return True, '\n'.join([
         f'✓ VALID: Move "{from_path}" (Layer {from_layer}) to "{to_path}" (Layer {to_layer}).',
         f'  Note: After moving, check that all existing imports of this file still respect layer rules.',
-        f'  Run: python scripts/lint-deps.py to verify no new violations.',
+        f'  Run: python .harness/scripts/lint-deps.py to verify no new violations.',
     ])
 
 

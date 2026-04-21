@@ -139,7 +139,7 @@ func validateMove(fromPath, toPath string) (bool, string) {
 	return true, fmt.Sprintf(
 		"✓ VALID: Move \"%s\" (Layer %d) to \"%s\" (Layer %d).\n"+
 			"  Note: After moving, check that all existing imports of this file still respect layer rules.\n"+
-			"  Run: go run scripts/lint-deps.go to verify no new violations.",
+			"  Run: go run .harness/scripts/lint-deps.go to verify no new violations.",
 		fromPath, fromLayer, toPath, toLayer)
 }
 
@@ -187,7 +187,7 @@ func main() {
 	flag.Parse()
 
 	if *action == "" {
-		fmt.Println("Usage: go run scripts/verify-action.go --action \"<action>\"")
+		fmt.Println("Usage: go run .harness/scripts/verify-action.go --action \"<action>\"")
 		fmt.Println()
 		fmt.Println("Actions:")
 		fmt.Println("  create file <path>            — Check if file location is valid")

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 AGENTS_FILE="AGENTS.md"
-HARNESS_DIR="harness"
+HARNESS_DIR=".harness"
 MAX_AGENTS_LINES=100
 
 build_output() {
@@ -40,7 +40,7 @@ build_output() {
     if [ -d "$HARNESS_DIR/trace/failures" ]; then
       failure_count=$(find "$HARNESS_DIR/trace/failures" -name "*.md" -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
       if [ "$failure_count" -gt 0 ]; then
-        output="${output}\n\n--- Recent Failures: ${failure_count} recorded (see harness/trace/failures/) ---"
+        output="${output}\n\n--- Recent Failures: ${failure_count} recorded (see .harness/trace/failures/) ---"
       fi
     fi
   else

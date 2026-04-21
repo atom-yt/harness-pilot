@@ -3,7 +3,7 @@
  * Code Quality Checker
  * Enforces code quality rules
  *
- * Usage: ts-node scripts/lint-quality.ts [--fix]
+ * Usage: ts-node .harness/scripts/lint-quality.ts [--fix]
  */
 
 import * as fs from 'fs';

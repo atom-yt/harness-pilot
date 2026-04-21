@@ -18,12 +18,12 @@ npm run lint-arch  # Run architecture lint
 {{#if LANGUAGE eq 'Python'}}
 pip install -e .  # Build project
 pytest              # Run tests
-python scripts/lint-deps.py  # Run architecture lint
+python .harness/scripts/lint-deps.py  # Run architecture lint
 {{/if}}
 {{#if LANGUAGE eq 'Go'}}
 go build ./...     # Build project
 go test ./...       # Run tests
-go run scripts/lint-deps.go  # Run architecture lint
+go run .harness/scripts/lint-deps.go  # Run architecture lint
 {{/if}}
 
 ## Layer Rules

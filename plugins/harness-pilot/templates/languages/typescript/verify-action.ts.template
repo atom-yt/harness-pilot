@@ -4,8 +4,8 @@
  * Checks whether a structural operation is valid BEFORE execution.
  *
  * Usage:
- *   ts-node scripts/verify-action.ts --action "create file types/user.ts"
- *   ts-node scripts/verify-action.ts --action "import services from types/index.ts"
+ *   ts-node .harness/scripts/verify-action.ts --action "create file types/user.ts"
+ *   ts-node .harness/scripts/verify-action.ts --action "import services from types/index.ts"
  */
 
 import * as fs from 'fs';
@@ -164,7 +164,7 @@ function validateMove(fromPath: string, toPath: string): { valid: boolean; messa
     message: [
       `✓ VALID: Move "${fromPath}" (Layer ${fromLayer}) to "${toPath}" (Layer ${toLayer}).`,
       `  Note: After moving, check that all existing imports of this file still respect layer rules.`,
-      `  Run: ts-node scripts/lint-deps.ts to verify no new violations.`,
+      `  Run: ts-node .harness/scripts/lint-deps.ts to verify no new violations.`,
     ].join('\n'),
   };
 }
@@ -178,7 +178,7 @@ function main(): void {
   const actionIdx = args.indexOf('--action');
 
   if (actionIdx === -1 || !args[actionIdx + 1]) {
-    console.log('Usage: ts-node scripts/verify-action.ts --action "<action>"');
+    console.log('Usage: ts-node .harness/scripts/verify-action.ts --action "<action>"');
     console.log('');
     console.log('Actions:');
     console.log('  create file eate file <path>          — Check if file location is valid');

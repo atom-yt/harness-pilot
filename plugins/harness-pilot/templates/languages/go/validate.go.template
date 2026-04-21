@@ -45,13 +45,13 @@ var VALIDATION_STEPS = []ValidationStep{
 	{
 		Name:        "lint-arch",
 		Description: "Architecture lint",
-		Command:     "go run scripts/lint-deps.go",
+		Command:     "go run .harness/scripts/lint-deps.go",
 		Timeout:     1 * time.Minute,
 	},
 	{
 		Name:        "lint-quality",
 		Description: "Quality lint",
-		Command:     "go run scripts/lint-quality.go",
+		Command:     "go run .harness/scripts/lint-quality.go",
 		Timeout:     1 * time.Minute,
 	},
 	{

@@ -113,10 +113,10 @@ Check for layer enforcement:
 grep -r "Layer" AGENTS.md 2>/dev/null && LAYER_CONFIG=1 || LAYER_CONFIG=0
 
 # Check for lint-deps scripts
-find scripts -name "lint-deps.*" -type f 2>/dev/null | head -1 && LINT_DEPS=1 || LINT_DEPS=0
+find .harness/scripts -name "lint-deps.*" -type f 2>/dev/null | head -1 && LINT_DEPS=1 || LINT_DEPS=0
 
 # Check for layer mapping in linter
-grep "layers" scripts/lint-deps.* 2>/dev/null && LAYER_MAPPING=1 || LAYER_MAPPING=0
+grep "layers" .harness/scripts/lint-deps.* 2>/dev/null && LAYER_MAPPING=1 || LAYER_MAPPING=0
 ```
 
 **Scoring** (0-100 per category):
@@ -130,10 +130,10 @@ Check for quality enforcement:
 
 ```bash
 # Check for lint-quality scripts
-find scripts -name "lint-quality.*" -type f 2>/dev/null | head -1 && LINT_QUALITY=1 || LINT_QUALITY=0
+find .harness/scripts -name "lint-quality.*" -type f 2>/dev/null | head -1 && LINT_QUALITY=1 || LINT_QUALITY=0
 
 # Check for quality rules configured
-grep -E "(no_console|max_lines|strict_mode)" scripts/lint-quality.* 2>/dev/null && QUALITY_RULES=1 || QUALITY_RULES=0
+grep -E "(no_console|max_lines|strict_mode)" .harness/scripts/lint-quality.* 2>/dev/null && QUALITY_RULES=1 || QUALITY_RULES=0
 ```
 
 **Scoring** (0-100 per category):

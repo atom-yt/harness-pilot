@@ -239,15 +239,15 @@ If user confirms, proceed to Step 2. If user says no, ask for correct values.
 | AGENTS.md | Navigation map (~100 lines) | Small |
 | docs/ARCHITECTURE.md | Architecture, layers, rules | Medium |
 | docs/DEVELOPMENT.md | Build/test/lint commands | Small |
-| scripts/lint-deps | Layer dependency checker | Medium |
-| scripts/lint-quality | Code quality rules | Medium |
-| scripts/validate | Unified validation pipeline | Medium |
-| scripts/verify/ | E2E verification scripts | Large |
-| scripts/verify-action | Pre-validation for structural operations | Medium |
-| harness/memory/ | Three types of memory | Medium |
-| harness/tasks/ | Task state and checkpoints | Small |
-| harness/trace/ | Failure records | Small |
-| rules/ | AI rules for safety, git, language-specific | Medium |
+| .harness/scripts/lint-deps | Layer dependency checker | Medium |
+| .harness/scripts/lint-quality | Code quality rules | Medium |
+| .harness/scripts/validate | Unified validation pipeline | Medium |
+| .harness/scripts/verify/ | E2E verification scripts | Large |
+| .harness/scripts/verify-action | Pre-validation for structural operations | Medium |
+| .harness/memory/ | Three types of memory | Medium |
+| .harness/tasks/ | Task state and checkpoints | Small |
+| .harness/trace/ | Failure records | Small |
+| .harness/rules/ | AI rules for safety, git, language-specific | Medium |
 
 #### Output Template
 
@@ -263,30 +263,30 @@ If user confirms, proceed to Step 2. If user says no, ask for correct values.
 │  ☑ docs/PRODUCT_SENSE.md (business context)      │
 │                                                  │
 │  Validation Scripts:                                 │
-│  ☑ scripts/lint-deps (layer checking)              │
-│  ☑ scripts/lint-quality (code quality)              │
-│  ☑ scripts/validate (unified pipeline)             │
-│  ☑ scripts/verify-action (pre-validation)          │
-│  ☐ scripts/verify/ (E2E tests)                  │
+│  ☑ .harness/scripts/lint-deps (layer checking)       │
+│  ☑ .harness/scripts/lint-quality (code quality)      │
+│  ☑ .harness/scripts/validate (unified pipeline)      │
+│  ☑ .harness/scripts/verify-action (pre-validation)   │
+│  ☐ .harness/scripts/verify/ (E2E tests)              │
 │                                                  │
 │  Harness Storage:                                   │
-│  ☑ harness/memory/ (experience storage)              │
-│  ☑ harness/tasks/ (task state)                    │
-│  ☑ harness/trace/ (failure records)                │
+│  ☑ .harness/memory/ (experience storage)             │
+│  ☑ .harness/tasks/ (task state)                      │
+│  ☑ .harness/trace/ (failure records)                 │
 │                                                  │
 │  AI Rules:                                           │
-│  ☑ rules/common/safety.md (safety constraints)   │
-│  ☑ rules/common/git-workflow.md (commit standards) │
-│  ☑ rules/{{LANGUAGE}}/development.md (language rules) │
+│  ☑ .harness/rules/common/safety.md (safety constraints)   │
+│  ☑ .harness/rules/common/git-workflow.md (commit standards) │
+│  ☑ .harness/rules/{{LANGUAGE}}/development.md (language rules) │
 │                                                  │
 │  [Select All] [Minimum Recommended]                │
 └─────────────────────────────────────────────────────────┘
 ```
 
 **Rules Explanation:**
-- `rules/common/safety.md` - Safety constraints (no destructive operations, no credential exposure)
-- `rules/common/git-workflow.md` - Git workflow standards (commit format, branch naming)
-- `rules/{{LANGUAGE}}/development.md` - Language-specific development rules
+- `.harness/rules/common/safety.md` - Safety constraints (no destructive operations, no credential exposure)
+- `.harness/rules/common/git-workflow.md` - Git workflow standards (commit format, branch naming)
+- `.harness/rules/{{LANGUAGE}}/development.md` - Language-specific development rules
 
 Save user selection for Step 6 generation.
 
@@ -391,8 +391,8 @@ If user selects Customize, ask for manual layer configuration.
   "build": "npm run build",
   "test": "npm test",
   "lint": "npm run lint",
-  "lint_arch": "ts-node scripts/lint-deps.ts",
-  "validate": "ts-node scripts/validate.ts"
+  "lint_arch": "ts-node .harness/scripts/lint-deps.ts",
+  "validate": "ts-node .harness/scripts/validate.ts"
 }
 ```
 
@@ -402,8 +402,8 @@ If user selects Customize, ask for manual layer configuration.
   "build": "pip install -e .",
   "test": "pytest",
   "lint": "ruff check .",
-  "lint_arch": "python scripts/lint-deps.py",
-  "validate": "python scripts/validate.py"
+  "lint_arch": "python .harness/scripts/lint-deps.py",
+  "validate": "python .harness/scripts/validate.py"
 }
 ```
 
@@ -413,8 +413,8 @@ If user selects Customize, ask for manual layer configuration.
   "build": "go build ./...",
   "test": "go test ./...",
   "lint": "golangci-lint run",
-  "lint_arch": "go run scripts/lint-deps.go",
-  "validate": "go run scripts/validate.go"
+  "lint_arch": "go run .harness/scripts/lint-deps.go",
+  "validate": "go run .harness/scripts/validate.go"
 }
 ```
 
@@ -431,8 +431,8 @@ If user selects Customize, ask for manual layer configuration.
 │    Lint:   [npm run lint]                           │
 │                                                  │
 │  Harness validation:                              │
-│    lint_arch: [ts-node scripts/lint-deps.ts]     │
-│    validate:  [ts-node scripts/validate.ts]        │
+│    lint_arch: [ts-node .harness/scripts/lint-deps.ts]     │
+│    validate:  [ts-node .harness/scripts/validate.ts]        │
 │                                                  │
 │  Validation order:                                │
 │    build → lint_arch → test → validate            │
@@ -460,15 +460,15 @@ If user selects Customize, ask for manual layer configuration.
 │    ✓ AGENTS.md                                    │
 │    ✓ docs/ARCHITECTURE.md                          │
 │    ✓ docs/DEVELOPMENT.md                           │
-│    ✓ scripts/lint-deps.ts                         │
-│    ✓ scripts/lint-quality.ts                        │
-│    ✓ scripts/validate.ts                           │
-│    ✓ harness/memory/                                │
-│    ✓ harness/tasks/                                 │
-│    ✓ harness/trace/                                │
-│    ✓ rules/common/safety.md                        │
-│    ✓ rules/common/git-workflow.md                   │
-│    ✓ rules/typescript/development.md                │
+│    ✓ .harness/scripts/lint-deps.ts                         │
+│    ✓ .harness/scripts/lint-quality.ts                        │
+│    ✓ .harness/scripts/validate.ts                           │
+│    ✓ .harness/memory/                                │
+│    ✓ .harness/tasks/                                 │
+│    ✓ .harness/trace/                                │
+│    ✓ .harness/rules/common/safety.md                        │
+│    ✓ .harness/rules/common/git-workflow.md                   │
+│    ✓ .harness/rules/typescript/development.md                │
 │                                                  │
 │  Files to create: 12                              │
 │  Directories to create: 6                          │
@@ -492,7 +492,7 @@ One-click generation mode that:
 1. Detects project language and framework automatically
 2. Uses recommended layer mapping for detected structure
 3. Uses default quality rule set
-4. Creates all files: AGENTS.md, docs/, scripts/, harness/, rules/
+4. Creates all files: AGENTS.md, docs/, .harness/scripts/, .harness/rules/, .harness/memory/, .harness/tasks/, .harness/trace/
 5. Validates generated scripts are executable
 
 Best for: Standard-structure projects, quick setup, acceptable defaults.
@@ -527,12 +527,12 @@ CONTEXT="{
 
 ```bash
 mkdir -p docs docs/design-docs docs/exec-plans
-mkdir -p scripts/verify
-mkdir -p harness/memory/{episodic,procedural,failures}
-mkdir -p harness/tasks
-mkdir -p harness/trace/failures
-mkdir -p rules/common
-mkdir -p rules/$LANGUAGE
+mkdir -p .harness/scripts/verify
+mkdir -p .harness/memory/{episodic,procedural,failures}
+mkdir -p .harness/tasks
+mkdir -p .harness/trace/failures
+mkdir -p .harness/rules/common
+mkdir -p .harness/rules/$LANGUAGE
 ```
 
 #### Step 4: Generate All Files
@@ -615,33 +615,33 @@ esac
 # lint-deps
 TEMPLATE="plugins/harness-pilot/templates/languages/$LANGUAGE/lint-deps.$EXT.template"
 if [ -f "$TEMPLATE" ]; then
-  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > scripts/lint-deps.$EXT
-  chmod +x scripts/lint-deps.$EXT
-  echo "  ✓ scripts/lint-deps.$EXT"
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/scripts/lint-deps.$EXT
+  chmod +x .harness/scripts/lint-deps.$EXT
+  echo "  ✓ .harness/scripts/lint-deps.$EXT"
 fi
 
 # lint-quality
 TEMPLATE="plugins/harness-pilot/templates/languages/$LANGUAGE/lint-quality.$EXT.template"
 if [ -f "$TEMPLATE" ]; then
-  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > scripts/lint-quality.$EXT
-  chmod +x scripts/lint-quality.$EXT
-  echo "  ✓ scripts/lint-quality.$EXT"
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/scripts/lint-quality.$EXT
+  chmod +x .harness/scripts/lint-quality.$EXT
+  echo "  ✓ .harness/scripts/lint-quality.$EXT"
 fi
 
 # validate
 TEMPLATE="plugins/harness-pilot/templates/languages/$LANGUAGE/validate.$EXT.template"
 if [ -f "$TEMPLATE" ]; then
-  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > scripts/validate.$EXT
-  chmod +x scripts/validate.$EXT
-  echo "  ✓ scripts/validate.$EXT"
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/scripts/validate.$EXT
+  chmod +x .harness/scripts/validate.$EXT
+  echo "  ✓ .harness/scripts/validate.$EXT"
 fi
 
 # verify-action (pre-validation)
 TEMPLATE="plugins/harness-pilot/templates/languages/$LANGUAGE/verify-action.$EXT.template"
 if [ -f "$TEMPLATE" ]; then
-  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > scripts/verify-action.$EXT
-  chmod +x scripts/verify-action.$EXT
-  echo "  ✓ scripts/verify-action.$EXT"
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/scripts/verify-action.$EXT
+  chmod +x .harness/scripts/verify-action.$EXT
+  echo "  ✓ .harness/scripts/verify-action.$EXT"
 fi
 ```
 
@@ -652,25 +652,25 @@ fi
 for rule in safety git-workflow; do
   TEMPLATE="plugins/harness-pilot/templates/rules/common/$rule.md.template"
   if [ -f "$TEMPLATE" ]; then
-    node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > rules/common/$rule.md
-    echo "  ✓ rules/common/$rule.md"
+    node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/rules/common/$rule.md
+    echo "  ✓ .harness/rules/common/$rule.md"
   fi
 done
 
 # Language-specific rules
 TEMPLATE="plugins/harness-pilot/templates/rules/$LANGUAGE/development.md.template"
 if [ -f "$TEMPLATE" ]; then
-  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > rules/$LANGUAGE/development.md
-  echo "  ✓ rules/$LANGUAGE/development.md"
+  node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/rules/$LANGUAGE/development.md
+  echo "  ✓ .harness/rules/$LANGUAGE/development.md"
 fi
 ```
 
 ### Create Harness Placeholders
 
 ```bash
-echo "# Harness Memory\n\nThis directory stores agent memories:\n- episodic/ - Event memories\n- procedural/ - Process memories\n- failures/ - Failure analysis\n" > harness/memory/README.md
-echo "# Harness Tasks\n\nThis directory stores task state and checkpoints.\n" > harness/tasks/README.md
-echo "# Harness Trace\n\nThis directory stores execution traces and failure records.\n" > harness/trace/README.md
+echo "# Harness Memory\n\nThis directory stores agent memories:\n- episodic/ - Event memories\n- procedural/ - Process memories\n- failures/ - Failure analysis\n" > .harness/memory/README.md
+echo "# Harness Tasks\n\nThis directory stores task state and checkpoints.\n" > .harness/tasks/README.md
+echo "# Harness Trace\n\nThis directory stores execution traces and failure records.\n" > .harness/trace/README.md
 ```
 
 ## Success Output
@@ -687,19 +687,19 @@ Files created:
   ✓ AGENTS.md
   ✓ docs/ARCHITECTURE.md
   ✓ docs/DEVELOPMENT.md
-  ✓ scripts/lint-deps.$EXT (executable)
-  ✓ scripts/lint-quality.$EXT (executable)
-  ✓ scripts/validate.$EXT (executable)
-  ✓ rules/common/safety.md
-  ✓ rules/common/git-workflow.md
-  ✓ rules/$LANGUAGE/development.md
-  ✓ harness/memory/
-  ✓ harness/tasks/
-  ✓ harness/trace/
+  ✓ .harness/scripts/lint-deps.$EXT (executable)
+  ✓ .harness/scripts/lint-quality.$EXT (executable)
+  ✓ .harness/scripts/validate.$EXT (executable)
+  ✓ .harness/rules/common/safety.md
+  ✓ .harness/rules/common/git-workflow.md
+  ✓ .harness/rules/$LANGUAGE/development.md
+  ✓ .harness/memory/
+  ✓ .harness/tasks/
+  ✓ .harness/trace/
 
 Next steps:
   1. Review AGENTS.md to understand the structure
-  2. Review rules/ to understand mandatory constraints
+  2. Review .harness/rules/ to understand mandatory constraints
   3. Run `npm run lint` or `make lint` to check existing code
   4. Run `npm run validate` or `make validate` to test verification pipeline
   5. Read docs/ARCHITECTURE.md to understand layer rules
@@ -707,7 +707,7 @@ Next steps:
 Would you like to:
   [ ] Run lint now to see existing issues
   [ ] Open AGENTS.md for review
-  [ ] Review rules/ for mandatory constraints
+  [ ] Review .harness/rules/ for mandatory constraints
   [ ] Create a test file to verify harness works
 ```
 

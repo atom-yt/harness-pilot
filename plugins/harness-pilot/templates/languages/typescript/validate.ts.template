@@ -3,7 +3,7 @@
  * Unified Validation Pipeline
  * Runs all validation steps in order
  *
- * Usage: ts-node scripts/validate.ts [--step <name>]
+ * Usage: ts-node .harness/scripts/validate.ts [--step <name>]
  */
 
 import { spawn, SpawnOptions } from 'child_process';
@@ -22,13 +22,13 @@ const VALIDATION_STEPS = [
   {
     name: 'lint-arch',
     description: 'Architecture lint',
-    command: 'ts-node scripts/lint-deps.ts',
+    command: 'ts-node .harness/scripts/lint-deps.ts',
     timeout: 60000,
   },
   {
     name: 'lint-quality',
     description: 'Quality lint',
-    command: 'ts-node scripts/lint-quality.ts',
+    command: 'ts-node .harness/scripts/lint-quality.ts',
     timeout: 60000,
   },
   {

@@ -23,7 +23,7 @@
 ### Step 1: [Action description]
 
 - **Files**: [specific file paths]
-- **Pre-validate**: `scripts/verify-action.[ext] --action "[action]"` (if structural change)
+- **Pre-validate**: `.harness/scripts/verify-action.[ext] --action "[action]"` (if structural change)
 - **Action details**: 
   <!-- What exactly to do in this step -->
 - **Verify**: `[command to confirm this step succeeded]`
