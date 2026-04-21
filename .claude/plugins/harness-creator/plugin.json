@@ -1,0 +1,26 @@
+{
+  "name": "harness-creator",
+  "version": "0.1.0",
+  "description": "Transform any project into a harness-compatible form with dry-run analysis, guided build, and auto-generation modes",
+  "author": "harness-pilot",
+  "keywords": ["harness", "project-structure", "lint", "architecture", "validation"],
+  "skills": [
+    {
+      "name": "harness-analyze",
+      "description": "Analyze project structure and generate health report without making changes",
+      "trigger": ["analyze", "harness-analyze", "project-analysis"]
+    },
+    {
+      "name": "harness-guide",
+      "description": "Interactive guided build mode with step-by-step configuration",
+      "trigger": ["harness-guide", "guide", "harness-build"]
+    },
+    {
+      "name": "harness-apply",
+      "description": "Auto-generate complete harness infrastructure with default settings",
+      "trigger": ["harness-apply", "apply-harness", "harness-auto"]
+    }
+  ],
+  "supportedLanguages": ["typescript", "javascript", "python", "go", "rust"],
+  "supportedFrameworks": ["nextjs", "react", "express", "django", "fastapi", "flask", "gin"]
+}

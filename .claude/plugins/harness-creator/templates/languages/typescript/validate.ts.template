@@ -1,0 +1,148 @@
+#!/usr/bin/env ts-node
+/**
+ * Unified Validation Pipeline
+ * Runs all validation steps in order
+ *
+ * Usage: ts-node scripts/validate.ts [--step <name>]
+ */
+
+import { spawn, SpawnOptions } from 'child_process';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const VALIDATION_STEPS = [
+  {
+    name: 'build',
+    description: 'Compile TypeScript',
+    command: 'npm run build',
+    timeout: 120000,
+  },
+  {
+    name: 'lint-arch',
+    description: 'Architecture lint',
+    command: 'ts-node scripts/lint-deps.ts',
+    timeout: 60000,
+  },
+  {
+    name: 'lint-quality',
+    description: 'Quality lint',
+    command: 'ts-node scripts/lint-quality.ts',
+    timeout: 60000,
+  },
+  {
+    name: 'test',
+    description: 'Run tests',
+    command: 'npm test',
+    timeout: 300000,
+  },
+];
+
+// ============================================================================
+// Runner
+// ============================================================================
+
+interface StepResult {
+  name: string;
+  success: boolean;
+  duration: number;
+  output?: string;
+  error?: string;
+}
+
+async function runStep(step: typeof VALIDATION_STEPS[0]): Promise<StepResult> {
+  const start = Date.now();
+
+  return new Promise((resolve) => {
+    console.log(`\n🔧 Running ${step.name}...`);
+    console.log(`   Command: ${step.command}`);
+
+    const options: SpawnOptions = {
+      shell: true,
+      stdio: 'inherit',
+      timeout: step.timeout,
+    };
+
+    const child = spawn(step.command, options);
+
+    child.on('close', (code) => {
+      const duration = Math.round((Date.now() - start) / 1000);
+
+      if (code === 0) {
+        console.log(`   ✓ ${step.name} passed (${duration}s)`);
+        resolve({
+          name: step.name,
+          success: true,
+          duration,
+        });
+      } else {
+        console.log(`   ✗ ${step.name} failed (${duration}s)`);
+        resolve({
+          name: step.name,
+          success: false,
+          duration,
+          error: `Process exited with code ${code}`,
+        });
+      }
+    });
+
+    child.on('error', (err) => {
+      const duration = Math.round((Date.now() - start) / 1000);
+      console.log(`   ✗ ${step.name} failed (${duration}s)`);
+      resolve({
+        name: step.name,
+        success: false,
+        duration,
+        error: err.message,
+      });
+    });
+  });
+}
+
+async function main(): Promise<void> {
+  console.log('\n═══════════════════════════════════════════════════════');
+  console.log('          Harness Validation Pipeline');
+  console.log('═══════════════════════════════════════════════════════\n');
+
+  const results: StepResult[] = [];
+  const stepArg = process.argv.indexOf('--step');
+  const stepFilter = stepArg > -1 ? process.argv[stepArg + 1] : null;
+
+  for (const step of VALIDATION_STEPS) {
+    if (stepFilter && step.name !== stepFilter) {
+      continue;
+    }
+
+    const result = await runStep(step);
+    results.push(result);
+
+    if (!result.success) {
+      console.log(`\n❌ Validation failed at step: ${step.name}`);
+      console.log(`   ${result.error || 'Unknown error'}\n`);
+      process.exit(1);
+    }
+  }
+
+  // Summary
+  const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
+  console.log('\n═══════════════════════════════════════════════════════');
+  console.log('                Validation Summary');
+  console.log('═══════════════════════════════════════════════════════\n');
+
+  for (const result of results) {
+    const icon = result.success ? '✓' : '✗';
+    console.log(`  ${icon} ${result.name.padEnd(15)} ${result.duration}s`);
+  }
+
+  console.log(`\n  Total: ${totalDuration}s`);
+  console.log('═══════════════════════════════════════════════════════\n');
+
+  console.log('✓ All validation steps passed!\n');
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error('Validation error:', err);
+  process.exit(1);
+});

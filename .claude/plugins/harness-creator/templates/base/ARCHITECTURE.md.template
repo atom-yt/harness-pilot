@@ -1,0 +1,54 @@
+# {{PROJECT_NAME}} Architecture
+
+## Layer System
+
+{{LAYER_RULES}}
+
+## Dependency Rules
+
+- Higher layers may import lower layers
+- Lower layers CANNOT import higher layers
+- Layers at same level may import each other
+
+## Data Flow
+
+1. User interaction → Layer 4 (API, UI, CLI)
+2. Layer 4 → Layer 3 (Services, Business Logic)
+3. Layer 3 → Layer 2 (Libraries, Utilities)
+4. Layer 2 → Layer 1 (Utils, Helpers)
+5. Layer 1 → Layer 0 (Types, Interfaces)
+
+## Module Responsibilities
+
+| Layer | Responsibilities |
+|-------|----------------|
+| Layer 0 | Type definitions, interfaces, no internal dependencies |
+| Layer 1 | Utility functions, pure logic, no external dependencies |
+| Layer 2 | External library wrappers, shared services |
+| Layer 3 | Business logic, domain services |
+| Layer 4 | HTTP handlers, UI components, routing |
+
+## Architectural Principles
+
+1. **Dependency Direction**: Always flow from higher to lower layers
+2. **No Circular Dependencies**: Detect and prevent at lint time
+3. **Interface Segregation**: Use interfaces to decouple layers
+4. **Single Responsibility**: Each module has one clear purpose
+
+## Violation Examples
+
+```
+❌ Invalid: Layer 3 importing Layer 4
+   import { handler } from './api/handler'
+   Fix: Move handler to Layer 3 or use interface
+
+❌ Invalid: Layer 0 with internal dependencies
+   import { config } from './internal/config'
+   Fix: Layer 0 cannot have internal dependencies
+
+✓ Valid: Layer 4 importing Layer 3
+   import { service } from './services/user'
+
+✓ Valid: Layer 2 importing Layer 1
+   import { format } from '../utils/format'
+```

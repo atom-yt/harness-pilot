@@ -1,0 +1,41 @@
+# {{PROJECT_NAME}} Agent Guide
+
+## Quick Links
+- [Architecture Overview](docs/ARCHITECTURE.md) — Layer rules, data flow
+- [Development Guide](docs/DEVELOPMENT.md) — Build, test, lint commands
+
+## Build Commands
+{{#if LANGUAGE eq 'TypeScript'}}
+npm run build      # Build project
+npm test           # Run tests
+npm run lint-arch  # Run architecture lint
+{{/if}}
+{{#if LANGUAGE eq 'JavaScript'}}
+npm run build      # Build project
+npm test           # Run tests
+npm run lint-arch  # Run architecture lint
+{{/if}}
+{{#if LANGUAGE eq 'Python'}}
+pip install -e .  # Build project
+pytest              # Run tests
+python scripts/lint-deps.py  # Run architecture lint
+{{/if}}
+{{#if LANGUAGE eq 'Go'}}
+go build ./...     # Build project
+go test ./...       # Run tests
+go run scripts/lint-deps.go  # Run architecture lint
+{{/if}}
+
+## Layer Rules
+{{LAYER_MAPPING}}
+
+## Quality Standards
+{{#if no_console_log}}
+- Structured logging, no console.log / print()
+{{/if}}
+{{#if max_file_size}}
+- Single file not to exceed {{max_file_size}} lines
+{{/if}}
+{{#if typescript_strict_mode}}
+- TypeScript strict mode enabled
+{{/if}}

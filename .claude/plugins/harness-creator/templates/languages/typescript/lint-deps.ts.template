@@ -1,0 +1,203 @@
+#!/usr/bin/env ts-node
+/**
+ * Layer Dependency Checker
+ * Analyzes import statements and detects layer violations
+ *
+ * Usage: ts-node scripts/lint-deps.ts [--fix]
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const LAYERS: Record<string, number> = {
+  // Layer 0: Types (no internal dependencies)
+  'types': 0,
+  'interfaces': 0,
+  'models': 0,
+
+  // Layer 1: Utils (depends on Layer 0)
+  'utils': 1,
+  'helpers': 1,
+  'common': 1,
+
+  // Layer 2: Libraries and configs (depends on Layer 0-1)
+  'lib': 2,
+  'config': 2,
+  'constants': 2,
+
+  // Layer 3: Services and business logic (depends on Layer 0-2)
+  'services': 3,
+  'core': 3,
+  'domain': 3,
+
+  // Layer 4: Interface layer (depends on Layer 0-3)
+  'api': 4,
+  'handlers': 4,
+  'controllers': 4,
+  'app': 4,
+  'pages': 4,
+  'components': 4,
+};
+
+// Extensions to check
+const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+
+// Directories to exclude
+const EXCLUDE_DIRS = ['node_modules', 'dist', 'build', '.git', '__tests__', 'test'];
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function getLayerFromFile(filePath: string): number | null {
+  const parts = filePath.split(path.sep);
+  for (const part of parts) {
+    if (LAYERS[part] !== undefined) {
+      return LAYERS[part];
+    }
+  }
+  return null;
+}
+
+function getLayerFromImport(importPath: string): number | null {
+  // Handle relative imports
+  const moduleName = importPath.replace(/^\.\.\//, '').replace(/^\.\//, '');
+  for (const [name, layer] of Object.entries(LAYERS)) {
+    if (moduleName.includes(name)) {
+      return layer;
+    }
+  }
+  return null;
+}
+
+function isInternalImport(importPath: string): boolean {
+  return importPath.startsWith('./') ||
+         importPath.startsWith('../') ||
+         importPath.startsWith('@/') ||
+         importPath.startsWith('~');
+}
+
+function extractImports(content: string): string[] {
+  const imports: string[] = [];
+
+  // ES6 imports
+  const es6Pattern = /import\s+.*\s+from\s+['"]([^'"]+)['"]/g;
+  let match;
+  while ((match = es6Pattern.exec(content)) !== null) {
+    imports.push(match[1]);
+  }
+
+  // CommonJS requires
+  const cjsPattern = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  while ((match = cjsPattern.exec(content)) !== null) {
+    imports.push(match[1]);
+  }
+
+  return imports;
+}
+
+function getAllFiles(dir: string, files: string[] = []): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!EXCLUDE_DIRS.includes(entry.name)) {
+        getAllFiles(fullPath, files);
+      }
+    } else if (EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+// ============================================================================
+// Main Analysis
+// ============================================================================
+
+interface Violation {
+  file: string;
+  line: number;
+  import: string;
+  currentLayer: number;
+  targetLayer: number;
+  message: string;
+}
+
+function analyzeFile(filePath: string): Violation[] {
+  const violations: Violation[] = [];
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n');
+  const currentLayer = getLayerFromFile(filePath);
+
+  if (currentLayer === null) {
+    return violations; // File not in a known layer
+  }
+
+  const imports = extractImports(content);
+
+  for (const importPath of imports) {
+    if (!isInternalImport(importPath)) {
+      continue; // Skip external imports
+    }
+
+    const targetLayer = getLayerFromImport(importPath);
+
+    if (targetLayer === null) {
+      continue; // Import not in a known layer
+    }
+
+    // Check for violation: lower layer importing higher layer
+    if (targetLayer > currentLayer) {
+      const lineNum = lines.findIndex(line => line.includes(importPath)) + 1;
+      violations.push({
+        file: filePath,
+        line: lineNum,
+        import: importPath,
+        currentLayer,
+        targetLayer,
+        message: `Layer ${currentLayer} cannot import Layer ${targetLayer}`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+function main(): void {
+  const projectRoot = process.cwd();
+  const files = getAllFiles(projectRoot);
+  const allViolations: Violation[] = [];
+
+  console.log(`\n📦 Analyzing ${files.length} files for layer violations...\n`);
+
+  for (const file of files) {
+    const violations = analyzeFile(file);
+    allViolations.push(...violations);
+  }
+
+  if (allViolations.length === 0) {
+    console.log('✓ No layer violations found!\n');
+    process.exit(0);
+  }
+
+  console.log(`✗ Found ${allViolations.length} layer violation(s):\n`);
+
+  for (const v of allViolations) {
+    console.log(`❌ ${v.file}:${v.line}`);
+    console.log(`   Import: ${v.import}`);
+    console.log(`   ${v.message}`);
+    console.log(`   Fix: Move import to a higher layer or use interface\n`);
+  }
+
+  process.exit(1);
+}
+
+main();
