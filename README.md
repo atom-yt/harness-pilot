@@ -19,8 +19,8 @@ Harness Pilot is a Claude Code plugin that transforms any codebase into a harnes
 Add the Harness Pilot marketplace and install the plugin in Claude Code:
 
 ```bash
-# Add marketplace
-/plugin marketplace add atom-yt/harness-pilot
+# Add marketplace (HTTPS, no SSH key required)
+/plugin marketplace add https://github.com/atom-yt/harness-pilot.git
 
 # Install plugin
 /plugin install harness-pilot@harness-pilot

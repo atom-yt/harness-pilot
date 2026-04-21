@@ -33,7 +33,7 @@ A harness provides:
 
 ### How do I install Harness Pilot?
 
-1. Add marketplace: `/plugin marketplace add atom-yt/harness-pilot`
+1. Add marketplace: `/plugin marketplace add https://github.com/atom-yt/harness-pilot.git`
 2. Install plugin: `/plugin install harness-pilot@harness-pilot`
 3. Use via `/harness-pilot:harness-*` commands
 
