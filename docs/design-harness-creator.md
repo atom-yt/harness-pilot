@@ -1,4 +1,4 @@
-# Harness Creator 设计文档
+# Harness Pilot 详细设计
 
 > 一个为代码库生成 Harness 基础设施的工具
 
