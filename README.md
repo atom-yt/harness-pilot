@@ -39,7 +39,7 @@ Add the Harness Pilot marketplace and install the plugin in Claude Code:
 
 ## Update
 
-### Update via marketplace
+### Reinstall from marketplace
 
 Uninstall the old version and reinstall to get the latest:
 
