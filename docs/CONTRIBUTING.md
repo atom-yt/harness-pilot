@@ -54,9 +54,9 @@ harness-pilot/
 ├── docs/                              # Documentation
 │   ├── API.md                         # API documentation
 │   ├── CONTRIBUTING.md                # This file
-│   ├── design-harness-creator.md      # Design document
+│   ├── detailed-design.md              # Detailed design
 │   ├── FAQ.md                         # FAQ
-│   ├── harness-report.md              # Harness report
+│   ├── overview-design.md              # Overview design
 │   └── OPTIMIZATION_PLAN.md           # Optimization roadmap
 ├── README.md                          # Project README
 ```

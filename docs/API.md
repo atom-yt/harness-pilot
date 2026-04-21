@@ -182,6 +182,6 @@ Check that the project has required build/test commands configured in `DEVELOPME
 
 ## References
 
-- [Harness Pilot Design](design-harness-creator.md)
-- [Harness Report](harness-report.md)
+- [Detailed Design](detailed-design.md)
+- [Overview Design](overview-design.md)
 - [AGENTS.md Standard](https://github.com/agentsmd/agents.md)

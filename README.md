@@ -134,8 +134,8 @@ my-project/
 
 - [API Documentation](docs/API.md) - Full API reference
 - [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute
-- [Harness Report](docs/harness-report.md) - Design overview (概要设计)
-- [Design Document](docs/design-harness-creator.md) - Detailed design (详细设计)
+- [Overview Design](docs/overview-design.md) - Design overview (概要设计)
+- [Detailed Design](docs/detailed-design.md) - Detailed design (详细设计)
 - [FAQ](docs/FAQ.md) - Frequently asked questions
 - [Optimization Plan](docs/OPTIMIZATION_PLAN.md) - Optimization roadmap
 

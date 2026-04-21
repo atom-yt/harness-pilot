@@ -225,6 +225,6 @@ Open an issue on GitHub with:
 
 For more information:
 - [API Documentation](API.md)
-- [Design Document](design-harness-creator.md)
-- [Harness Report](harness-report.md)
+- [Detailed Design](detailed-design.md)
+- [Overview Design](overview-design.md)
 - [Optimization Plan](OPTIMIZATION_PLAN.md)
