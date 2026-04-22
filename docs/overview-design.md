@@ -277,6 +277,62 @@ Agent 输出：
 
 就像有个经验丰富的老工程师，定期总结团队踩过的坑。
 
+### 场景五：多视角审查
+
+```bash
+你说：从多个角度审查一下这次的改动
+
+Agent 输出：
+=== 多视角审查 ===
+
+🏗️ 架构视角: PASS
+  ✅ 层级依赖合规
+  ✅ 无循环引用
+
+📦 产品视角: PASS
+  ✅ 用户场景覆盖完整
+  ✅ 成功指标可量化
+
+🔧 工程视角: FAIL
+  ❌ src/handler/auth.ts 缺少错误路径测试
+  ⚠️ 函数 processToken 命名不够清晰
+
+📏 质量视角: PASS
+  ✅ 边界条件已覆盖
+  ✅ 无竞态风险
+
+最终结论: FAIL（工程视角未通过）
+需要修复 1 个问题后重新审查
+```
+
+就像有个由不同角色组成的评审委员会，每个人从自己的专业角度提意见。
+
+### 场景六：结构化需求规格
+
+```bash
+你说：帮我写个用户认证功能的需求规格
+
+Agent 输出：
+=== harness-spec: 用户认证 ===
+状态: draft
+
+功能点:
+  [ADDED] JWT token 认证
+  [ADDED] 刷新令牌机制
+  [ADDED] 密码哈希存储
+
+验证标准:
+  ✓ lint-deps: auth 模块位于 Layer 3
+  ✓ validate: 认证端点返回 401/403
+  ✓ test: 覆盖 token 过期场景
+
+预验证:
+  ✓ harness-guardian: 架构合规
+  ✓ 文件位置: src/services/auth.ts (Layer 3)
+
+确认后写入 .harness/specs/user-auth/spec.md
+```
+
 ---
 
 ## 五、设计思路
@@ -307,9 +363,13 @@ my-project/
     │   ├── lint-quality.*     ← 检查代码质量
     │   ├── verify/            ← 端到端功能验证
     │   └── validate.*        ← 统一验证流程
+    ├── specs/             ← 功能规格（draft / approved / archived）
     ├── memory/            ← 三种记忆
     ├── tasks/             ← 任务状态
-    └── trace/             ← 失败轨迹
+    ├── trace/             ← 失败轨迹
+    └── rules/
+        └── common/
+            └── roles.md   ← 多视角角色清单
 ```
 
 ### 在动手之前先问"能不能做"
@@ -436,6 +496,8 @@ Agent 执行长任务时，窗口里慢慢堆起来的是代码 diff、编译错
 前面讲的 Harness 还是静态的——人定规则，Agent 遵守。
 
 但真正有意思的地方在于，Harness 能从 Agent 的失败里学东西。
+
+这个能力已经通过 `harness-evolve` skill 实现——用户可以直接调用 `/harness-pilot:harness-evolve` 触发失败模式分析和规则进化。
 
 ### 一个完整的闭环
 

@@ -6,10 +6,13 @@
 
 ## What is Harness Pilot?
 
-Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form. It provides two modes:
+Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form. It provides five skills:
 
 - **harness-analyze** (dryrun) - Analyze project structure, audit harness health, and generate health report without making changes
 - **harness-apply** (build) - Generate harness infrastructure with interactive guided mode (default) or auto mode (`--auto`)
+- **harness-spec** - Structured feature specification management with lifecycle (draft → approved → archived)
+- **harness-review** - Multi-perspective code review (architecture / product / quality / engineering / operations)
+- **harness-evolve** - Failure pattern analysis and self-evolution via Critic → Refiner loop
 
 ## Installation
 
@@ -82,6 +85,15 @@ Re-run `harness-apply` to regenerate harness rules, scripts, and other files:
 
 # Auto-generate with defaults
 /harness-pilot:harness-apply --auto
+
+# Create a feature specification
+/harness-pilot:harness-spec
+
+# Run multi-perspective code review
+/harness-pilot:harness-review
+
+# Analyze failure patterns and evolve harness rules
+/harness-pilot:harness-evolve
 ```
 
 ## What is a Harness?
@@ -99,13 +111,15 @@ my-project/
     │   ├── lint-deps.*        # Layer dependency checking
     │   ├── lint-quality.*     # Code quality rules
     │   └── validate.*         # Unified validation pipeline
+    ├── specs/             # Feature specifications (draft/approved/archived)
     ├── memory/            # Three types of memory
     ├── tasks/             # Task state and checkpoints
     ├── trace/             # Execution trace and failure records
     └── rules/
         ├── common/
         │   ├── safety.md      # AI safety constraints
-        │   └── git-workflow.md # Git workflow rules
+        │   ├── git-workflow.md # Git workflow rules
+        │   └── roles.md       # Multi-perspective role checklists
         └── {language}/
             └── development.md # Language-specific guidelines
 ```
@@ -145,9 +159,27 @@ The `.harness/rules/` directory contains AI-enforceable constraints that guide a
 
 - **.harness/rules/common/safety.md** - Safety constraints (no destructive operations, secrets management)
 - **.harness/rules/common/git-workflow.md** - Git workflow rules (commit format, branch naming)
+- **.harness/rules/common/roles.md** - Multi-perspective role checklists (product, architecture, engineering, quality, operations)
 - **.harness/rules/{language}/development.md** - Language-specific development guidelines
 
 Rules are automatically detected and enforced when AI agents work on the codebase. Use `harness-apply` to generate rules for your project.
+
+## Recommended Toolchain
+
+When running `harness-analyze` or `harness-apply`, Harness Pilot recommends complementary development quality tools based on project characteristics:
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| [Superpowers](https://github.com/janus-cards/superpowers) | Brainstorm, plan, git worktree, subagent execution, code review | `claude mcp add-skill obra/superpowers-skills` |
+| [gstack](https://github.com/anthropics/courses) | Role governance, CEO/eng-manager/QA perspective review | `claude mcp add-skill anthropics/gstack` |
+
+**Recommended workflow with all tools:**
+
+```
+brainstorm(SP) → spec(H) → plan(SP) → worktree(SP) → implement → review(H+G) → ship(G) → evolve(H)
+```
+
+SP = Superpowers, H = Harness Pilot, G = gstack
 
 ## License
 

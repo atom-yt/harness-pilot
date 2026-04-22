@@ -42,12 +42,15 @@ harness-pilot/
 │       │   └── template-engine.js     # Template rendering engine
 │       ├── skills/
 │       │   ├── harness-analyze/       # Dryrun analysis mode
-│       │   └── harness-apply/         # Interactive & auto-generation mode
+│       │   ├── harness-apply/         # Interactive & auto-generation mode
+│       │   ├── harness-spec/          # Structured spec management
+│       │   ├── harness-review/        # Multi-perspective code review
+│       │   └── harness-evolve/        # Self-evolution via Critic→Refiner
 │       ├── templates/
 │       │   ├── base/                  # Base templates
 │       │   ├── languages/             # Language-specific templates
 │       │   ├── frameworks/            # Framework-specific templates
-│       │   └── rules/                 # Rule templates
+│       │   └── rules/                 # Rule templates (incl. roles.md.template)
 │       └── tests/
 │           └── template-engine.test.js
 ├── test-projects/                     # Test projects for validation

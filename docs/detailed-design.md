@@ -162,6 +162,73 @@ CI/CD 发现问题时，代码已经写完了，修复成本高。
 | 自动生成文件 | - | ✓ | ✓ |
 | 验证脚本可用性 | - | ✓ | ✓ |
 
+### 增强 Skills
+
+除基础的 analyze 和 apply 外，Harness Pilot 提供三个增强 Skill：
+
+| Skill | 用途 | 生命周期 |
+|-------|------|---------|
+| **harness-spec** | 结构化需求规格管理 | draft → approved → archived |
+| **harness-review** | 多视角代码审查 | 架构/产品/质量/工程/运维五维审查 |
+| **harness-evolve** | 失败模式分析与自进化 | Critic → Refiner 循环 |
+
+---
+
+## 能力融合
+
+### 策略：直接复用 + 自建互补
+
+Harness Pilot 的核心定位是**验证基础设施**（lint-deps、validate、harness-guardian）。对于完整的开发质量工作流，采用三方协作策略：
+
+| 能力域 | 提供者 | 说明 |
+|--------|--------|------|
+| 方法论 | Superpowers | brainstorm、plan、git worktree、subagent execution |
+| 角色治理 | gstack | CEO/eng-manager/QA 视角、30+ skills |
+| 验证基础设施 | Harness Pilot | lint-deps、validate、harness-guardian |
+| 需求规格 | Harness Pilot (harness-spec) | 自建，绑定验证标准 |
+| 多视角审查 | Harness Pilot (harness-review) | 自建，调用 harness-guardian |
+| 自进化 | Harness Pilot (harness-evolve) | 自建，Critic→Refiner 循环 |
+
+### 推荐机制
+
+`harness-analyze` 和 `harness-apply` 在执行完成后，根据项目特征条件推荐互补工具：
+
+| 条件 | 推荐 |
+|------|------|
+| 任何项目 | Superpowers + gstack |
+| 多贡献者（>1 git contributor） | harness-spec |
+| 高复杂度（>50 源文件） | harness-review + roles |
+| 存在失败记录 | harness-evolve |
+
+### 完整工作流
+
+```
+brainstorm(SP) → spec(H) → plan(SP) → worktree(SP) → implement → review(H+G) → ship(G) → evolve(H)
+```
+
+SP = Superpowers, H = Harness Pilot, G = gstack
+
+---
+
+## 角色视角系统
+
+### 五维视角
+
+通过 `.harness/rules/common/roles.md` 模板，为 AI Agent 提供多维审查清单：
+
+| 视角 | 关注点 | 注入的 Agent |
+|------|--------|-------------|
+| **产品视角** | 用户识别、问题解决、成功指标 | planner |
+| **架构视角** | 层级规则、可扩展性、技术债 | planner |
+| **工程视角** | 可测试性、错误路径、命名清晰度 | code-reviewer |
+| **质量视角** | 边界测试、竞态条件、一致性 | code-reviewer |
+| **运维视角** | 日志、向后兼容、监控 | harness-review |
+
+### Agent 增强
+
+- **planner agent**: 生成计划时应用架构视角（层级合规、可扩展性）和产品视角（用户影响、成功指标）
+- **code-reviewer agent**: 审查代码时应用质量视角（边界测试、竞态条件）和工程视角（可测试性、命名清晰度），同时检查 spec 合规性
+
 ---
 
 ## 模板系统
@@ -296,6 +363,10 @@ macOS 下 /var 是 /private/var 的符号链接，会导致工作区路径比较
 
 ## 自进化机制
 
+### harness-evolve Skill
+
+自进化机制已通过 `harness-evolve` skill 实现为可直接调用的能力。用户可通过 `/harness-pilot:harness-evolve` 触发失败模式分析和规则进化。
+
 ### Critic → Refiner 循环
 
 ```
@@ -372,9 +443,17 @@ my-project/
     │   ├── lint-quality.*         # 代码质量规则
     │   ├── verify/                # 端到端功能验证
     │   └── validate.*            # 统一验证管道
+    ├── specs/                # 功能规格（draft / approved / archived）
     ├── tasks/                 # 任务状态和检查点
     ├── trace/                # 执行轨迹和失败记录
-    └── memory/              # 经验教训存储
+    ├── memory/              # 经验教训存储
+    └── rules/
+        ├── common/
+        │   ├── safety.md          # AI 安全约束
+        │   ├── git-workflow.md    # Git 工作流规则
+        │   └── roles.md          # 多视角角色清单
+        └── {language}/
+            └── development.md     # 语言特定开发规范
 ```
 
 ### 文件说明
@@ -387,6 +466,8 @@ my-project/
 | .harness/scripts/lint-deps.* | 检查依赖方向，确保层级规则 |
 | .harness/scripts/lint-quality.* | 强制代码质量规范 |
 | .harness/scripts/validate.* | 统一验证入口：build → lint → test → verify |
+| .harness/specs/ | 功能规格文件，harness-spec 管理 |
+| .harness/rules/common/roles.md | 五维角色视角清单，供 planner 和 code-reviewer 使用 |
 | .harness/memory/ | 三种记忆系统，积累项目经验 |
 | .harness/trace/ | 失败记录，供 Critic 分析 |
 
@@ -435,35 +516,38 @@ python3 .harness/scripts/verify_action.py --action "import internal/core from in
 
 ## 实施计划
 
-### Phase 1: 核心功能（MVP）
+### Phase 1: 核心功能（MVP） ✓
 
-- [ ] dryrun 模式：项目分析和健康度评分
-- [ ] guide 模式：交互式配置
-- [ ] auto 模式：一键生成
-- [ ] TypeScript 模板支持
-- [ ] 基础记忆系统
+- [x] dryrun 模式：项目分析和健康度评分
+- [x] guide 模式：交互式配置
+- [x] auto 模式：一键生成
+- [x] TypeScript 模板支持
+- [x] 基础记忆系统
 
-### Phase 2: 多语言支持
+### Phase 2: 多语言支持 ✓
 
-- [ ] Python 模板
-- [ ] Go 模板
-- [ ] JavaScript 模板
-- [ ] Rust 模板
+- [x] Python 模板
+- [x] Go 模板
+- [x] JavaScript 模板
+- [x] Rust 模板
 
-### Phase 3: 框架扩展
+### Phase 3: 框架扩展 ✓
 
-- [ ] Next.js 模板
-- [ ] React 模板
-- [ ] Django 模板
-- [ ] FastAPI 模板
-- [ ] Express 模板
+- [x] Next.js 模板
+- [x] React 模板
+- [x] Django 模板
+- [x] FastAPI 模板
+- [x] Express 模板
 
-### Phase 4: 自进化
+### Phase 4: 能力融合与增强 Skills ✓
 
-- [ ] Critic 分析脚本
-- [ ] Refiner 自动修复
-- [ ] 轨迹编译机制
-- [ ] 失败模式识别
+- [x] harness-spec skill（结构化需求规格管理）
+- [x] harness-review skill（多视角代码审查）
+- [x] harness-evolve skill（Critic→Refiner 自进化）
+- [x] 角色视角模板（roles.md.template）
+- [x] planner / code-reviewer agent 角色视角注入
+- [x] harness-analyze / harness-apply 工具链推荐机制
+- [x] Superpowers + gstack 互补推荐
 
 ### Phase 5: 高级功能
 

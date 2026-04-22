@@ -1,24 +1,23 @@
 # 文档更新总结
 
-## 修改的文件（7 个）
+## 完成内容
+
+更新 5 个文档文件，使其反映能力融合（capability-fusion）架构的全部变更。
+
+## 修改清单
 
 | 文件 | 修改内容 |
 |------|----------|
-| README.md | Documentation 部分补充 API.md、CONTRIBUTING.md、FAQ.md、OPTIMIZATION_PLAN.md 链接 |
-| docs/API.md | 移除不存在的 plugin.json 引用；移除 Rust Planned 行 |
-| docs/CONTRIBUTING.md | 项目结构补充 agents/、hooks/、tests/ 目录；移除 plugin.json 引用 |
-| docs/FAQ.md | 将 harness-guide、harness-generate-rules 统一为 harness-apply |
-| docs/OPTIMIZATION_PLAN.md | 合并已实现功能表中的旧技能名 |
-| docs/design-harness-creator.md | 生成文件结构图从 scripts/ + harness/ 更新为 .harness/ |
-| docs/harness-report.md | 同上，文件结构图更新为 .harness/ |
+| `README.md` | 新增 3 个 skill 说明、Quick Start 示例、文件结构增加 specs/ 和 roles.md、新增 Recommended Toolchain 章节 |
+| `docs/API.md` | 新增 harness-spec/harness-review/harness-evolve API 文档、新增 Agents 章节、更新文件结构 |
+| `docs/CONTRIBUTING.md` | Project Structure 树增加 3 个新 skill 目录和 roles.md.template |
+| `docs/detailed-design.md` | 新增"能力融合"章节（三方协作策略、推荐机制、完整工作流）、新增"角色视角系统"章节、harness-evolve skill 说明、更新文件结构和实施计划标记 |
+| `docs/overview-design.md` | 新增场景五（多视角审查）和场景六（结构化需求规格）、更新文件结构树、补充 harness-evolve skill 说明 |
 
-## 保留的内容
+## 关键新增章节
 
-- **test-projects/**: 保留，作为 harness-analyze 和 harness-apply 的手动验证目标
-
-## 核心变更点
-
-1. **技能名统一**: harness-guide / harness-apply / harness-generate-rules → harness-analyze + harness-apply (interactive/auto)
-2. **目录结构统一**: scripts/ + harness/ → .harness/ 下的子目录
-3. **移除幽灵引用**: plugin.json（不存在）、Rust 支持（无模板）
-4. **补全遗漏**: README 文档链接、CONTRIBUTING 目录结构
+1. **README: Recommended Toolchain** — 说明 Superpowers + gstack 互补推荐及完整工作流
+2. **API: Agents** — 文档化 planner 和 code-reviewer 的角色视角增强
+3. **detailed-design: 能力融合** — 三方协作策略、推荐机制逻辑、工作流图
+4. **detailed-design: 角色视角系统** — 五维视角定义及 Agent 注入说明
+5. **overview-design: 场景五/六** — 用户可感知的多视角审查和需求规格使用场景

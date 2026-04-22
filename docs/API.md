@@ -2,7 +2,7 @@
 
 ## Overview
 
-Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form with dry-run analysis, guided build, and auto-generation modes.
+Harness Pilot is a Claude Code plugin that transforms any codebase into a harness-compatible form with dry-run analysis, guided build, auto-generation, spec management, multi-perspective review, and self-evolution capabilities.
 
 ## Installation
 
@@ -64,6 +64,70 @@ I'm using harness-apply --auto to auto-generate harness infrastructure.
 - Creates all files: AGENTS.md, docs/, .harness/scripts/, .harness/rules/, .harness/memory/, .harness/tasks/, .harness/trace/
 - Validates generated scripts are executable
 
+### harness-spec
+
+Manages structured feature specifications with a three-stage lifecycle (draft → approved → archived). Binds verification criteria directly to harness validation scripts.
+
+**Trigger:** `harness-spec`, `spec`, `feature-spec`, `requirement`, `harness-requirement`
+
+**Usage:**
+```
+# Create a new feature specification
+I'm using harness-spec to create a spec for the user authentication feature.
+
+# Review and approve an existing spec
+I'm using harness-spec to approve the spec in .harness/specs/user-auth/spec.md.
+```
+
+**Output:**
+- Structured spec file at `.harness/specs/<feature>/spec.md`
+- Delta markers (ADDED/MODIFIED/REMOVED) for brownfield requirements
+- Machine-verifiable acceptance criteria linked to lint-deps and validate
+- Pre-validation via harness-guardian agent
+
+### harness-review
+
+Multi-perspective code review framework. Applies architecture, product, quality, engineering, and operations perspectives to produce independent verdicts.
+
+**Trigger:** `harness-review`, `review`, `multi-review`, `perspective-review`
+
+**Usage:**
+```
+# Run a full multi-perspective review
+I'm using harness-review to review the recent changes.
+
+# Run specific perspectives only
+I'm using harness-review --perspectives architecture,quality to check architecture and quality.
+```
+
+**Output:**
+- Per-perspective PASS/FAIL verdicts with findings
+- Architecture review: layer compliance via harness-guardian
+- Product review: business context from PRODUCT_SENSE.md
+- Quality review: code-reviewer agent dispatch
+- Final consolidated verdict (all selected perspectives must pass)
+
+### harness-evolve
+
+Analyzes failure patterns from `.harness/trace/failures/` and drives self-evolution of harness rules via a Critic → Refiner loop.
+
+**Trigger:** `harness-evolve`, `evolve`, `self-improve`, `critic`, `failure-analysis`
+
+**Usage:**
+```
+# Analyze failure patterns and suggest improvements
+I'm using harness-evolve to analyze recent failures and improve harness rules.
+
+# Compile successful trajectories into deterministic scripts
+I'm using harness-evolve --compile to compile repeated successful patterns.
+```
+
+**Output:**
+- Failure pattern analysis with root causes and confidence levels
+- Evolution reports with suggested rule updates
+- Trajectory compilation: repeated success patterns → deterministic scripts
+- Updated procedural memory in `.harness/memory/procedural/`
+
 ## Template Engine
 
 The plugin includes a lightweight template engine for rendering templates.
@@ -99,16 +163,34 @@ my-project/
     │   ├── lint-quality.*     # Code quality rules
     │   ├── verify/            # End-to-end verification
     │   └── validate.*        # Unified validation pipeline
+    ├── specs/             # Feature specifications (draft/approved/archived)
     ├── memory/            # Three types of memory
     ├── tasks/             # Task state and checkpoints
     ├── trace/             # Execution trace and failure records
     └── rules/
         ├── common/
         │   ├── safety.md      # AI safety constraints
-        │   └── git-workflow.md # Git workflow rules
+        │   ├── git-workflow.md # Git workflow rules
+        │   └── roles.md       # Multi-perspective role checklists
         └── {language}/
             └── development.md  # Language-specific guidelines
 ```
+
+## Agents
+
+Harness Pilot includes three AI agents that are enhanced with role perspective awareness:
+
+### planner
+
+Generates execution plans for feature development. When `.harness/rules/common/roles.md` exists, the planner applies Architecture Perspective (layer compliance, extensibility) and Product Perspective (user impact, success metrics) checklists to review plans.
+
+### code-reviewer
+
+Reviews changed files for compliance. When `roles.md` exists, applies Quality Perspective (boundary tests, race conditions) and Engineering Perspective (testability, naming clarity) checklists. Also checks spec compliance when `.harness/specs/<feature>/spec.md` is available.
+
+### harness-guardian
+
+Validates architectural constraints. Used by harness-review for architecture perspective checks.
 
 ## Supported Languages
 
