@@ -23,6 +23,8 @@ Break complex tasks into bite-sized, independently verifiable steps. The planner
    - Read `AGENTS.md` for project navigation
    - Read `docs/ARCHITECTURE.md` for layer rules and dependency constraints
    - Read `docs/DEVELOPMENT.md` for build/test/lint commands
+   - Read `.harness/rules/common/roles.md` for role perspective checklists (if exists)
+   - Read `.harness/specs/<feature>/spec.md` for requirements and verification criteria (if exists)
    - Query `.harness/memory/procedural/` for similar past tasks
 
 2. **Analyze Scope**
@@ -36,6 +38,7 @@ Break complex tasks into bite-sized, independently verifiable steps. The planner
    - Each step must be independently testable
    - Include verification command for each step
    - Order steps to minimize risk (infrastructure first, integration last)
+   - If roles.md exists, review plan against Architecture Perspective checklist (layer compliance, extensibility) and Product Perspective checklist (user impact, success metrics)
 
 4. **Present for Approval**
    - Show plan summary to user

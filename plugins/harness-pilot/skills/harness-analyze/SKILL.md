@@ -277,6 +277,33 @@ Total Score: [0-100]
   2. [actionable recommendation]
   3. [actionable recommendation]
 
+🔗 Recommended Development Quality Toolchain:
+
+  External plugins (install directly):
+    [Recommended] Superpowers — brainstorm + TDD + git worktree + subagent execution
+      Install: /plugin marketplace add obra/superpowers-marketplace
+              /plugin install superpowers@superpowers-marketplace
+      Why: Structured dev methodology that complements harness verification
+
+    [Recommended] gstack — safety guardrails + QA + multi-role review + release flow + browser
+      Install: git clone --depth 1 https://github.com/garrytan/gstack ~/.claude/skills/gstack
+              cd ~/.claude/skills/gstack && ./setup
+      Why: Role-based governance and toolchain that fills ops/QA/release gaps
+
+  Harness built-in enhanced skills:
+    [Recommended if multi-contributor] harness-spec — structured requirements management
+      Why: Traceable requirements-to-implementation chain
+
+    [Optional if complexity > 50 files] harness-review — multi-perspective review
+      Why: Architecture + product + quality review with lint-deps data
+
+    [Optional if .harness/trace/failures/ has records] harness-evolve — learn from failures
+      Why: Extract patterns from failure records to auto-improve harness rules
+
+  Complete recommended workflow:
+    brainstorm(SP) → spec(H) → plan(SP) → worktree(SP) → implement → review(H+G) → ship(G) → evolve(H)
+    SP=Superpowers  H=Harness  G=gstack
+
 Next Steps:
   - Run harness-apply for interactive build (default) or auto-generation (--auto)
 
@@ -303,9 +330,37 @@ Always output the health report using the template above. End with next steps:
 Would you like to:
   1. Run harness-apply for interactive build (or --auto for auto-generation)
   2. Review specific recommendations
+  3. Install recommended plugins (Superpowers / gstack)
 
 Choose an option or describe what you'd like to do next.
 ```
+
+### Toolchain Recommendation Logic
+
+When generating the "Recommended Development Quality Toolchain" section, apply these rules:
+
+| Condition | Recommendation | Level |
+|-----------|---------------|-------|
+| Any project | Superpowers plugin | Recommended |
+| Any project | gstack plugin | Recommended |
+| Multi-contributor (>1 git contributors) | harness-spec | Recommended |
+| High complexity (>50 source files) | harness-review + roles | Optional |
+| `.harness/trace/failures/` has records | harness-evolve | Optional |
+
+Check conditions using:
+```bash
+# Multi-contributor check
+CONTRIBUTORS=$(git log --format='%ae' | sort -u | wc -l)
+
+# Complexity check
+SOURCE_COUNT=$(find . -type f \( -name "*.ts" -o -name "*.py" -o -name "*.go" -o -name "*.js" \) \
+  -not -path '*/node_modules/*' -not -path '*/.git/*' | wc -l)
+
+# Failure records check
+FAILURE_COUNT=$(find .harness/trace/failures -type f 2>/dev/null | wc -l)
+```
+
+Only show recommendations where conditions are met. Always show Superpowers and gstack.
 
 ## Before Analysis
 

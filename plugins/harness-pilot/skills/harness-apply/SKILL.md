@@ -277,6 +277,7 @@ If user confirms, proceed to Step 2. If user says no, ask for correct values.
 │  AI Rules:                                           │
 │  ☑ .harness/rules/common/safety.md (safety constraints)   │
 │  ☑ .harness/rules/common/git-workflow.md (commit standards) │
+│  ☑ .harness/rules/common/roles.md (role perspective checklists) │
 │  ☑ .harness/rules/{{LANGUAGE}}/development.md (language rules) │
 │                                                  │
 │  [Select All] [Minimum Recommended]                │
@@ -481,6 +482,7 @@ If user selects Customize, ask for manual layer configuration.
 │  AI Rules:                                           │
 │    ✓ .harness/rules/common/safety.md               │
 │    ✓ .harness/rules/common/git-workflow.md         │
+│    ✓ .harness/rules/common/roles.md                │
 │    ✓ .harness/rules/[language]/development.md      │
 │                                                  │
 │  [Confirm & Generate] [Go Back]                │
@@ -659,7 +661,7 @@ fi
 
 ```bash
 # Common rules
-for rule in safety git-workflow; do
+for rule in safety git-workflow roles; do
   TEMPLATE="plugins/harness-pilot/templates/rules/common/$rule.md.template"
   if [ -f "$TEMPLATE" ]; then
     node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/rules/common/$rule.md
@@ -702,10 +704,38 @@ Files created:
   ✓ .harness/scripts/validate.$EXT (executable)
   ✓ .harness/rules/common/safety.md
   ✓ .harness/rules/common/git-workflow.md
+  ✓ .harness/rules/common/roles.md
   ✓ .harness/rules/$LANGUAGE/development.md
   ✓ .harness/memory/
   ✓ .harness/tasks/
   ✓ .harness/trace/
+
+📋 Complete Development Quality Toolchain:
+
+  Harness Pilot core (installed):
+    ✅ harness-analyze — health analysis
+    ✅ harness-apply — infrastructure generation
+    ✅ planner agent — execution planning
+    ✅ code-reviewer agent — code review
+    ✅ harness-guardian agent — architecture gatekeeper
+
+  Harness enhanced skills (optional):
+    ☐ harness-spec — write spec before code (say "harness-spec" to use)
+    ☐ harness-review — multi-perspective review (say "harness-review" to use)
+    ☐ harness-evolve — learn from failures (say "harness-evolve" to use)
+
+  Recommended external plugins:
+    ☐ Superpowers — brainstorm + TDD + worktree + subagent execution
+      Install: /plugin marketplace add obra/superpowers-marketplace
+              /plugin install superpowers@superpowers-marketplace
+
+    ☐ gstack — safety guardrails + QA + multi-role review + release flow + browser
+      Install: git clone --depth 1 https://github.com/garrytan/gstack ~/.claude/skills/gstack
+              cd ~/.claude/skills/gstack && ./setup
+
+  Recommended complete workflow:
+    brainstorm(SP) → spec(H) → plan(SP) → worktree(SP) → implement → review(H+G) → ship(G) → evolve(H)
+    SP=Superpowers  H=Harness  G=gstack
 
 Next steps:
   1. Review AGENTS.md to understand the structure
@@ -718,6 +748,7 @@ Would you like to:
   [ ] Run lint now to see existing issues
   [ ] Open AGENTS.md for review
   [ ] Review .harness/rules/ for mandatory constraints
+  [ ] Install recommended plugins (Superpowers / gstack)
   [ ] Create a test file to verify harness works
 ```
 

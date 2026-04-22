@@ -23,6 +23,8 @@ Review code changes for correctness, architecture compliance, and quality. Focus
    - Read the execution plan from `docs/exec-plans/` (if exists)
    - Read `docs/ARCHITECTURE.md` for layer rules
    - Read `docs/PRODUCT_SENSE.md` for business context (if exists)
+   - Read `.harness/rules/common/roles.md` for role perspective checklists (if exists)
+   - Read `.harness/specs/<feature>/spec.md` for verification criteria (if exists)
 
 2. **Review Changed Files**
    - Read the diff or changed files
@@ -34,6 +36,8 @@ Review code changes for correctness, architecture compliance, and quality. Focus
      - **Performance**: Any O(n²) loops, unnecessary allocations, missing caching?
      - **Security**: Input validation, SQL injection, XSS, credential exposure?
      - **Consistency**: Does the style match the rest of the codebase?
+     - **Spec compliance**: If a spec exists, are all Verification Criteria addressed?
+     - If `roles.md` exists, additionally check against Quality Perspective (boundary tests, race conditions) and Engineering Perspective (testability, naming clarity) checklists
 
 3. **Produce Review**
    - Output structured review with severity levels
