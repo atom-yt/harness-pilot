@@ -153,10 +153,9 @@ function checkFile(filePath: string): ImportInfo[] {
   const imports = extractImports(content);
 
   for (const importPath of imports) {
-    // Skip external and node_modules
-    if (importPath.startsWith('node_modules') ||
-        importPath.startsWith('.') ||
-        !importPath.includes('.')) {
+    // Only check internal imports (relative paths like ./ or ../)
+    // Skip external dependencies and node_modules
+    if (!importPath.startsWith('.') && !importPath.startsWith('..')) {
       continue;
     }
 

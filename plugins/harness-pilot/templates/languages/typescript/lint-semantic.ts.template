@@ -20,6 +20,8 @@ interface SemanticRule {
   severity: 'error' | 'warning' | 'info';
   description: string;
   pattern: RegExp;
+  global?: boolean;
+  flags?: string;
   check?: (content: string, match: RegExpExecArray) => boolean;
   message?: string;
   fix?: string;
@@ -138,14 +140,6 @@ function getAllFiles(dir: string, files: string[] = []): string[] {
 // ============================================================================
 // Validation
 // ============================================================================
-
-interface Violation {
-  file: string;
-  line: number;
-  rule: string;
-  message: string;
-  severity: 'error' | 'warning';
-}
 
 function checkFile(filePath: string, rules: SemanticRule[]): Violation[] {
   const content = fs.readFileSync(filePath, 'utf-8');

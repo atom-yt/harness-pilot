@@ -35,6 +35,47 @@ type StepResult struct {
 // Configuration
 // ============================================================================
 
+type CapabilityConfig struct {
+	JitTestEnabled      bool
+	RefactorEnabled     bool
+	SecurityEnabled     bool
+	E2EAPIEnabled      bool
+	E2EBrowserEnabled  bool
+}
+
+// Load capabilities from .harness/capabilities.json if exists
+func loadCapabilities() CapabilityConfig {
+	config := CapabilityConfig{}
+
+	data, err := os.ReadFile(".harness/capabilities.json")
+	if err != nil {
+		return config
+	}
+
+	// Simple JSON parsing for capabilities
+	// In production, use encoding/json for proper parsing
+	content := string(data)
+	if strings.Contains(content, `"jit_test"`) && strings.Contains(content, `"enabled":true`) {
+		config.JitTestEnabled = true
+	}
+	if strings.Contains(content, `"refactor"`) && strings.Contains(content, `"enabled":true`) {
+		config.RefactorEnabled = true
+	}
+	if strings.Contains(content, `"security"`) && strings.Contains(content, `"enabled":true`) {
+		config.SecurityEnabled = true
+	}
+	if strings.Contains(content, `"api_e2e_enabled":true`) {
+		config.E2EAPIEnabled = true
+	}
+	if strings.Contains(content, `"browser_e2e_enabled":true`) {
+		config.E2EBrowserEnabled = true
+	}
+
+	return config
+}
+
+var CAPABILITIES = loadCapabilities()
+
 var VALIDATION_STEPS = []ValidationStep{
 	{
 		Name:        "build",
@@ -53,36 +94,6 @@ var VALIDATION_STEPS = []ValidationStep{
 		Description: "Quality lint",
 		Command:     "go run .harness/scripts/lint-quality.go",
 		Timeout:     1 * time.Minute,
-	},
-	{
-		Name:        "security-scan",
-		Description: "Security scan",
-		Command:     "bash .harness/scripts/security-scan.sh .",
-		Timeout:     1 * time.Minute,
-	},
-	{
-		Name:        "test",
-		Description: "Run tests",
-		Command:     "go test ./...",
-		Timeout:     5 * time.Minute,
-	},
-	{
-		Name:        "jit-test-generate",
-		Description: "JiT test generation",
-		Command:     "bash .harness/scripts/generate-test.sh",
-		Timeout:     1 * time.Minute,
-	},
-	{
-		Name:        "e2e-api",
-		Description: "API E2E tests",
-		Command:     "go run .harness/e2e/e2e-api.go",
-		Timeout:     3 * time.Minute,
-	},
-	{
-		Name:        "e2e-browser",
-		Description: "Browser E2E tests",
-		Command:     "go test .harness/e2e/e2e-browser_test.go",
-		Timeout:     5 * time.Minute,
 	},
 }
 
@@ -129,6 +140,79 @@ func runStep(step ValidationStep) StepResult {
 }
 
 // ============================================================================
+// Build validation steps based on capabilities
+// ============================================================================
+
+func buildValidationSteps() []ValidationStep {
+	steps := []ValidationStep{
+		{
+			Name:        "build",
+			Description: "Build project",
+			Command:     "go build ./...",
+			Timeout:     2 * time.Minute,
+		},
+		{
+			Name:        "lint-arch",
+			Description: "Architecture lint",
+			Command:     "go run .harness/scripts/lint-deps.go",
+			Timeout:     1 * time.Minute,
+		},
+		{
+			Name:        "lint-quality",
+			Description: "Quality lint",
+			Command:     "go run .harness/scripts/lint-quality.go",
+			Timeout:     1 * time.Minute,
+		},
+	}
+
+	// Add optional steps based on capabilities
+	if CAPABILITIES.SecurityEnabled {
+		steps = append(steps, ValidationStep{
+			Name:        "security-scan",
+			Description: "Security scan",
+			Command:     "bash .harness/scripts/security-scan.sh .",
+			Timeout:     1 * time.Minute,
+		})
+	}
+
+	steps = append(steps, ValidationStep{
+		Name:        "test",
+		Description: "Run tests",
+		Command:     "go test ./...",
+		Timeout:     5 * time.Minute,
+	})
+
+	if CAPABILITIES.JitTestEnabled {
+		steps = append(steps, ValidationStep{
+			Name:        "jit-test-generate",
+			Description: "JiT test generation",
+			Command:     "bash .harness/scripts/generate-test.sh",
+			Timeout:     1 * time.Minute,
+		})
+	}
+
+	if CAPABILITIES.E2EAPIEnabled {
+		steps = append(steps, ValidationStep{
+			Name:        "e2e-api",
+			Description: "API E2E tests",
+			Command:     "go run .harness/e2e/e2e-api.go",
+			Timeout:     3 * time.Minute,
+		})
+	}
+
+	if CAPABILITIES.E2EBrowserEnabled {
+		steps = append(steps, ValidationStep{
+			Name:        "e2e-browser",
+			Description: "Browser E2E tests",
+			Command:     "go test .harness/e2e/e2e-browser_test.go",
+			Timeout:     5 * time.Minute,
+		})
+	}
+
+	return steps
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
@@ -148,7 +232,9 @@ func main() {
 
 	var results []StepResult
 
-	for _, step := range VALIDATION_STEPS {
+	validationSteps := buildValidationSteps()
+
+	for _, step := range validationSteps {
 		if stepFilter != "" && step.Name != stepFilter {
 			continue
 		}

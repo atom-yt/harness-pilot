@@ -107,7 +107,14 @@ generate_test_file() {
   # Generate test file from template
   if [ -f "$template" ]; then
     echo "[generate] Creating $test_file"
-    node plugins/harness-pilot/scripts/template-engine.js "$template" \n      "{"SOURCE_FILE":"$source_file","TEST_FRAMEWORK":"$test_framework"}" \n      > "$test_file"
+    # Use jq to safely construct JSON (prevents command injection)
+    if command -v jq >/dev/null 2>&1; then
+      JSON_DATA=$(jq -n --arg sf "$source_file" --arg tf "$test_framework" '{SOURCE_FILE: $sf, TEST_FRAMEWORK: $tf}')
+    else
+      # Fallback: escape strings properly if jq not available
+      JSON_DATA=$(printf '{"SOURCE_FILE":"%s","TEST_FRAMEWORK":"%s"}' \n        "$(printf '%s' "$source_file" | sed 's/\/\/g; s/"/"/g')" \n        "$(printf '%s' "$test_framework" | sed 's/\/\/g; s/"/"/g')")
+    fi
+    node plugins/harness-pilot/scripts/template-engine.js "$template" "$JSON_DATA" > "$test_file"
     echo "  ✓ $test_file"
   else
     echo "[warn] Template not found: $template"

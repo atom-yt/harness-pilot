@@ -15,12 +15,35 @@ Review code changes for correctness, architecture compliance, and quality. Combi
 
 ## Extended Capabilities
 
-When capabilities are enabled in `.harness/capabilities.json`:
+When capabilities are enabled in `.harness/capabilities.json`, code-reviewer automatically performs additional analysis:
 
-- **JiT Test Analysis** — Check test coverage and generated test quality
-- **Code Smell Analysis** — Detect duplication, complexity, naming issues
-- **Security Analysis** — SAST checks, dependency vulnerabilities, configuration security
-- **E2E Test Analysis** — Verify API routes have E2E tests, UI flows are covered
+### Capability Configuration
+
+Enable capabilities by setting `enabled: true` in `.harness/capabilities.json`:
+
+```json
+{
+  "capabilities": {
+    "jit_test": { "enabled": true, "auto_generate_on_pr": false },
+    "refactor": { "enabled": false },
+    "security": { "enabled": false },
+    "e2e": { "api_e2e_enabled": false, "browser_e2e_enabled": false }
+  }
+}
+```
+
+### Available Capabilities
+
+- **JiT Test Analysis** — Check test coverage and generated test quality (when `jit_test.enabled`)
+- **Code Smell Analysis** — Detect duplication, complexity, naming issues (when `refactor.enabled`)
+- **Security Analysis** — SAST checks, dependency vulnerabilities, configuration security (when `security.enabled`)
+- **E2E Test Analysis** — Verify API routes have E2E tests, UI flows are covered (when `e2e.api_e2e_enabled` or `e2e.browser_e2e_enabled`)
+
+### Execution Order
+
+1. Architecture validation (always runs)
+2. Extended capabilities analysis (if enabled)
+3. Code quality review (always runs)
 
 ## When Dispatched
 
