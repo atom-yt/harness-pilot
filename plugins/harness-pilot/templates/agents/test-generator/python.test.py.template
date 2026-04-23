@@ -1,0 +1,22 @@
+def test_{{FUNCTION_NAME}}_normal():
+    """Test normal behavior."""
+    # Arrange
+    input_data = {{INPUT}}
+
+    # Act
+    result = {{FUNCTION_NAME}}(input_data)
+
+    # Assert
+    assert result == {{EXPECTED}}
+
+
+def test_{{FUNCTION_NAME}}_boundary():
+    """Test boundary values."""
+    assert {{FUNCTION_NAME}}({{EMPTY_INPUT}}) == {{EXPECTED}}
+    assert {{FUNCTION_NAME}}({{MAX_INPUT}}) == {{EXPECTED}}
+
+
+def test_{{FUNCTION_NAME}}_error():
+    """Test error handling."""
+    with pytest.raises({{ERROR_TYPE}}):
+        {{FUNCTION_NAME}}({{INVALID_INPUT}})

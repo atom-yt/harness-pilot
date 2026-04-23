@@ -1,0 +1,32 @@
+func Test{{FUNCTION_NAME}}Normal(t *testing.T) {
+    // Arrange
+    input := {{INPUT}}
+
+    // Act
+    result := {{FUNCTION_NAME}}(input)
+
+    // Assert
+    if result != {{EXPECTED}} {
+        t.Errorf("expected %v, got %v", {{EXPECTED}}, result)
+    }
+}
+
+func Test{{FUNCTION_NAME}}Boundary(t *testing.T) {
+    tests := []struct {
+        name     string
+        input    {{INPUT_TYPE}}
+        expected {{RESULT_TYPE}}
+    }{
+        {"empty", {{EMPTY_INPUT}}, {{EXPECTED}}},
+        {"max", {{MAX_INPUT}}, {{EXPECTED}}},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result := {{FUNCTION_NAME}}(tt.input)
+            if result != tt.expected {
+                t.Errorf("expected %v, got %v", tt.expected, result)
+            }
+        })
+    }
+}
