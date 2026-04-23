@@ -1,0 +1,17 @@
+/**
+ * Auto-generated test file for {{SOURCE_FILE}}
+ * Framework: {{TEST_FRAMEWORK}}
+ */
+
+import { describe, it, expect, beforeEach } from '@jest/globals';
+
+// TODO: Add imports from source file
+// import { Example } from '../{{SOURCE_FILE}}';
+
+describe('{{SOURCE_FILE_BASE}}', () => {
+  // TODO: Add tests for this module
+
+  it('should exist', () => {
+    expect(true).toBe(true);
+  });
+});

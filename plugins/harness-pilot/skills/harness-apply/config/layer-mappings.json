@@ -1,0 +1,51 @@
+{
+  "nextjs": {
+    "0": ["types/"],
+    "1": ["utils/"],
+    "2": ["lib/"],
+    "3": ["components/", "services/"],
+    "4": ["app/", "api/"]
+  },
+  "react": {
+    "0": ["types/"],
+    "1": ["utils/"],
+    "2": ["hooks/", "contexts/"],
+    "3": ["components/", "services/"],
+    "4": ["pages/", "app/"]
+  },
+  "express": {
+    "0": ["types/"],
+    "1": ["utils/"],
+    "2": ["services/"],
+    "3": ["routes/"],
+    "4": ["server.js"]
+  },
+  "django": {
+    "0": ["types/", "models.py"],
+    "1": ["utils/", "helpers/"],
+    "2": ["services/", "managers/"],
+    "3": ["views/", "api/"],
+    "4": ["urls.py", "admin.py"]
+  },
+  "fastapi": {
+    "0": ["types/", "models/"],
+    "1": ["utils/"],
+    "2": ["services/", "managers/"],
+    "3": ["api/"],
+    "4": ["main.py"]
+  },
+  "gin": {
+    "0": ["types/"],
+    "1": ["utils/"],
+    "2": ["services/"],
+    "3": ["handlers/"],
+    "4": ["main.go"]
+  },
+  "default": {
+    "0": ["types/"],
+    "1": ["utils/"],
+    "2": ["lib/", "services/"],
+    "3": ["components/", "handlers/"],
+    "4": ["app/", "api/", "main.js", "main.go", "main.py"]
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "typescript": {
+    "lintDeps": {
+      "enabled": true,
+      "maxDepth": 3,
+      "allowRelativeParents": false,
+      "enforceExtensions": true
+    },
+    "lintQuality": {
+      "enabled": true,
+      "noConsoleLog": true,
+      "maxFileSize": 500,
+      "maxFunctionLines": 50
+    },
+    "lintCircularDeps": {
+      "enabled": true
+    },
+    "lintImports": {
+      "enabled": true,
+      "enforceExtension": ".ts",
+      "maxParentLevels": 0
+    },
+    "lintSemantic": {
+      "enabled": true
+    },
+    "lintBoundary": {
+      "enabled": true
+    }
+  },
+  "javascript": {
+    "lintDeps": {
+      "enabled": true,
+      "maxDepth": 3,
+      "allowRelativeParents": false,
+      "enforceExtensions": true
+    },
+    "lintQuality": {
+      "enabled": true,
+      "noConsoleLog": true,
+      "maxFileSize": 500,
+      "maxFunctionLines": 50
+    }
+  },
+  "python": {
+    "lintDeps": {
+      "enabled": true,
+      "maxDepth": 3
+    },
+    "lintQuality": {
+      "enabled": true,
+      "noPrint": true,
+      "noLogging": false,
+      "maxFileSize": 500,
+      "maxFunctionLines": 50
+    },
+    "validate": {
+      "enabled": true
+    }
+  },
+  "go": {
+    "lintDeps": {
+      "enabled": true
+    },
+    "lintQuality": {
+      "enabled": true,
+      "golint": true,
+      "maxFileSize": 500,
+      "maxFunctionLines": 50
+    },
+    "validate": {
+      "enabled": true
+    }
+  },
+  "rust": {
+    "lintDeps": {
+      "enabled": true
+    },
+    "lintQuality": {
+      "enabled": true,
+      "clippy": true,
+      "maxFileSize": 500,
+      "maxFunctionLines": 50
+    }
+  }
+}

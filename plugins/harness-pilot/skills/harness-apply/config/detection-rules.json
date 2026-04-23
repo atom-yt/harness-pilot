@@ -1,0 +1,64 @@
+{
+  "languages": {
+    "typescript": {
+      "files": ["tsconfig.json"],
+      "extensions": [".ts", ".tsx"],
+      "packageKey": "typescript"
+    },
+    "javascript": {
+      "files": ["package.json"],
+      "extensions": [".js", ".jsx"],
+      "exclude": ["tsconfig.json"]
+    },
+    "python": {
+      "files": ["requirements.txt", "pyproject.toml", "setup.py"],
+      "extensions": [".py"]
+    },
+    "go": {
+      "files": ["go.mod"],
+      "extensions": [".go"]
+    },
+    "rust": {
+      "files": ["Cargo.toml"],
+      "extensions": [".rs"]
+    }
+  },
+  "frameworks": {
+    "nextjs": {
+      "language": "typescript",
+      "dependencies": ["next"],
+      "directories": ["app/", "pages/"]
+    },
+    "react": {
+      "language": "typescript",
+      "dependencies": ["react"]
+    },
+    "express": {
+      "language": "javascript",
+      "dependencies": ["express"]
+    },
+    "django": {
+      "language": "python",
+      "files": ["settings.py", "manage.py"]
+    },
+    "fastapi": {
+      "language": "python",
+      "dependencies": ["fastapi"]
+    },
+    "gin": {
+      "language": "go",
+      "dependencies": ["gin"]
+    }
+  },
+  "directories": {
+    "source": [
+      "src/", "app/", "lib/", "components/",
+      "services/", "types/", "utils/", "hooks/",
+      "contexts/", "pages/", "api/", "handlers/", "routes/"
+    ],
+    "config": [
+      "tsconfig.json", "package.json", "go.mod", "Cargo.toml",
+      "requirements.txt", "pyproject.toml", "setup.py", "settings.py", "manage.py"
+    ]
+  }
+}

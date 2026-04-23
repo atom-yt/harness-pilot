@@ -1,0 +1,30 @@
+{
+  "qualityRules": {
+    "noConsoleLog": true,
+    "maxFileSize": 500,
+    "typescriptStrictMode": true,
+    "noHardcodedStrings": false
+  },
+  "loop": {
+    "maxIterations": 3,
+    "autoFixEnabled": true,
+    "recordTrace": true
+  },
+  "capabilities": {
+    "jitTest": false,
+    "codeTemplates": true,
+    "refactoring": false,
+    "e2e": false,
+    "security": false,
+    "monitoring": false
+  },
+  "superpowers": {
+    "recommended": [
+      "brainstorm",
+      "planning",
+      "tdd",
+      "code-reviewer",
+      "git-worktree"
+    ]
+  }
+}
