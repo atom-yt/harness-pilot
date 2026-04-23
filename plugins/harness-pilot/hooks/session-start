@@ -1,50 +1,47 @@
 #!/usr/bin/env bash
 # harness-pilot session-start hook
-# Auto-loads harness context (AGENTS.md) when a session starts.
-# Supports Claude Code, Codex, and Cursor platforms.
+# Checks harness status and freshness when a session starts.
 
 set -euo pipefail
 
-AGENTS_FILE="AGENTS.md"
 HARNESS_DIR=".harness"
-MAX_AGENTS_LINES=100
+MANIFEST="$HARNESS_DIR/manifest.json"
 
 build_output() {
   local output=""
 
-  if [ -f "$AGENTS_FILE" ]; then
-    # Read AGENTS.md (truncate if too long)
-    local line_count
-    line_count=$(wc -l < "$AGENTS_FILE" | tr -d ' ')
-    if [ "$line_count" -gt "$MAX_AGENTS_LINES" ]; then
-      agents_content=$(head -n "$MAX_AGENTS_LINES" "$AGENTS_FILE")
-      agents_content="${agents_content}\n\n... (truncated, full file: ${AGENTS_FILE})"
-    else
-      agents_content=$(cat "$AGENTS_FILE")
-    fi
-    output="[harness-pilot] Harness detected. Project context loaded from AGENTS.md.\n\n${agents_content}"
+  if [ -f "$MANIFEST" ]; then
+    # Harness exists — check freshness
+    output="[harness] Harness detected."
 
-    # Check for active tasks
-    if [ -d "$HARNESS_DIR/tasks" ]; then
-      active_tasks=$(find "$HARNESS_DIR/tasks" -name "*.md" -maxdepth 1 2>/dev/null | head -5)
-      if [ -n "$active_tasks" ]; then
-        output="${output}\n\n--- Active Tasks ---"
-        for task_file in $active_tasks; do
-          task_name=$(basename "$task_file" .md)
-          output="${output}\n- ${task_name}"
-        done
-      fi
+    # Check if source code is newer than manifest
+    MANIFEST_TIME=$(stat -f %m "$MANIFEST" 2>/dev/null || stat -c %Y "$MANIFEST" 2>/dev/null || echo 0)
+    LATEST_SRC=$(find . -maxdepth 3 -type f \( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" \) \
+      -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' \
+      -exec stat -f %m {} 2>/dev/null \; | sort -rn | head -1)
+
+    if [ -n "$LATEST_SRC" ] && [ "$LATEST_SRC" -gt "$MANIFEST_TIME" ]; then
+      output="${output}\n[harness] Source code changed since last harness update. Run 'harness-apply' to update."
+    fi
+
+    # Check for .needs-update flag (set by git hook)
+    if [ -f "$HARNESS_DIR/.needs-update" ]; then
+      output="${output}\n[harness] Harness update pending (triggered by git hook). Run 'harness-apply' to update."
     fi
 
     # Check for recent failures
     if [ -d "$HARNESS_DIR/trace/failures" ]; then
       failure_count=$(find "$HARNESS_DIR/trace/failures" -name "*.md" -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
       if [ "$failure_count" -gt 0 ]; then
-        output="${output}\n\n--- Recent Failures: ${failure_count} recorded (see .harness/trace/failures/) ---"
+        output="${output}\n[harness] ${failure_count} failure records in .harness/trace/failures/"
       fi
     fi
+  elif [ -d "$HARNESS_DIR" ]; then
+    # Partial harness without manifest
+    output="[harness] Harness directory exists but manifest.json is missing. Run 'harness-apply --init' to regenerate."
   else
-    output="[harness-pilot] No harness detected in this project. Run 'harness-analyze' to assess or 'harness-apply' to generate harness infrastructure."
+    # No harness
+    output="[harness] No harness detected. Run 'harness-analyze' to assess or 'harness-apply' to generate."
   fi
 
   printf '%s' "$output"
@@ -53,17 +50,14 @@ build_output() {
 # Build context output
 raw_output=$(build_output)
 
-# Escape for JSON (handle backslash, quotes, tabs, carriage returns, newlines)
+# Escape for JSON
 json_output=$(printf '%s' "$raw_output" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' -e 's/\r/\\r/g' | sed ':a;N;$!ba;s/\n/\\n/g')
 
 # Platform-specific output format
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-  # Cursor: snake_case format
   echo "{\"additional_context\": \"${json_output}\"}"
 elif [ -n "${CODEX_PLUGIN_ROOT:-}" ]; then
-  # Codex: SDK standard format
   echo "{\"additionalContext\": \"${json_output}\"}"
 else
-  # Claude Code (default): nested format
   echo "{\"hookSpecificOutput\": {\"additionalContext\": \"${json_output}\"}}"
 fi

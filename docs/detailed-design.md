@@ -13,6 +13,7 @@
 - [模板系统](#模板系统)
 - [记忆系统](#记忆系统)
 - [自进化机制](#自进化机制)
+- [代码审查系统](#代码审查系统)
 - [实施计划](#实施计划)
 
 ---
@@ -132,7 +133,7 @@ CI/CD 发现问题时，代码已经写完了，修复成本高。
 | 目标 | 说明 |
 |------|------|
 | **零配置启动** | 任何项目可直接使用，无复杂安装步骤 |
-| **渐进式改进** | 从最小化 AGENTS.md 开始，逐步完善 |
+| **渐进式改进** | 从最小化 .harness/ 开始，逐步完善 |
 | **语言无关** | 支持 TypeScript、Python、Go 等主流语言 |
 | **模板化** | 通过模板系统适配不同项目结构 |
 | **自进化** | 从失败中学习，自动改进规则 |
@@ -162,15 +163,19 @@ CI/CD 发现问题时，代码已经写完了，修复成本高。
 | 自动生成文件 | - | ✓ | ✓ |
 | 验证脚本可用性 | - | ✓ | ✓ |
 
-### 增强 Skills
+### 两个核心 Skill
 
-除基础的 analyze 和 apply 外，Harness Pilot 提供三个增强 Skill：
+| Skill | 用途 | 说明 |
+|-------|------|------|
+| **harness-analyze** | 看（Look） | 分析项目健康状况，评估 Harness 覆盖度 |
+| **harness-apply** | 做（Do） | 生成/更新 Harness 基础设施，含 Reentrant Update 和 Ralph Wiggum Loop |
 
-| Skill | 用途 | 生命周期 |
-|-------|------|---------|
-| **harness-spec** | 结构化需求规格管理 | draft → approved → archived |
-| **harness-review** | 多视角代码审查 | 架构/产品/质量/工程/运维五维审查 |
-| **harness-evolve** | 失败模式分析与自进化 | Critic → Refiner 循环 |
+harness-apply 整合了原先 harness-spec（需求规格）、harness-review（多视角审查）、harness-evolve（自进化）的核心能力：
+
+- **Ralph Wiggum Loop**：自动化审查-测试-修复循环（最多 3 轮），由 code-reviewer agent 驱动
+- **Reentrant Apply**：manifest.json 追踪状态，增量更新时保留用户自定义规则
+- **Hooks**：session-start 新鲜度检查 + git post-commit hook 自动触发验证
+- **Superpowers 复用**：brainstorm、planning、TDD、code-review 直接复用 Superpowers 插件
 
 ---
 
@@ -178,16 +183,15 @@ CI/CD 发现问题时，代码已经写完了，修复成本高。
 
 ### 策略：直接复用 + 自建互补
 
-Harness Pilot 的核心定位是**验证基础设施**（lint-deps、validate、harness-guardian）。对于完整的开发质量工作流，采用三方协作策略：
+Harness Pilot 的核心定位是**验证基础设施**（lint-deps、validate、code-reviewer 架构验证）。对于完整的开发质量工作流，采用复用策略：
 
 | 能力域 | 提供者 | 说明 |
 |--------|--------|------|
-| 方法论 | Superpowers | brainstorm、plan、git worktree、subagent execution |
+| 方法论 | Superpowers | brainstorm、plan、TDD、code-review、git worktree |
 | 角色治理 | gstack | CEO/eng-manager/QA 视角、30+ skills |
-| 验证基础设施 | Harness Pilot | lint-deps、validate、harness-guardian |
-| 需求规格 | Harness Pilot (harness-spec) | 自建，绑定验证标准 |
-| 多视角审查 | Harness Pilot (harness-review) | 自建，调用 harness-guardian |
-| 自进化 | Harness Pilot (harness-evolve) | 自建，Critic→Refiner 循环 |
+| 验证基础设施 | Harness Pilot | lint-deps、validate、code-reviewer（含架构验证） |
+| 自动化修复 | Harness Pilot (harness-apply) | Ralph Wiggum Loop：审查-测试-修复循环 |
+| 增量更新 | Harness Pilot (harness-apply) | Reentrant Apply：manifest.json 状态追踪 |
 
 ### 推荐机制
 
@@ -195,39 +199,48 @@ Harness Pilot 的核心定位是**验证基础设施**（lint-deps、validate、
 
 | 条件 | 推荐 |
 |------|------|
-| 任何项目 | Superpowers + gstack |
-| 多贡献者（>1 git contributor） | harness-spec |
-| 高复杂度（>50 源文件） | harness-review + roles |
-| 存在失败记录 | harness-evolve |
+| 任何项目 | Superpowers（brainstorm、plan、TDD、code-review） |
+| 多贡献者（>1 git contributor） | gstack 角色治理 |
+| 高复杂度（>50 源文件） | 完整验证管道 + Ralph Wiggum Loop |
+| 存在失败记录 | 记忆系统分析 + 增量规则更新 |
 
 ### 完整工作流
 
 ```
-brainstorm(SP) → spec(H) → plan(SP) → worktree(SP) → implement → review(H+G) → ship(G) → evolve(H)
+brainstorm(SP) → plan(SP) → worktree(SP) → implement(H) → Ralph Wiggum Loop(H) → ship(G)
 ```
 
 SP = Superpowers, H = Harness Pilot, G = gstack
 
 ---
 
-## 角色视角系统
+## 代码审查系统
 
-### 五维视角
+### code-reviewer Agent
 
-通过 `.harness/rules/common/roles.md` 模板，为 AI Agent 提供多维审查清单：
+code-reviewer 是唯一的 agent，融合了原 harness-guardian 的架构验证能力和原 code-reviewer 的代码质量审查能力：
 
-| 视角 | 关注点 | 注入的 Agent |
-|------|--------|-------------|
-| **产品视角** | 用户识别、问题解决、成功指标 | planner |
-| **架构视角** | 层级规则、可扩展性、技术债 | planner |
-| **工程视角** | 可测试性、错误路径、命名清晰度 | code-reviewer |
-| **质量视角** | 边界测试、竞态条件、一致性 | code-reviewer |
-| **运维视角** | 日志、向后兼容、监控 | harness-review |
+| 审查维度 | 关注点 |
+|----------|--------|
+| **架构合规** | 层级依赖方向、循环引用检测、包边界 |
+| **工程质量** | 可测试性、错误路径、命名清晰度 |
+| **代码规范** | 边界条件、竞态风险、一致性 |
 
-### Agent 增强
+### Ralph Wiggum Loop
 
-- **planner agent**: 生成计划时应用架构视角（层级合规、可扩展性）和产品视角（用户影响、成功指标）
-- **code-reviewer agent**: 审查代码时应用质量视角（边界测试、竞态条件）和工程视角（可测试性、命名清晰度），同时检查 spec 合规性
+code-reviewer 在 harness-apply 中通过 Ralph Wiggum Loop 自动驱动审查-修复循环：
+
+```
+harness-apply 完成代码生成
+    ↓
+code-reviewer 审查变更
+    ↓
+发现问题 → 自动修复 → 重新验证
+    ↓
+通过 → 完成 / 未通过 → 下一轮（最多 3 轮）
+```
+
+不再需要独立的 planner agent（规划能力复用 Superpowers）或 harness-guardian agent（架构验证融合进 code-reviewer）。
 
 ---
 
@@ -238,7 +251,6 @@ SP = Superpowers, H = Harness Pilot, G = gstack
 ```
 templates/
 ├── base/                          # 基础模板（无语言特定）
-│   ├── AGENTS.md.template
 │   ├── ARCHITECTURE.md.template
 │   └── DEVELOPMENT.md.template
 │
@@ -269,7 +281,6 @@ templates/
 例如：Next.js + TypeScript 项目
 
 ```
-AGENTS.md → languages/typescript/AGENTS.md.template
 ARCHITECTURE.md → frameworks/nextjs/ARCHITECTURE.md.template
 DEVELOPMENT.md → frameworks/nextjs/DEVELOPMENT.md.template
 lint-deps → languages/typescript/lint-deps.ts.template
@@ -363,30 +374,32 @@ macOS 下 /var 是 /private/var 的符号链接，会导致工作区路径比较
 
 ## 自进化机制
 
-### harness-evolve Skill
+### 融入 harness-apply 的持续改进
 
-自进化机制已通过 `harness-evolve` skill 实现为可直接调用的能力。用户可通过 `/harness-pilot:harness-evolve` 触发失败模式分析和规则进化。
+自进化能力已融合进 `harness-apply` skill。通过 Ralph Wiggum Loop 和记忆系统，Harness 在日常使用中持续进化，无需独立触发。
 
-### Critic → Refiner 循环
+### Ralph Wiggum Loop（审查-测试-修复循环）
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  自进化闭环                            │
+│                  Ralph Wiggum Loop                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                         │
-│   Agent 执行                                             │
+│   harness-apply 完成代码生成                              │
 │      ↓                                                   │
-│   验证失败 → 记录到 .harness/trace/failures/              │
+│   code-reviewer 审查（架构 + 质量）                       │
 │      ↓                                                   │
-│   Critic 分析 → 识别模式和根因                             │
+│   发现问题 → 自动修复                                     │
 │      ↓                                                   │
-│   Refiner 修复 → 更新 linter、文档、记忆                  │
+│   重新验证（build → lint → test）                         │
 │      ↓                                                   │
-│   下一个 Agent 受益                                      │
+│   通过 → 完成 / 未通过 → 下一轮（最多 3 轮）              │
+│      ↓                                                   │
+│   经验记录到 .harness/memory/                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Critic 分析
+### 记忆驱动的改进
 
 定期分析 `.harness/trace/failures/`，找出：
 
@@ -396,9 +409,9 @@ macOS 下 /var 是 /private/var 的符号链接，会导致工作区路径比较
 | 错误信息不清楚 | "Forbidden import" 导致 5 次重试 |
 | 流程不一致 | 添加 API 端点流程不一致（12 次） |
 
-### Refiner 修复
+### 自动修复
 
-根据 Critic 建议，自动更新：
+根据记忆分析结果，harness-apply 在下次增量更新时自动整合改进：
 
 - 将遗漏的包加入层级映射
 - 改进错误消息，添加修复建议
@@ -431,45 +444,44 @@ ENDPOINT_NAME=${1:?Usage: $0 <endpoint-name>}
 
 ```
 my-project/
-├── AGENTS.md                    # 导航地图（~100 行）
-├── docs/
-│   ├── ARCHITECTURE.md          # 架构、层级、依赖规则
-│   ├── DEVELOPMENT.md           # 构建/测试/lint 命令
-│   ├── design-docs/            # 组件设计文档
-│   └── exec-plans/            # 执行计划（active / completed）
 └── .harness/
+    ├── manifest.json            # 状态追踪（reentrant apply）
+    ├── docs/
+    │   ├── ARCHITECTURE.md      # 架构、层级、依赖规则
+    │   └── DEVELOPMENT.md       # 构建/测试/lint 命令
     ├── scripts/
     │   ├── lint-deps.*            # 层级依赖检查
     │   ├── lint-quality.*         # 代码质量规则
     │   ├── verify/                # 端到端功能验证
     │   └── validate.*            # 统一验证管道
-    ├── specs/                # 功能规格（draft / approved / archived）
+    ├── hooks/
+    │   └── post-commit           # git post-commit 触发验证
     ├── tasks/                 # 任务状态和检查点
     ├── trace/                # 执行轨迹和失败记录
     ├── memory/              # 经验教训存储
     └── rules/
         ├── common/
         │   ├── safety.md          # AI 安全约束
-        │   ├── git-workflow.md    # Git 工作流规则
-        │   └── roles.md          # 多视角角色清单
+        │   └── git-workflow.md    # Git 工作流规则
         └── {language}/
             └── development.md     # 语言特定开发规范
 ```
+
+所有生成文件集中在 `.harness/` 目录下，不污染项目根目录。
 
 ### 文件说明
 
 | 文件 | 用途 |
 |------|------|
-| AGENTS.md | 给 Agent 看的导航地图，~100 行，只做索引 |
-| docs/ARCHITECTURE.md | 项目架构、分层规则、数据流 |
-| docs/DEVELOPMENT.md | 构建、测试、lint 命令 |
+| .harness/manifest.json | 状态追踪，记录上次 apply 时间和配置，支持增量更新 |
+| .harness/docs/ARCHITECTURE.md | 项目架构、分层规则、数据流 |
+| .harness/docs/DEVELOPMENT.md | 构建、测试、lint 命令 |
 | .harness/scripts/lint-deps.* | 检查依赖方向，确保层级规则 |
 | .harness/scripts/lint-quality.* | 强制代码质量规范 |
 | .harness/scripts/validate.* | 统一验证入口：build → lint → test → verify |
-| .harness/specs/ | 功能规格文件，harness-spec 管理 |
-| .harness/rules/common/roles.md | 五维角色视角清单，供 planner 和 code-reviewer 使用 |
+| .harness/hooks/post-commit | git post-commit hook，提交后自动触发验证 |
 | .harness/memory/ | 三种记忆系统，积累项目经验 |
-| .harness/trace/ | 失败记录，供 Critic 分析 |
+| .harness/trace/ | 失败记录，供记忆系统分析 |
 
 ---
 
@@ -539,15 +551,15 @@ python3 .harness/scripts/verify_action.py --action "import internal/core from in
 - [x] FastAPI 模板
 - [x] Express 模板
 
-### Phase 4: 能力融合与增强 Skills ✓
+### Phase 4: 架构简化与能力融合 ✓
 
-- [x] harness-spec skill（结构化需求规格管理）
-- [x] harness-review skill（多视角代码审查）
-- [x] harness-evolve skill（Critic→Refiner 自进化）
-- [x] 角色视角模板（roles.md.template）
-- [x] planner / code-reviewer agent 角色视角注入
-- [x] harness-analyze / harness-apply 工具链推荐机制
-- [x] Superpowers + gstack 互补推荐
+- [x] 5 skills → 2 skills（harness-analyze + harness-apply）
+- [x] 3 agents → 1 agent（code-reviewer，融合架构验证）
+- [x] Ralph Wiggum Loop（自动化审查-测试-修复循环，最多 3 轮）
+- [x] Reentrant Apply（manifest.json 状态追踪，增量更新）
+- [x] Hooks（session-start 新鲜度检查 + git post-commit）
+- [x] 生成文件全部集中在 .harness/ 目录下
+- [x] Superpowers 复用（brainstorm、plan、TDD、code-review）
 
 ### Phase 5: 高级功能
 
@@ -574,8 +586,7 @@ python3 .harness/scripts/verify_action.py --action "import internal/core from in
 总分: 35/100 (需要改进)
 
 📋 文档覆盖率: 20/100
-  ❌ 缺失 AGENTS.md
-  ❌ 缺失 docs/ARCHITECTURE.md
+  ❌ 缺失 .harness/docs/ARCHITECTURE.md
   ✅ 存在 README.md
 
 🏗️ 架构约束: 0/100
@@ -606,8 +617,8 @@ Agent: 检测到这是一个 TypeScript + Next.js 项目
 User: 对的
 
 Agent: 请选择要创建的组件：
-       ☑ AGENTS.md (导航地图)
-       ☑ docs/ARCHITECTURE.md (架构文档)
+       ☑ .harness/docs/ARCHITECTURE.md (架构文档)
+       ☑ .harness/docs/DEVELOPMENT.md (开发指南)
        ☑ .harness/scripts/lint-deps.ts (依赖检查)
        ☐ .harness/scripts/validate.ts (验证管道)
 
@@ -685,11 +696,11 @@ Agent: 推荐的层级映射：
 - Git 版本化，随代码演进
 - Agent 打开项目就能读取一切
 
-### 原则 2：AGENTS.md 是地图不是手册
+### 原则 2：`.harness/` 是自包含的
 
-- 控制在 ~100 行
-- 只做索引和指路
-- 详细内容放在 docs/ 目录按需加载
+- 所有生成文件集中在 `.harness/` 目录，不污染项目根目录
+- 文档放在 `.harness/docs/`，按需加载
+- manifest.json 追踪状态，支持增量更新
 
 ### 原则 3：只管边界不管实现
 

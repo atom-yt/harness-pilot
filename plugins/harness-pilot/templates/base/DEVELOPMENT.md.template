@@ -97,5 +97,5 @@ build → lint-arch → test → verify
 |-------|----------|
 | Build fails | Check version matches requirements |
 | Tests fail locally but pass in CI | Check environment variables |
-| Lint errors | Review ARCHITECTURE.md for layer rules |
+| Lint errors | Review .harness/docs/ARCHITECTURE.md for layer rules |
 | Verification timeout | Check verify scripts are executable |

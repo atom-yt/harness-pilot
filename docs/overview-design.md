@@ -20,7 +20,7 @@
   于是你开始写代码，写完被 CI 打回来，修完又被其他规则打回来……
 
 有 Harness 的情况：
-  一进门就看到 AGENTS.md —"你好，这是我们的地图"
+  一进门就看到 .harness/ 目录 —"你好，这是我们的地图和规则"
   打开文档看到分层规则 —"这是我们的建筑结构"
   写代码前跑一下检查 —"这面墙能不能拆？不能，那我换个方案"
   验证通过了再提交 —"好的，这个改动没问题"
@@ -120,10 +120,10 @@ Harness 的方案：装个防撞系统，撞之前就刹车
 
 | 问题 | Harness 的解法 |
 |------|---------------|
-| 新 Agent 不懂项目规矩 | 一看 AGENTS.md 就明白 |
-| 规则不断变化，Agent 跟不上 | 规则在 Git 里，自动更新 |
+| 新 Agent 不懂项目规矩 | 一看 .harness/ 就明白 |
+| 规则不断变化，Agent 跟不上 | 规则在 Git 里，session-start hook 自动检查新鲜度 |
 | 写了半天代码才发现违规 | 写之前先验证，不行就别写 |
-| 同样的错误反复出现 | 自动记录下来，下次提醒 |
+| 同样的错误反复出现 | Ralph Wiggum Loop 自动修复，记忆系统避免再犯 |
 
 ### 一个更本质的观点
 
@@ -155,15 +155,15 @@ Harness 就是给它装的"操作系统"
 
    不是写在 Wiki 里，不是发在群里，而是作为版本化的文件提交到 Git。
 
-2. **AGENTS.md 是地图，不是手册**
+2. **`.harness/` 是地图，不是手册**
 
-   很多团队的第一反应是写一个巨大的 AGENTS.md，500 行，什么都有。
+   很多团队的第一反应是写一个巨大的规则文件，500 行，什么都有。
 
    问题是：当一切都重要时，什么都不重要。
 
    500 行的指令文件挤占了 Agent 宝贵的上下文窗口，留给实际任务的空间反而少了。
 
-   AGENTS.md 应该控制在 ~100 行，只做索引和指路，详细内容放在 docs/ 目录里按需加载。
+   `.harness/docs/` 里的文档应该结构清晰，按需加载，详细内容分文件组织，Agent 只读它需要的部分。
 
 3. **只管架构边界，不管怎么实现**
 
@@ -198,8 +198,8 @@ Agent 输出：
 总分: 35/100 (需要改进)
 
 📋 文档覆盖率: 20/100
-  ❌ 缺失 AGENTS.md（导航地图）
-  ❌ 缺失架构文档
+  ❌ 缺失 .harness/docs/ARCHITECTURE.md（架构文档）
+  ❌ 缺失架构约束脚本
 
 🏗️ 架构约束: 0/100
   ❌ 没有层级依赖检查
@@ -225,11 +225,12 @@ Agent 会问你几件事：
   4. 质量规则要加什么？
 
 确认后生成：
-  ✓ AGENTS.md（导航地图）
-  ✓ docs/ARCHITECTURE.md（架构说明）
+  ✓ .harness/docs/ARCHITECTURE.md（架构说明）
+  ✓ .harness/docs/DEVELOPMENT.md（开发指南）
   ✓ .harness/scripts/lint-deps.ts（依赖检查）
   ✓ .harness/scripts/validate.ts（统一验证）
   ✓ .harness/memory/（经验记忆）
+  ✓ .harness/hooks/post-commit（git post-commit hook）
 ```
 
 ### 场景三：检查代码对不对
@@ -277,60 +278,58 @@ Agent 输出：
 
 就像有个经验丰富的老工程师，定期总结团队踩过的坑。
 
-### 场景五：多视角审查
+### 场景五：自动化审查-修复循环（Ralph Wiggum Loop）
 
 ```bash
-你说：从多个角度审查一下这次的改动
+你说：帮我实现这个功能
 
-Agent 输出：
-=== 多视角审查 ===
+Agent 执行 harness-apply 后自动进入 Ralph Wiggum Loop：
 
-🏗️ 架构视角: PASS
-  ✅ 层级依赖合规
-  ✅ 无循环引用
+=== Ralph Wiggum Loop（第 1/3 轮）===
 
-📦 产品视角: PASS
-  ✅ 用户场景覆盖完整
-  ✅ 成功指标可量化
-
-🔧 工程视角: FAIL
+🔍 code-reviewer 审查:
   ❌ src/handler/auth.ts 缺少错误路径测试
   ⚠️ 函数 processToken 命名不够清晰
 
-📏 质量视角: PASS
-  ✅ 边界条件已覆盖
-  ✅ 无竞态风险
+🔧 自动修复:
+  ✓ 补充错误路径测试
+  ✓ 重命名 processToken → validateAndDecodeToken
 
-最终结论: FAIL（工程视角未通过）
-需要修复 1 个问题后重新审查
+🧪 验证:
+  ✓ build: 通过
+  ✓ lint-arch: 通过
+  ✓ test: 通过
+
+=== Ralph Wiggum Loop 完成（1 轮）===
+所有问题已自动修复并验证通过
 ```
 
-就像有个由不同角色组成的评审委员会，每个人从自己的专业角度提意见。
+code-reviewer 融合了架构验证（原 harness-guardian）能力，同时检查架构合规性和代码质量。每轮最多重试 3 次，如果所有问题自动修复则直接完成。
 
-### 场景六：结构化需求规格
+### 场景六：增量更新（Reentrant Apply）
 
 ```bash
-你说：帮我写个用户认证功能的需求规格
+你说：项目结构变了，更新一下 Harness
 
 Agent 输出：
-=== harness-spec: 用户认证 ===
-状态: draft
+=== harness-apply: 增量更新 ===
 
-功能点:
-  [ADDED] JWT token 认证
-  [ADDED] 刷新令牌机制
-  [ADDED] 密码哈希存储
+读取 .harness/manifest.json ...
+  上次应用: 2026-04-20T14:30:00Z
+  状态: applied
 
-验证标准:
-  ✓ lint-deps: auth 模块位于 Layer 3
-  ✓ validate: 认证端点返回 401/403
-  ✓ test: 覆盖 token 过期场景
+检测变更:
+  [CHANGED] 新增 src/services/payment/ 目录
+  [CHANGED] Layer 3 新增 payment 模块
+  [UNCHANGED] 自定义规则 .harness/rules/ （保留）
 
-预验证:
-  ✓ harness-guardian: 架构合规
-  ✓ 文件位置: src/services/auth.ts (Layer 3)
+更新内容:
+  ✓ 更新 lint-deps 层级映射（+payment: Layer 3）
+  ✓ 更新 .harness/docs/ARCHITECTURE.md
+  ✓ 保留用户自定义规则（不覆盖）
+  ✓ 更新 manifest.json 状态
 
-确认后写入 .harness/specs/user-auth/spec.md
+manifest.json 记录完整状态，增量更新不会覆盖你的自定义规则。
 ```
 
 ---
@@ -351,26 +350,27 @@ Agent 输出：
 
 ```
 my-project/
-├── AGENTS.md              ← 给 Agent 看的"使用说明书"（~100 行）
-├── docs/
-│   ├── ARCHITECTURE.md    ← 项目架构、层级规则
-│   ├── DEVELOPMENT.md     ← 开发命令、怎么测试
-│   ├── design-docs/       ← 组件设计文档
-│   └── exec-plans/       ← 执行计划（active / completed）
 └── .harness/
+    ├── manifest.json          ← 状态追踪（reentrant apply 用）
+    ├── docs/
+    │   ├── ARCHITECTURE.md    ← 项目架构、层级规则
+    │   └── DEVELOPMENT.md     ← 开发命令、怎么测试
     ├── scripts/
     │   ├── lint-deps.*        ← 检查依赖方向对不对
     │   ├── lint-quality.*     ← 检查代码质量
     │   ├── verify/            ← 端到端功能验证
     │   └── validate.*        ← 统一验证流程
-    ├── specs/             ← 功能规格（draft / approved / archived）
+    ├── hooks/
+    │   └── post-commit       ← git post-commit 触发验证
     ├── memory/            ← 三种记忆
     ├── tasks/             ← 任务状态
     ├── trace/             ← 失败轨迹
     └── rules/
         └── common/
-            └── roles.md   ← 多视角角色清单
+            └── safety.md  ← AI 安全约束
 ```
+
+所有生成文件都集中在 `.harness/` 目录下，不污染项目根目录。`manifest.json` 记录当前状态，支持增量更新。
 
 ### 在动手之前先问"能不能做"
 
@@ -497,27 +497,43 @@ Agent 执行长任务时，窗口里慢慢堆起来的是代码 diff、编译错
 
 但真正有意思的地方在于，Harness 能从 Agent 的失败里学东西。
 
-这个能力已经通过 `harness-evolve` skill 实现——用户可以直接调用 `/harness-pilot:harness-evolve` 触发失败模式分析和规则进化。
+这个能力已经融合进 `harness-apply` skill 中——通过 Ralph Wiggum Loop（自动化审查-测试-修复循环）和记忆系统，Harness 在日常使用中持续进化。
+
+### Ralph Wiggum Loop
+
+```
+Agent 执行 harness-apply
+    ↓
+code-reviewer 审查（架构 + 代码质量）
+    ↓
+发现问题 → 自动修复
+    ↓
+重新验证（build → lint → test）
+    ↓
+通过 → 完成 / 未通过 → 下一轮（最多 3 轮）
+```
+
+每次 apply 完成后，code-reviewer 自动审查代码变更。如果发现问题，自动尝试修复并重新验证。最多循环 3 轮，确保产出质量。
 
 ### 一个完整的闭环
 
 ```
 Agent 执行
     ↓
-验证抓到问题
+Ralph Wiggum Loop 抓到问题
     ↓
-Critic 分析模式
+记忆系统记录模式
     ↓
-Refiner 更新规则
+下次 apply 时自动加载经验
     ↓
 下一个 Agent 受益
 ```
 
 每次验证失败都被结构化地保存到 `.harness/trace/failures/`。
 
-Critic 脚本定期分析这些记录，找出模式和根因——比如发现 `internal/cache` 被 7 次违规 import，根因是它没被加入层级映射表，建议修复是把它加入 Layer 1。
+记忆系统定期分析这些记录，找出模式和根因——比如发现 `internal/cache` 被 7 次违规 import，根因是它没被加入层级映射表，建议修复是把它加入 Layer 1。
 
-然后 Refiner 根据建议去更新 Harness。
+然后 harness-apply 在下次增量更新时自动整合这些改进。
 
 ### 轨迹编译
 
@@ -630,57 +646,41 @@ LLM → Middleware → Tools → Environment → Eval
 
 好消息：Harness 不是全有或全无的。
 
-哪怕不搭完整的六层基础设施，一个 AGENTS.md 就能让 AI 协作体验好一截。
+哪怕不搭完整的基础设施，一个基本的 `.harness/` 目录就能让 AI 协作体验好一截。
 
 ### 新项目
 
-最简单——告诉 harness-apply 你要做什么，它会问几个基本问题，然后直接生成全套基础设施。
+最简单——告诉 harness-apply 你要做什么，它会问几个基本问题，然后直接生成全套基础设施到 `.harness/` 目录。
 
 ### 老项目
 
-也不难，harness-apply 会扫描代码库、分析 import 关系、推断层级映射，生成反映代码现状的文档。
+也不难，harness-apply 会扫描代码库、分析 import 关系、推断层级映射，生成反映代码现状的文档。如果之前已经 apply 过，manifest.json 会追踪状态，增量更新时不会覆盖你的自定义规则。
 
 ### 最小起步
 
-不管哪种情况，最小起步都一样——在项目根目录创建 AGENTS.md：
+不管哪种情况，最小起步都一样——运行 harness-apply，它会在项目中创建 `.harness/` 目录：
 
-```markdown
-# [项目名] Agent Guide
-
-## 快速链接
-- [架构总览](docs/ARCHITECTURE.md) — 分层规则、数据流
-- [开发指南](docs/DEVELOPMENT.md) — 构建、测试、lint 命令
-
-## 构建命令
-make build      # 构建项目
-make test       # 运行测试
-make lint-arch  # 运行架构 lint
-
-## 分层规则
-Layer 0: types/         → 纯类型定义，无内部依赖
-Layer 1: utils/         → 工具函数，仅依赖 Layer 0
-Layer 2: config/        → 配置，依赖 Layer 0-1
-Layer 3: core/services/ → 业务逻辑，依赖 Layer 0-2
-Layer 4: api/ cli/ ui/  → 接口层，依赖 Layer 0-3，彼此不互相引用
-
-## 质量标准
-- 结构化日志，禁止 console.log / print()
-- 单文件不超过 500 行
-- PascalCase（类型）、camelCase（函数）、kebab-case（文件名）
+```
+.harness/
+├── manifest.json              ← 状态追踪
+├── docs/
+│   ├── ARCHITECTURE.md        ← 架构总览、分层规则、数据流
+│   └── DEVELOPMENT.md         ← 构建、测试、lint 命令
+├── scripts/
+│   └── lint-deps.*            ← 依赖方向检查
+└── rules/
+    └── common/
+        └── safety.md          ← AI 安全约束
 ```
 
-为什么叫 AGENTS.md？
-
-这个文件名业界的标准，Agent 打开项目时会自动查找并读取它，作为了解项目的起点。
-
-类似于 README.md 是给人看的，AGENTS.md 是给 Agent 看的。
+所有生成文件都在 `.harness/` 下，不污染项目根目录。Agent 通过 session-start hook 自动发现并加载这些文件。
 
 ### 建议的节奏
 
-- 今天先把 AGENTS.md 建出来
-- 这周加一个 lint-deps 脚本把层级规则定下来
+- 今天先跑 harness-apply 把基本的 `.harness/` 建出来
+- 这周调整 lint-deps 脚本把层级规则定下来
 - 这个月搭完整的验证管道
-- 之后开启 Critic → Refiner 反馈循环，让 Harness 跟着代码一起长
+- 之后让 Ralph Wiggum Loop 和记忆系统自动积累经验，Harness 跟着代码一起长
 
 最佳实践是先用 harness-apply 把 Harness 建到 70 分以上，再开始日常开发。
 
@@ -701,15 +701,15 @@ Layer 4: api/ cli/ ui/  → 接口层，依赖 Layer 0-3，彼此不互相引用
 ```
 Agent 启动
   ↓
-读 AGENTS.md 找到相关文档
+session-start hook 检查 .harness/ 新鲜度，加载相关文档
   ↓
 列出执行计划，你扫一眼批准
   ↓
-子代理开始写代码，每个结构性操作前先跑预验证
+harness-apply 开始执行，每个结构性操作前先跑预验证
   ↓
 层级违反在写代码前就被拦住了
   ↓
-完成后另一个模型的子代理做交叉 review
+完成后 Ralph Wiggum Loop 自动审查-修复（最多 3 轮）
   ↓
 每个阶段存检查点、跑验证
   ↓
@@ -724,7 +724,7 @@ Agent 不需要更聪明——它只是能看见更多了。
 
 一套好的 Harness 能让普通模型产出可靠的代码，而没有 Harness 的顶级模型照样会在同样的坑里反复栽。
 
-搭建的前期成本不高——一个下午就能建好基本的 AGENTS.md 和 lint 脚本。
+搭建的前期成本不高——一个下午就能用 harness-apply 建好基本的 `.harness/` 目录和 lint 脚本。
 
 但它的价值会随着时间复利式增长：记忆越来越丰富，lint 规则越来越完善，越来越多的操作模式被编译成确定性脚本。
 

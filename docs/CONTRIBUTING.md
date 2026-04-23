@@ -32,41 +32,33 @@ harness-pilot/
 ├── plugins/
 │   └── harness-pilot/
 │       ├── agents/                    # AI agent definitions
-│       │   ├── code-reviewer.md
-│       │   ├── harness-guardian.md
-│       │   └── planner.md
+│       │   └── code-reviewer.md       # Code review + architecture validation
 │       ├── hooks/                     # Session hooks
 │       │   ├── hooks.json
 │       │   └── session-start
 │       ├── scripts/
 │       │   └── template-engine.js     # Template rendering engine
 │       ├── skills/
-│       │   ├── harness-analyze/       # Dryrun analysis mode
-│       │   ├── harness-apply/         # Interactive & auto-generation mode
-│       │   ├── harness-spec/          # Structured spec management
-│       │   ├── harness-review/        # Multi-perspective code review
-│       │   └── harness-evolve/        # Self-evolution via Critic→Refiner
+│       │   ├── harness-analyze/       # Health analysis & scoring
+│       │   └── harness-apply/         # Generation + reentrant update + Loop
 │       ├── templates/
 │       │   ├── base/                  # Base templates
 │       │   ├── languages/             # Language-specific templates
 │       │   ├── frameworks/            # Framework-specific templates
-│       │   └── rules/                 # Rule templates (incl. roles.md.template)
+│       │   └── rules/                 # Rule templates
 │       └── tests/
 │           └── template-engine.test.js
 ├── test-projects/                     # Test projects for validation
 ├── docs/                              # Documentation
-│   ├── API.md                         # API documentation
-│   ├── CONTRIBUTING.md                # This file
-│   ├── detailed-design.md              # Detailed design
-│   ├── FAQ.md                         # FAQ
-│   ├── overview-design.md              # Overview design
-│   └── OPTIMIZATION_PLAN.md           # Optimization roadmap
-├── README.md                          # Project README
+│   ├── API.md
+│   ├── CONTRIBUTING.md
+│   ├── detailed-design.md
+│   ├── FAQ.md
+│   └── overview-design.md
+├── README.md
 ```
 
 ## Adding a New Language
-
-To add support for a new language:
 
 1. Create language template directory:
    ```
@@ -83,13 +75,11 @@ To add support for a new language:
    templates/rules/{language}/development.md.template
    ```
 
-4. Update the skill's SKILL.md to include detection for the new language
+4. Update harness-apply SKILL.md to include detection for the new language
 
-5. Test the templates using a test project in `test-projects/`
+5. Test using a test project in `test-projects/`
 
 ## Adding a New Framework
-
-To add support for a new framework:
 
 1. Create framework template directory:
    ```
@@ -103,7 +93,7 @@ To add support for a new framework:
 
 3. Define layer mapping in the ARCHITECTURE template
 
-4. Update the skill's SKILL.md to include detection for the new framework
+4. Update harness-apply SKILL.md detection logic
 
 5. Create a test project in `test-projects/`
 
@@ -117,62 +107,18 @@ To add support for a new framework:
 
 ### Best Practices
 
-1. **Use meaningful variable names:**
-   ```markdown
-   {{PROJECT_NAME}}  # Good
-   {{PN}}          # Bad - unclear
-   ```
-
-2. **Provide fallback content:**
-   ```markdown
-   {{#if FRAMEWORK}}
-   Framework-specific content
-   {{/if}}
-   ```
-
-3. **Document layer mappings:**
-   ```markdown
-   | Layer | Directory | Responsibilities |
-   |-------|-----------|----------------|
-   | Layer 0 | types/ | Type definitions |
-   ```
-
-4. **Include examples:**
-   ```markdown
-   ✓ Valid: import from lower layer
-   ✗ Invalid: import from higher layer
-   ```
+1. Use meaningful variable names
+2. Provide fallback content with conditionals
+3. Document layer mappings with tables
+4. Include valid/invalid examples
 
 ### Testing Templates
 
-Test templates using the template engine:
-
 ```bash
-node plugins/harness-pilot/scripts/template-engine.js \n  templates/base/AGENTS.md.template \n  '{"PROJECT_NAME":"test","LANGUAGE":"typescript"}'
+node plugins/harness-pilot/scripts/template-engine.js \
+  templates/base/ARCHITECTURE.md.template \
+  '{"PROJECT_NAME":"test","LANGUAGE":"typescript"}'
 ```
-
-## Coding Standards
-
-### JavaScript/TypeScript
-
-- Use ES6+ features
-- Use meaningful variable names
-- Add JSDoc comments for functions
-- Follow existing code style
-
-### Python
-
-- Follow PEP 8 style guide
-- Use type hints
-- Add docstrings to functions
-- Use descriptive variable names
-
-### Go
-
-- Follow Go conventions
-- Use meaningful names
-- Add godoc comments
-- Run `go fmt` before committing
 
 ## Git Workflow
 
@@ -190,12 +136,6 @@ node plugins/harness-pilot/scripts/template-engine.js \n  templates/base/AGENTS.
    docs/update-readme
    ```
 
-3. Pull Request:
-   - Describe changes
-   - Reference related issues
-   - Include test results
-   - Ensure all checks pass
-
 ## Testing
 
 ### Manual Testing
@@ -203,20 +143,14 @@ node plugins/harness-pilot/scripts/template-engine.js \n  templates/base/AGENTS.
 1. Create a test project
 2. Run `harness-analyze` to check detection
 3. Run `harness-apply` to generate harness
-4. Verify generated files
-5. Run validation scripts
+4. Verify generated files under `.harness/`
+5. Run `harness-apply` again to test reentrant update
+6. Verify Ralph Wiggum Loop executes correctly
 
 ### Test Projects
 
 Use existing test projects as reference:
 - `test-projects/harness-test-nextjs/`
-- `test-projects/harness-test-python/`
-
-## Questions?
-
-- Open an issue for bugs or feature requests
-- Join discussions in existing issues
-- Check the [API.md](API.md) for reference
 
 ## License
 

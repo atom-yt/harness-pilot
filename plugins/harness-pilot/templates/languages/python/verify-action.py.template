@@ -76,7 +76,7 @@ def validate_create_file(file_path: str) -> Tuple[bool, str]:
     if layer is None:
         return False, '\n'.join([
             f'? UNKNOWN: "{file_path}" is not mapped to any known layer.',
-            f'  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md,',
+            f'  Action: Add this directory to the layer mapping in .harness/docs/ARCHITECTURE.md,',
             f'          or confirm with the team which layer it belongs to.',
             f'  Known layers: {known}',
         ])
@@ -95,7 +95,7 @@ def validate_import(source_path: str, target_path: str) -> Tuple[bool, str]:
         unknown = source_path if source_layer is None else target_path
         return False, '\n'.join([
             f'? UNKNOWN: "{unknown}" is not mapped to any known layer.',
-            f'  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md.',
+            f'  Action: Add this directory to the layer mapping in .harness/docs/ARCHITECTURE.md.',
         ])
 
     if target_layer > source_layer:

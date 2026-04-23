@@ -77,7 +77,7 @@ function validateCreateFile(filePath: string): { valid: boolean; message: string
       valid: false,
       message: [
         `? UNKNOWN: "${filePath}" is not mapped to any known layer.`,
-        `  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md,`,
+        `  Action: Add this directory to the layer mapping in .harness/docs/ARCHITECTURE.md,`,
         `          or confirm with the team which layer it belongs to.`,
         `  Known layers: ${Object.entries(LAYERS).map(([k, v]) => `${k}/ (L${v})`).join(', ')}`,
       ].join('\n'),
@@ -103,7 +103,7 @@ function validateImport(sourcePath: string, targetPath: string): { valid: boolea
       valid: false,
       message: [
         `? UNKNOWN: "${unknown}" is not mapped to any known layer.`,
-        `  Action: Add this directory to the layer mapping in docs/ARCHITECTURE.md.`,
+        `  Action: Add this directory to the layer mapping in .harness/docs/ARCHITECTURE.md.`,
       ].join('\n'),
     };
   }
