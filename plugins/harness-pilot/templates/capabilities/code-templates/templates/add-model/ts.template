@@ -1,0 +1,69 @@
+// Generated model template
+// Type: {{TYPE}}
+// Name: {{NAME}}
+
+export interface {{NAME_PREFIX}}{{NAME}} {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  {{#if FIELDS}}
+{{FIELDS}}
+  {{/if}}
+}
+
+export interface {{NAME_PREFIX}}{{NAME}}Create {
+  {{#if CREATE_FIELDS}}
+{{CREATE_FIELDS}}
+  {{/if}}
+}
+
+export interface {{NAME_PREFIX}}{{NAME}}Update {
+  id: string;
+
+  {{#if UPDATE_FIELDS}}
+{{UPDATE_FIELDS}}
+  {{/if}}
+}
+
+export class {{NAME_PREFIX}}{{NAME}}Model {
+  private static instances: Map<string, {{NAME_PREFIX}}{{NAME}}> = new Map();
+
+  static async create(data: {{NAME_PREFIX}}{{NAME}}Create): Promise<{{NAME_PREFIX}}{{NAME}}> {
+    const item: {{NAME_PREFIX}}{{NAME}} = {
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...data,
+    };
+
+    this.instances.set(item.id, item);
+    return item;
+  }
+
+  static async findById(id: string): Promise<{{NAME_PREFIX}}{{NAME}} | null> {
+    return this.instances.get(id) || null;
+  }
+
+  static async update(data: {{NAME_PREFIX}}{{NAME}}Update): Promise<{{NAME_PREFIX}}{{NAME}} | null> {
+    const item = this.instances.get(data.id);
+    if (!item) return null;
+
+    const updated: {{NAME_PREFIX}}{{NAME}} = {
+      ...item,
+      ...data,
+      updatedAt: new Date(),
+    };
+
+    this.instances.set(data.id, updated);
+    return updated;
+  }
+
+  static async delete(id: string): Promise<boolean> {
+    return this.instances.delete(id);
+  }
+
+  static async findAll(): Promise<{{NAME_PREFIX}}{{NAME}}[]> {
+    return Array.from(this.instances.values());
+  }
+}

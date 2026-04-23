@@ -1,0 +1,43 @@
+"""
+Generated service template
+Type: {{TYPE}}
+Name: {{NAME}}
+"""
+
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class {{NAME_PREFIX}}{{NAME}}Service:
+    _instance: Optional["{{NAME_PREFIX}}{{NAME}}Service"] = None
+
+    def __new__(cls) -> "{{NAME_PREFIX}}{{NAME}}Service":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    async def initialize(self) -> None:
+        """Initialize service."""
+        logger.info("Initializing {{NAME_PREFIX}}{{NAME}}Service")
+        # TODO: Initialize service
+
+    async def execute(self, input: unknown) -> unknown:
+        """Execute {{NAME_PREFIX}}{{NAME}} logic."""
+        logger.debug("Executing {{NAME_PREFIX}}{{NAME}}Service")
+        # TODO: Implement {{NAME_PREFIX}}{{NAME}} logic
+        raise NotImplementedError("Not implemented")
+
+    async def cleanup(self) -> None:
+        """Cleanup resources."""
+        logger.info("Cleaning up {{NAME_PREFIX}}{{NAME}}Service")
+        # TODO: Cleanup resources
+
+    @classmethod
+    def get_instance(cls) -> "{{NAME_PREFIX}}{{NAME}}Service":
+        return cls()
+
+
+# Export singleton instance
+{{name_prefix}}_{{name}}_service = {{NAME_PREFIX}}{{NAME}}Service.get_instance()

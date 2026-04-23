@@ -1,0 +1,85 @@
+{
+  "version": "1.0",
+  "rules": [
+    {
+      "name": "activity-start-before-end",
+      "layer": "models",
+      "severity": "error",
+      "description": "Activity start time must be before or equal to end time",
+      "pattern": "ActivityModel\.(startTime|start).*\n.*ActivityModel\.(endTime|end)(?!.*<=)",
+      "message": "Activity.startTime must be <= Activity.endTime",
+      "fix": "Validate startTime <= endTime in model constructor or API layer",
+      "examples": {
+        "invalid": "class ActivityModel {\n  startTime: Date;\n  endTime: Date; // endTime < startTime is invalid\n}",
+        "valid": "class ActivityModel {\n  startTime: Date;\n  endTime: Date; // startTime <= endTime is required\n}"
+      }
+    },
+    {
+      "name": "activity-duration-validation",
+      "layer": "models",
+      "severity": "error",
+      "description": "Activity duration must be positive (end > start)",
+      "pattern": "duration\s*<\s*0",
+      "message": "Activity duration must be positive",
+      "fix": "Ensure end time is greater than start time"
+    },
+    {
+      "name": "user-status-deleted-no-update",
+      "layer": "services",
+      "severity": "error",
+      "description": "Cannot update deleted user",
+      "pattern": "user\.status\s*=\s*['"]deleted['"]",
+      "message": "Deleted users cannot be updated",
+      "fix": "Check user.status before allowing update"
+    },
+    {
+      "name": "discount-amount-range",
+      "layer": "models",
+      "severity": "error",
+      "description": "Discount must be between 0% and 100%",
+      "pattern": "discount:\s*(<\s*0|>\s*100)",
+      "message": "Discount must be between 0 and 100 percent",
+      "fix": "Validate discount range: 0 <= discount <= 100"
+    },
+    {
+      "name": "service-no-any-type",
+      "layer": "services",
+      "severity": "warning",
+      "description": "Service methods should use model types, not any",
+      "pattern": "\bany\b",
+      "check": {
+        "layer": "services",
+        "exclude_patterns": ["// @ts-ignore", "// eslint-disable"]
+      },
+      "message": "Avoid using 'any' type. Use proper model types for type safety.",
+      "fix": "Replace 'any' with specific model type or DTO interface"
+    },
+    {
+      "name": "event-end-after-start",
+      "layer": "models",
+      "severity": "error",
+      "description": "Event end time must be after start time",
+      "pattern": "EventModel\.(startTime|start).*\n.*EventModel\.(endTime|end)",
+      "message": "Event.endTime must be > Event.startTime",
+      "fix": "Validate event time constraints in constructor"
+    },
+    {
+      "name": "price-must-be-positive",
+      "layer": "models",
+      "severity": "error",
+      "description": "Price must be positive number",
+      "pattern": "price\s*(<\s*0|<=\s*0)",
+      "message": "Price must be greater than 0",
+      "fix": "Validate price > 0"
+    },
+    {
+      "name": "stock-must-be-non-negative",
+      "layer": "models",
+      "severity": "error",
+      "description": "Stock quantity must be non-negative",
+      "pattern": "stock\s*<\s*0",
+      "message": "Stock must be >= 0",
+      "fix": "Validate stock >= 0"
+    }
+  ]
+}

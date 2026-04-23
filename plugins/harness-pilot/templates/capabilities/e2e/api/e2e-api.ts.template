@@ -1,0 +1,235 @@
+#!/usr/bin/env ts-node
+/**
+ * API E2E Test Runner
+ * Performs end-to-end API validation with server startup, request/response verification
+ */
+
+import { spawn, SpawnOptions } from 'child_process';
+import fetch from 'node-fetch';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+interface ApiTest {
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+  expectedStatus?: number;
+  expectedBody?: Record<string, unknown> | unknown[];
+  validate?: (response: Response) => boolean;
+}
+
+interface E2EConfig {
+  port: number;
+  startCommand: string;
+  startupTimeout: number;
+  tests: ApiTest[];
+  baseUrl?: string;
+}
+
+// ============================================================================
+// Server Management
+// ============================================================================
+
+class ServerManager {
+  private process?: ReturnType<typeof spawn>;
+
+  async start(config: E2EConfig): Promise<boolean> {
+    console.log(`🚀 Starting server on port ${config.port}...`);
+
+    this.process = spawn(config.startCommand, {
+      shell: true,
+      stdio: ['inherit', 'pipe', 'pipe'],
+    } as SpawnOptions);
+
+    let stdout = '';
+    let stderr = '';
+
+    this.process.stdout?.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    this.process.stderr?.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    // Wait for server to be ready
+    const startTime = Date.now();
+    while (Date.now() - startTime < config.startupTimeout) {
+      try {
+        await fetch(`http://localhost:${config.port}/health`, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(1000),
+        });
+        console.log(`✓ Server started on port ${config.port}`);
+        return true;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+
+    console.error('❌ Server failed to start');
+    console.error('Stderr:', stderr);
+    return false;
+  }
+
+  stop(): void {
+    if (this.process) {
+      console.log('🛑 Stopping server...');
+      this.process.kill('SIGTERM');
+      this.process = undefined;
+    }
+  }
+}
+
+// ============================================================================
+// Test Runner
+// ============================================================================
+
+class ApiTestRunner {
+  private baseUrl: string;
+  private server: ServerManager;
+
+  constructor(config: E2EConfig) {
+    this.baseUrl = config.baseUrl || `http://localhost:${config.port}`;
+    this.server = new ServerManager();
+  }
+
+  async run(config: E2EConfig): Promise<void> {
+    console.log('\n═══════════════════════════════════════════════════════');
+    console.log('          API E2E Test Suite');
+    console.log('═══════════════════════════════════════════════════════\n');
+
+    // Start server
+    const started = await this.server.start(config);
+    if (!started) {
+      console.error('Cannot proceed: Server failed to start');
+      process.exit(1);
+    }
+
+    try {
+      // Run tests
+      const results = await Promise.allSettled(
+        config.tests.map((test) => this.runTest(test))
+      );
+
+      // Summary
+      this.printSummary(results);
+
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      process.exit(failed > 0 ? 1 : 0);
+    } finally {
+      this.server.stop();
+    }
+  }
+
+  private async runTest(test: ApiTest): Promise<void> {
+    const url = `${this.baseUrl}${test.path}`;
+
+    console.log(`\n🧪 Test: ${test.name}`);
+    console.log(`   ${test.method} ${url}`);
+
+    try {
+      const response = await fetch(url, {
+        method: test.method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...test.headers,
+        },
+        body: test.body ? JSON.stringify(test.body) : undefined,
+      });
+
+      // Status code validation
+      const expectedStatus = test.expectedStatus || 200;
+      if (response.status !== expectedStatus) {
+        console.error(`   ✗ Status code mismatch: ${response.status} (expected ${expectedStatus})`);
+        throw new Error(`Status code: ${response.status}`);
+      }
+      console.log(`   ✓ Status: ${response.status}`);
+
+      // Response body validation
+      const responseBody = await response.json();
+
+      if (test.expectedBody) {
+        const matches = this.matchBody(responseBody, test.expectedBody);
+        if (!matches) {
+          console.error('   ✗ Response body mismatch');
+          console.error('   Expected:', JSON.stringify(test.expectedBody, null, 2));
+          console.error('   Received:', JSON.stringify(responseBody, null, 2));
+          throw new Error('Response body mismatch');
+        }
+        console.log(`   ✓ Response body matches`);
+      }
+
+      // Custom validation
+      if (test.validate && !test.validate(response as Response)) {
+        console.error('   ✗ Custom validation failed');
+        throw new Error('Custom validation failed');
+      }
+
+      console.log(`   ✅ Test passed`);
+    } catch (error) {
+      console.error(`   ❌ Test failed: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  private matchBody(actual: unknown, expected: unknown): boolean {
+    if (typeof actual !== typeof expected) return false;
+
+    if (Array.isArray(expected) && Array.isArray(actual)) {
+      if (actual.length !== expected.length) return false;
+      return expected.every((item, i) => this.matchBody(actual[i], item));
+    }
+
+    if (typeof expected === 'object' && expected !== null) {
+      const expectedObj = expected as Record<string, unknown>;
+      const actualObj = actual as Record<string, unknown>;
+
+      return Object.keys(expectedObj).every(
+        (key) => this.matchBody(actualObj[key], expectedObj[key])
+      );
+    }
+
+    return actual === expected;
+  }
+
+  private printSummary(results: PromiseSettledResult<void>[]): void {
+    const passed = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const total = results.length;
+
+    console.log('\n═══════════════════════════════════════════════════════');
+    console.log('                Test Summary');
+    console.log('═══════════════════════════════════════════════════════\n');
+    console.log(`  Total: ${total}`);
+    console.log(`  Passed: ${passed}`);
+    console.log(`  Failed: ${failed}`);
+    console.log(`  Success Rate: ${Math.round((passed / total) * 100)}%\n`);
+  }
+}
+
+// ============================================================================
+// CLI Interface
+// ============================================================================
+
+async function main() {
+  const configFile = process.argv[2] || '.harness/e2e/api-tests.json';
+
+  try {
+    const content = await import(configFile);
+    const config: E2EConfig = content.default || content;
+
+    const runner = new ApiTestRunner(config);
+    await runner.run(config);
+  } catch (error) {
+    console.error(`Error loading config: ${(error as Error).message}`);
+    console.error(`Usage: ts-node e2e-api.ts [config-file]`);
+    process.exit(1);
+  }
+}
+
+main();

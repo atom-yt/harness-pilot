@@ -1,0 +1,238 @@
+/**
+ * Browser E2E Test Suite
+ * End-to-end browser testing with Playwright
+ */
+
+import { test, expect, Page, BrowserContext } from '@playwright/test';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+export interface E2ETest {
+  name: string;
+  url: string;
+  actions: E2EAction[];
+  assertions: E2EAssertion[];
+}
+
+export interface E2EAction {
+  type: 'click' | 'fill' | 'select' | 'check' | 'scroll' | 'wait' | 'navigate';
+  selector: string;
+  value?: string | number;
+  timeout?: number;
+}
+
+export interface E2EAssertion {
+  type: 'visible' | 'hidden' | 'text' | 'attribute' | 'url' | 'title' | 'count';
+  selector?: string;
+  value?: string;
+  count?: number;
+}
+
+// ============================================================================
+// Test Suite
+// ============================================================================
+
+const e2eTests: E2ETest[] = [
+  {
+    name: 'User Login Flow',
+    url: '/login',
+    actions: [
+      {
+        type: 'fill',
+        selector: '[data-testid="email-input"]',
+        value: 'test@example.com',
+      },
+      {
+        type: 'fill',
+        selector: '[data-testid="password-input"]',
+        value: 'password123',
+      },
+      {
+        type: 'click',
+        selector: '[data-testid="login-button"]',
+      },
+      {
+        type: 'wait',
+        selector: '[data-testid="dashboard"]',
+        timeout: 5000,
+      },
+    ],
+    assertions: [
+      {
+        type: 'url',
+        value: '/dashboard',
+      },
+      {
+        type: 'visible',
+        selector: '[data-testid="dashboard"]',
+      },
+      {
+        type: 'text',
+        selector: '[data-testid="user-name"]',
+        value: 'Test User',
+      },
+    ],
+  },
+  {
+    name: 'Create Resource',
+    url: '/dashboard/resources',
+    actions: [
+      {
+        type: 'click',
+        selector: '[data-testid="create-resource-button"]',
+      },
+      {
+        type: 'fill',
+        selector: '[data-testid="resource-name"]',
+        value: 'Test Resource',
+      },
+      {
+        type: 'select',
+        selector: '[data-testid="resource-type"]',
+        value: 'web',
+      },
+      {
+        type: 'click',
+        selector: '[data-testid="submit-resource"]',
+      },
+      {
+        type: 'wait',
+        selector: '[data-testid="resource-card"]',
+        timeout: 3000,
+      },
+    ],
+    assertions: [
+      {
+        type: 'visible',
+        selector: '[data-testid="resource-card"]',
+      },
+      {
+        type: 'text',
+        selector: '[data-testid="resource-name-display"]',
+        value: 'Test Resource',
+      },
+    ],
+  },
+];
+
+// ============================================================================
+// Test Actions
+// ============================================================================
+
+async function executeActions(page: Page, actions: E2EAction[]): Promise<void> {
+  for (const action of actions) {
+    console.log(`  🎬 ${action.type}: ${action.selector}`);
+
+    switch (action.type) {
+      case 'click':
+        await page.click(action.selector);
+        break;
+
+      case 'fill':
+        await page.fill(action.selector, action.value as string);
+        break;
+
+      case 'select':
+        await page.selectOption(action.selector, action.value as string);
+        break;
+
+      case 'check':
+        await page.check(action.selector);
+        break;
+
+      case 'scroll':
+        await page.evaluate((selector) => {
+          const el = document.querySelector(selector);
+          if (el) el.scrollIntoView();
+        }, action.selector);
+        break;
+
+      case 'wait':
+        await page.waitForSelector(action.selector, {
+          timeout: action.timeout || 30000,
+        });
+        break;
+
+      case 'navigate':
+        await page.goto(action.selector);
+        break;
+    }
+
+    // Small delay between actions for stability
+    await page.waitForTimeout(300);
+  }
+}
+
+async function assertPage(page: Page, assertions: E2EAssertion[]): Promise<void> {
+  for (const assertion of assertions) {
+    console.log(`  ✅ Assert: ${assertion.type}${assertion.selector ? ` ${assertion.selector}` : ''}`);
+
+    switch (assertion.type) {
+      case 'visible':
+        await expect(page.locator(assertion.selector!)).toBeVisible();
+        break;
+
+      case 'hidden':
+        await expect(page.locator(assertion.selector!)).toBeHidden();
+        break;
+
+      case 'text':
+        await expect(page.locator(assertion.selector!)).toContainText(assertion.value!);
+        break;
+
+      case 'attribute':
+        const attrValue = await page.getAttribute(
+          assertion.selector!,
+          assertion.value!.split('=')[0]
+        );
+        expect(attrValue).toContain(assertion.value!.split('=')[1]);
+        break;
+
+      case 'url':
+        await expect(page).toHaveURL(assertion.value);
+        break;
+
+      case 'title':
+        await expect(page).toHaveTitle(assertion.value!);
+        break;
+
+      case 'count':
+        await expect(page.locator(assertion.selector!)).toHaveCount(assertion.count!);
+        break;
+    }
+  }
+}
+
+// ============================================================================
+// Test Runner
+// ============================================================================
+
+e2eTests.forEach((e2eTest) => {
+  test(`E2E: ${e2eTest.name}`, async ({ page }) => {
+    console.log(`\n🧪 Running E2E test: ${e2eTest.name}`);
+
+    // Navigate to starting URL
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    await page.goto(`${baseUrl}${e2eTest.url}`);
+
+    console.log(`  📍 Navigated to: ${e2eTest.url}`);
+
+    // Execute actions
+    console.log(`  🎬 Executing ${e2eTest.actions.length} action(s)...`);
+    await executeActions(page, e2eTest.actions);
+
+    // Verify assertions
+    console.log(`  ✅ Verifying ${e2eTest.assertions.length} assertion(s)...`);
+    await assertPage(page, e2eTest.assertions);
+
+    console.log(`  ✅ Test passed: ${e2eTest.name}`);
+  });
+});
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+test.describe.configure({ mode: 'parallel' });

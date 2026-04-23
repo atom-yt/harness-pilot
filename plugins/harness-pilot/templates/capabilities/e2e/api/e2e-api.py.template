@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""
+API E2E Test Runner for Python
+Performs end-to-end API validation with server startup, request/response verification
+"""
+
+import subprocess
+import time
+import requests
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+@dataclass
+class ApiTest:
+    name: str
+    method: str
+    path: str
+    body: Optional[Dict[str, Any]] = None
+    headers: Optional[Dict[str, str]] = None
+    expected_status: Optional[int] = None
+    expected_body: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class E2EConfig:
+    port: int
+    start_command: str
+    startup_timeout: int
+    tests: List[ApiTest]
+    base_url: Optional[str] = None
+
+
+# ============================================================================
+# Server Management
+# ============================================================================
+
+class ServerManager:
+    def __init__(self):
+        self.process: Optional[subprocess.Popen] = None
+
+    def start(self, config: E2EConfig) -> bool:
+        """Start the server and wait for it to be ready."""
+        print(f"🚀 Starting server on port {config.port}...")
+
+        self.process = subprocess.Popen(
+            config.start_command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        # Wait for server to be ready
+        start_time = time.time()
+        while time.time() - start_time < config.startup_timeout / 1000:
+            try:
+                response = requests.head(
+                    f"http://localhost:{config.port}/health",
+                    timeout=1
+                )
+                print(f"✓ Server started on port {config.port}")
+                return True
+            except requests.exceptions.RequestException:
+                time.sleep(0.5)
+
+        print("❌ Server failed to start")
+        return False
+
+    def stop(self) -> None:
+        """Stop the server."""
+        if self.process:
+            print("🛑 Stopping server...")
+            self.process.terminate()
+            self.process = None
+
+
+# ============================================================================
+# Test Runner
+# ============================================================================
+
+class ApiTestRunner:
+    def __init__(self, config: E2EConfig):
+        self.base_url = config.base_url or f"http://localhost:{config.port}"
+        self.server = ServerManager()
+
+    def run(self, config: E2EConfig) -> None:
+        """Run all E2E tests."""
+        print("\n" + "=" * 60)
+        print("          API E2E Test Suite")
+        print("=" * 60 + "\n")
+
+        # Start server
+        if not self.server.start(config):
+            print("Cannot proceed: Server failed to start")
+            exit(1)
+
+        try:
+            # Run tests
+            results = []
+            for test in config.tests:
+                result = self.run_test(test)
+                results.append(result)
+
+            # Summary
+            self.print_summary(results)
+
+            failed = sum(1 for r in results if r['status'] == 'failed')
+            exit(1 if failed > 0 else 0)
+        finally:
+            self.server.stop()
+
+    def run_test(self, test: ApiTest) -> Dict[str, Any]:
+        """Run a single API test."""
+        url = f"{self.base_url}{test.path}"
+
+        print(f"\n🧪 Test: {test.name}")
+        print(f"   {test.method} {url}")
+
+        try:
+            response = requests.request(
+                method=test.method,
+                url=url,
+                headers={
+                    'Content-Type': 'application/json',
+                    **(test.headers or {})
+                },
+                json=test.body,
+                timeout=10
+            )
+
+            # Status code validation
+            expected_status = test.expected_status or 200
+            if response.status_code != expected_status:
+                print(f"   ✗ Status code mismatch: {response.status_code} (expected {expected_status})")
+                raise Exception(f"Status code: {response.status_code}")
+            print(f"   ✓ Status: {response.status_code}")
+
+            # Response body validation
+            response_body = response.json()
+
+            if test.expected_body:
+                matches = self.match_body(response_body, test.expected_body)
+                if not matches:
+                    print("   ✗ Response body mismatch")
+                    print(f"   Expected: {test.expected_body}")
+                    print(f"   Received: {response_body}")
+                    raise Exception("Response body mismatch")
+                print(f"   ✓ Response body matches")
+
+            print(f"   ✅ Test passed")
+            return {'status': 'passed', 'test': test.name}
+        except Exception as e:
+            print(f"   ❌ Test failed: {str(e)}")
+            return {'status': 'failed', 'test': test.name, 'error': str(e)}
+
+    def match_body(self, actual: Any, expected: Any) -> bool:
+        """Match actual response body with expected schema."""
+        if type(actual) != type(expected):
+            return False
+
+        if isinstance(expected, list) and isinstance(actual, list):
+            if len(actual) != len(expected):
+                return False
+            return all(self.match_body(a, e) for a, e in zip(actual, expected))
+
+        if isinstance(expected, dict):
+            expected_obj = expected
+            actual_obj = actual
+            return all(
+                self.match_body(actual_obj.get(k), v)
+                for k, v in expected_obj.items()
+            )
+
+        return actual == expected
+
+    def print_summary(self, results: List[Dict[str, Any]]) -> None:
+        """Print test summary."""
+        passed = sum(1 for r in results if r['status'] == 'passed')
+        failed = sum(1 for r in results if r['status'] == 'failed')
+        total = len(results)
+
+        print("\n" + "=" * 60)
+        print("                Test Summary")
+        print("=" * 60 + "\n")
+        print(f"  Total: {total}")
+        print(f"  Passed: {passed}")
+        print(f"  Failed: {failed}")
+        print(f"  Success Rate: {round((passed / total) * 100)}%\n")
+
+
+# ============================================================================
+# CLI Interface
+# ============================================================================
+
+def main():
+    config_file = sys.argv[1] if len(sys.argv) > 1 else '.harness/e2e/api-tests.json'
+
+    try:
+        with open(config_file) as f:
+            config = json.load(f)
+            e2e_config = E2EConfig(**config)
+
+        runner = ApiTestRunner(e2e_config)
+        runner.run(e2e_config)
+    except Exception as e:
+        print(f"Error loading config: {str(e)}")
+        print("Usage: python e2e-api.py [config-file]")
+        exit(1)
+
+
+if __name__ == '__main__':
+    import json
+    import sys
+    main()

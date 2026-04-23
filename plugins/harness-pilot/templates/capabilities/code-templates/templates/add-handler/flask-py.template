@@ -1,0 +1,80 @@
+# Generated handler template for Express
+# Type: {{TYPE}}
+# Name: {{NAME}}
+
+from flask import Blueprint, request, jsonify
+from typing import Dict, Any
+
+{{#if EXPORTS}}
+{{EXPORTS}}
+{{/if}}
+
+router = Blueprint('{{name_prefix}}{{name}}', __name__)
+
+
+@router.route('/{{ROUTE_PATH}}', methods=['GET'])
+def {{name_prefix}}{{name}}_get():
+    """Handle GET request."""
+    try:
+        # TODO: Implement GET logic
+        return jsonify({
+            'success': True,
+            'data': request.args.to_dict(),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+        }), 500
+
+
+@router.route('/{{ROUTE_PATH}}', methods=['POST'])
+def {{name_prefix}}{{name}}_post():
+    """Handle POST request."""
+    try:
+        body = request.get_json()
+
+        # TODO: Implement POST logic
+        return jsonify({
+            'success': True,
+            'data': body,
+        }), 201
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+        }), 500
+
+
+@router.route('/{{ROUTE_PATH}}/<id>', methods=['PUT'])
+def {{name_prefix}}{{name}}_put(id: str):
+    """Handle PUT request."""
+    try:
+        body = request.get_json()
+
+        # TODO: Implement PUT logic
+        return jsonify({
+            'success': True,
+            'data': {'id': id, **body},
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+        }), 500
+
+
+@router.route('/{{ROUTE_PATH}}/<id>', methods=['DELETE'])
+def {{name_prefix}}{{name}}_delete(id: str):
+    """Handle DELETE request."""
+    try:
+        # TODO: Implement DELETE logic
+        return jsonify({
+            'success': True,
+            'data': {'id': id},
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+        }), 500

@@ -1,0 +1,67 @@
+"""
+Generated model template
+Type: {{TYPE}}
+Name: {{NAME}}
+"""
+
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, Field
+
+
+class {{NAME_PREFIX}}{{NAME}}Base(BaseModel):
+    {{#if FIELDS}}
+{{FIELDS}}
+    {{/if}}
+
+
+class {{NAME_PREFIX}}{{NAME}}Create({{NAME_PREFIX}}{{NAME}}Base):
+    pass
+
+
+class {{NAME_PREFIX}}{{NAME}}Update({{NAME_PREFIX}}{{NAME}}Base):
+    id: str
+
+
+class {{NAME_PREFIX}}{{NAME}}({{NAME_PREFIX}}{{NAME}}Base):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        from_attributes = True
+
+
+class {{NAME_PREFIX}}{{NAME}}Model:
+    _instances: dict[str, {{NAME_PREFIX}}{{NAME}}] = {}
+
+    @classmethod
+    async def create(cls, data: {{NAME_PREFIX}}{{NAME}}Create) -> {{NAME_PREFIX}}{{NAME}}:
+        item = {{NAME_PREFIX}}{{NAME}}(**data.model_dump())
+        cls._instances[item.id] = item
+        return item
+
+    @classmethod
+    async def find_by_id(cls, id: str) -> Optional[{{NAME_PREFIX}}{{NAME}}]:
+        return cls._instances.get(id)
+
+    @classmethod
+    async def update(cls, data: {{NAME_PREFIX}}{{NAME}}Update) -> Optional[{{NAME_PREFIX}}{{NAME}}]:
+        item = cls._instances.get(data.id)
+        if not item:
+            return None
+
+        item.updated_at = datetime.utcnow()
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(item, field, value)
+
+        cls._instances[data.id] = item
+        return item
+
+    @classmethod
+    async def delete(cls, id: str) -> bool:
+        return cls._instances.pop(id, None) is not None
+
+    @classmethod
+    async def find_all(cls) -> list[{{NAME_PREFIX}}{{NAME}}]:
+        return list(cls._instances.values())

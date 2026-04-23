@@ -13,6 +13,15 @@ Review code changes for correctness, architecture compliance, and quality. Combi
 1. **Code review** — Logic bugs, race conditions, edge cases, naming, complexity
 2. **Architecture validation** — Layer compliance, dependency direction, module boundaries
 
+## Extended Capabilities
+
+When capabilities are enabled in `.harness/capabilities.json`:
+
+- **JiT Test Analysis** — Check test coverage and generated test quality
+- **Code Smell Analysis** — Detect duplication, complexity, naming issues
+- **Security Analysis** — SAST checks, dependency vulnerabilities, configuration security
+- **E2E Test Analysis** — Verify API routes have E2E tests, UI flows are covered
+
 ## When Dispatched
 
 - By harness-apply during Ralph Wiggum Loop review phase
@@ -48,7 +57,44 @@ Review code changes for correctness, architecture compliance, and quality. Combi
      - **Test coverage**: Do changed files have corresponding tests?
      - **Consistency**: Does the style match the rest of the codebase?
 
-4. **Produce Review**
+4. **JiT Test Analysis** (if `jit_test` capability enabled)
+   - Check if changed files have corresponding test files
+   - Verify test coverage for new functions/methods
+   - Identify untested branches (if/else, switch, try/catch)
+   - Validate test quality (proper assertions, edge case coverage)
+   - Generate test coverage report
+
+5. **Code Smell Analysis** (if `refactor` capability enabled)
+   - Run `.harness/scripts/detect-duplication.*` (if available)
+   - Run `.harness/scripts/detect-complexity.*` (if available)
+   - Check for:
+     - **Duplicated code**: 5+ lines, 80% similarity
+     - **High complexity**: Cyclomatic > 10, Cognitive > 15
+     - **Long functions**: > 50 lines
+     - **Large classes**: > 10 methods, > 500 lines
+     - **Long parameter lists**: > 4 parameters
+     - **Magic numbers**: Unnamed constants
+     - **Deep nesting**: > 3 levels
+   - Output refactoring suggestions
+
+6. **Security Analysis** (if `security` capability enabled)
+   - Run `.harness/scripts/security-scan.*` (if available)
+   - Check for:
+     - **SQL injection**: Unsafe query construction
+     - **XSS**: Unsanitized user input in HTML
+     - **Command injection**: Unsafe shell commands
+     - **Hardcoded secrets**: Passwords, API keys, tokens
+     - **Unsafe eval**: Dynamic code execution
+   - Check dependency vulnerabilities (npm audit / pip-audit / go mod audit)
+   - Check configuration security (CORS, CSP, HTTPS)
+
+9. **E2E Test Analysis** (if `e2e` capability enabled)
+   - Check if changed API routes have corresponding E2E tests
+   - Check if changed pages have browser E2E tests
+   - Verify E2E tests cover key user workflows
+   - Check for missing E2E configurations
+
+10. **Produce Review**
    - Output structured review with severity levels
    - Be specific: include file, line, and concrete fix suggestions
 
@@ -72,6 +118,38 @@ Review code changes for correctness, architecture compliance, and quality. Combi
 - Performance concerns: {list or "none"}
 - Security concerns: {list or "none"}
 - Test coverage: {assessment}
+- Consistency: {assessment}
+
+### JiT Test Analysis (if enabled)
+- Test files exist: YES / NO
+- Test coverage: {percentage}% (target: {threshold}%)
+- Untested functions: {list}
+- Untested branches: {count}
+- Test quality: {assessment}
+
+### Code Smell Analysis (if enabled)
+- Duplicated code: {count} instance(s)
+- High complexity: {count} function(s)
+- Long functions: {count} function(s)
+- Long parameter lists: {count} function(s)
+- Magic numbers: {count} found
+- Deep nesting: {count} instance(s)
+- Refactoring suggestions: {list or "none"}
+
+### Security Analysis (if enabled)
+- SAST scan: PASS / FAIL ({count} issues)
+- Dependency vulnerabilities: {count} found
+- CORS: SECURE / INSECURE
+- HTTPS: ENFORCED / NOT ENFORCED
+- CSP: CONFIGURED / NOT CONFIGURED
+- Security issues: {list or "none"}
+
+### E2E Test Analysis (if enabled)
+- API E2E tests exist: YES / NO
+- Browser E2E tests exist: YES / NO
+- E2E test coverage: {percentage}% (target: {threshold}%)
+- Missing E2E tests for: {list of routes/pages}
+- Test quality: {assessment}
 
 ### Issues Found
 
@@ -89,6 +167,11 @@ Review code changes for correctness, architecture compliance, and quality. Combi
 
 ### Summary
 - Architecture: PASS / FAIL
+- Code Quality: PASS / FAIL
+- Test Coverage: PASS / FAIL (if enabled)
+- Code Smells: {count} found (if enabled)
+- Security: PASS / FAIL (if enabled)
+- E2E Tests: {status} (if enabled)
 - Critical: {count}
 - Important: {count}
 - Suggestions: {count}
@@ -100,3 +183,5 @@ Review code changes for correctness, architecture compliance, and quality. Combi
 - Be specific and actionable, not vague
 - Distinguish severity levels clearly: Critical blocks merge, Important should be fixed, Suggestion is optional
 - If everything looks good, say APPROVE with a brief note on what was checked
+- When capabilities are disabled, skip corresponding analysis phases
+- Check `.harness/capabilities.json` to determine which capabilities are enabled

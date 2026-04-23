@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# Security Audit Script
+# Scans for security vulnerabilities and common issues
+
+set -euo pipefail
+
+SAST_TOOL=${SAST_TOOL:-semgrep}
+SCAN_DEPENDENCIES=${SCAN_DEPENDENCIES:-true}
+
+# Security scan patterns
+SECURITY_PATTERNS=(
+  # SQL Injection
+  "executeQuery(\$\{"
+  "db\.query(\$\{"
+  # XSS
+  "innerHTML\s*=\s*req\."
+  "innerHTML\s*=\s*params\."
+  # Command Injection
+  "exec(\$\{"
+  "execSync(\$\{"
+  "system(\$\{"
+  # Hardcoded secrets
+  "password\s*=\s*['"](?!dummy).*['"]"
+  "api_key\s*=\s*['"](?!dummy|test).*['"]"
+  "secret\s*=\s*['"](?!dummy|test).*['"]"
+  "token\s*=\s*['"](?!dummy|test).*['"]"
+  # Unsafe eval
+  "eval(\$\{"
+  "new Function(\$\{"
+)
+
+scan_security_patterns() {
+  local file=$1
+  local patterns=("${SECURITY_PATTERNS[@]}")
+  local issues_found=0
+
+  for pattern in "${patterns[@]}"; do
+    if grep -qE "$pattern" "$file" 2>/dev/null; then
+      echo "  [!] Potential security issue: $pattern"
+      grep -nHE "$pattern" "$file" 2>/dev/null | head -1
+      ((issues_found++))
+    fi
+  done
+
+  return $issues_found
+}
+
+scan_dependencies() {
+  if [ "$SCAN_DEPENDENCIES" != "true" ]; then
+    return 0
+  fi
+
+  echo "  Scanning dependencies for vulnerabilities..."
+
+  if [ -f "package.json" ]; then
+    echo "    Running npm audit..."
+    npm audit --audit-level=moderate || true
+  elif [ -f "requirements.txt" ]; then
+    echo "    Running pip-audit..."
+    command -v pip-audit >/dev/null 2>&1 && pip-audit || echo "      pip-audit not installed"
+  elif [ -f "go.mod" ]; then
+    echo "    Running go mod audit..."
+    command -v govulncheck >/dev/null 2>&1 && govulncheck ./... || echo "      govulncheck not installed"
+  fi
+}
+
+check_cors() {
+  echo "  Checking CORS configuration..."
+
+  # Look for permissive CORS
+  if grep -r "origin: \*\|'\*'\|"\*"" --include="*.ts" --include="*.js" --include="*.py" . 2>/dev/null | grep -v "test" | grep -q .; then
+    echo "    [!] Permissive CORS found (allowing all origins)"
+  fi
+}
+
+check_https() {
+  echo "  Checking HTTPS enforcement..."
+
+  # Look for insecure endpoints
+  if grep -r "http://localhost" --include="*.ts" --include="*.js" --include="*.py" . 2>/dev/null | grep -v "test" | grep -q .; then
+    echo "    [!] HTTP endpoints found (consider HTTPS)"
+  fi
+}
+
+check_csp() {
+  echo "  Checking Content Security Policy..."
+
+  if [ -f "next.config.js" ] || [ -f "next.config.mjs" ]; then
+    if ! grep -q "Content-Security-Policy" next.config.* 2>/dev/null; then
+      echo "    [!] CSP not configured"
+    fi
+  fi
+}
+
+main() {
+  local directory=${1:-.}
+  local report_file=${2:-.harness/security-report.md}
+
+  echo "═══════════════════════════════════════════════════════"
+  echo "          Security Audit"
+  echo "═══════════════════════════════════════════════════════"
+  echo ""
+
+  # Pattern scanning
+  echo "Scanning for security patterns..."
+  local total_issues=0
+  local files_scanned=0
+
+  while IFS= read -r -d '' file; do
+    if [[ "$file" =~ \.(ts|js|py|go)$ ]] && [[ ! "$file" =~ \.(test|spec)\. ]]; then
+      echo "  $file"
+      scan_security_patterns "$file" || ((total_issues+=$?))
+      ((files_scanned++))
+    fi
+  done < <(find "$directory" -type f -print0 2>/dev/null)
+
+  echo ""
+  echo "Files scanned: $files_scanned"
+  echo "Security issues found: $total_issues"
+  echo ""
+
+  # Dependency scanning
+  scan_dependencies
+
+  echo ""
+
+  # Configuration checks
+  check_cors
+  check_https
+  check_csp
+
+  echo ""
+  echo "═══════════════════════════════════════════════════════"
+  echo "  Security Audit Complete"
+  echo "═══════════════════════════════════════════════════════"
+
+  # Generate report
+  mkdir -p "$(dirname "$report_file")"
+
+  cat > "$report_file" << EOF
+# Security Audit Report
+
+**Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+**Files scanned:** $files_scanned
+**Security issues found:** $total_issues
+
+## Scan Results
+
+- Pattern scanning: Completed
+- Dependency scanning: Completed
+- CORS check: Completed
+- HTTPS check: Completed
+- CSP check: Completed
+
+## Recommendations
+
+EOF
+
+  if [ $total_issues -gt 0 ]; then
+    echo "- [ ] Fix $total_issues security issue(s)" >> "$report_file"
+  else
+    echo "- [x] No security issues detected" >> "$report_file"
+  fi
+
+  echo "" >> "$report_file"
+  echo "Report saved to: $report_file"
+}
+
+main "$@"

@@ -1,0 +1,39 @@
+"""
+Generated API route template
+Type: {{TYPE}}
+Name: {{NAME}}
+"""
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+{{#if EXPORTS}}
+{{EXPORTS}}
+{{/if}}
+
+router = APIRouter()
+
+
+class {{NAME_PREFIX}}{{NAME}}Request(BaseModel):
+    {{#if FIELDS}}
+{{FIELDS}}
+    {{/if}}
+
+
+class {{NAME_PREFIX}}{{NAME}}Response(BaseModel):
+    success: bool
+    data: {{DATA_TYPE}} | None = None
+    error: str | None = None
+
+
+@router.post("/{{ROUTE_PATH}}", response_model={{NAME_PREFIX}}{{NAME}}Response)
+async def {{name_prefix}}{{NAME}}_handler(request: {{NAME_PREFIX}}{{NAME}}Request):
+    """Handle {{NAME_PREFIX}}{{NAME}} API request."""
+    try:
+        # TODO: Implement {{NAME_PREFIX}}{{NAME}} logic
+        return {{NAME_PREFIX}}{{NAME}}Response(
+            success=True,
+            data=None,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

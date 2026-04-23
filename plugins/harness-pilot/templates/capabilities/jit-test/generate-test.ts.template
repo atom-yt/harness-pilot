@@ -1,0 +1,269 @@
+#!/usr/bin/env ts-node
+/**
+ * JiT Test Generator for TypeScript
+ * Generates comprehensive test cases for analyzed functions
+ */
+
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const COVERAGE_THRESHOLD = parseInt(process.env.COVERAGE_THRESHOLD || '80', 10);
+const MAX_TESTS_PER_FUNCTION = parseInt(process.env.MAX_TESTS_PER_FUNCTION || '5', 10);
+const TEST_FRAMEWORK = process.env.TEST_FRAMEWORK || 'jest';
+
+// ============================================================================
+// AST Analysis
+// ============================================================================
+
+interface FunctionSignature {
+  name: string;
+  parameters: Parameter[];
+  returnType: string;
+  isAsync: boolean;
+  line: number;
+}
+
+interface Parameter {
+  name: string;
+  type: string;
+  optional: boolean;
+}
+
+interface Branch {
+  type: 'if' | 'switch' | 'try';
+  line: number;
+}
+
+// ============================================================================
+// Test Generation
+// ============================================================================
+
+class TestGenerator {
+  private sourceFile: string;
+  private functions: FunctionSignature[] = [];
+  private branches: Branch[] = [];
+
+  constructor(sourceFile: string) {
+    this.sourceFile = sourceFile;
+  }
+
+  /**
+   * Parse source file and extract functions and branches
+   */
+  analyze(): void {
+    const content = readFileSync(this.sourceFile, 'utf-8');
+    const lines = content.split('\n');
+
+    // Extract function signatures (simplified regex-based)
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Function declaration
+      const functionMatch = line.match(
+        /(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)(?:\s*:\s*(\w+|\{[^}]+\}|[^{]+))?/
+      );
+      if (functionMatch) {
+        this.functions.push({
+          name: functionMatch[1],
+          parameters: this.parseParameters(functionMatch[2]),
+          returnType: functionMatch[3] || 'any',
+          isAsync: line.includes('async'),
+          line: i + 1,
+        });
+      }
+
+      // Arrow function
+      const arrowMatch = line.match(
+        /(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\(([^)]*)\)\s*(?:=\s*[^{])?(?:\s*:\s*(\w+|\{[^}]+\}))?/
+      );
+      if (arrowMatch && !line.includes('=>')) {
+        this.functions.push({
+          name: arrowMatch[1],
+          parameters: this.parseParameters(arrowMatch[2]),
+          returnType: arrowMatch[3] || 'any',
+          isAsync: line.includes('async'),
+          line: i + 1,
+        });
+      }
+
+      // Branch detection
+      if (line.match(/\bif\s*\(/)) {
+        this.branches.push({ type: 'if', line: i + 1 });
+      } else if (line.match(/\bswitch\s*\(/)) {
+        this.branches.push({ type: 'switch', line: i + 1 });
+      } else if (line.match(/\btry\s*\{/)) {
+        this.branches.push({ type: 'try', line: i + 1 });
+      }
+    }
+  }
+
+  private parseParameters(paramsStr: string): Parameter[] {
+    if (!paramsStr.trim()) return [];
+
+    return paramsStr.split(',').map((param) => {
+      const [name, type] = param.trim().split(/\s*:\s*/);
+      return {
+        name: name.trim(),
+        type: type || 'any',
+        optional: name.endsWith('?'),
+      };
+    });
+  }
+
+  /**
+   * Generate test file content
+   */
+  generate(): string {
+    const imports = this.generateImports();
+    const tests = this.functions.map((fn) => this.generateTestsForFunction(fn)).join('\n\n');
+
+    return `${imports}
+
+${tests}
+`;
+  }
+
+  private generateImports(): string {
+    const moduleName = this.sourceFile.replace(/^.*\/([^/]+)\.(ts|js)$/, '$1');
+    const relativePath = this.sourceFile.replace(/^(.*)\/[^/]+\.(ts|js)$/, '$1');
+
+    return `import { ${this.functions.map((f) => f.name).join(', ')} } from './${moduleName}';`;
+  }
+
+  private generateTestsForFunction(fn: FunctionSignature): string {
+    const testCases = [];
+
+    // Normal path tests
+    testCases.push(this.generateNormalPathTest(fn));
+
+    // Boundary tests
+    testCases.push(this.generateBoundaryTest(fn));
+
+    // Error tests
+    if (fn.parameters.length > 0) {
+      testCases.push(this.generateErrorTest(fn));
+    }
+
+    // Async tests for async functions
+    if (fn.isAsync) {
+      testCases.push(this.generateAsyncTest(fn));
+    }
+
+    return `describe('${fn.name}', () => {
+${testCases.join('\n\n')}
+});`;
+  }
+
+  private generateNormalPathTest(fn: FunctionSignature): string {
+    const mockInput = this.generateMockInput(fn.parameters);
+
+    return `  describe('normal path', () => {
+    it('should execute successfully', async () => {
+      // Arrange
+      const input = ${mockInput};
+
+      // Act
+      ${fn.isAsync ? 'const' : 'const'} result = ${fn.isAsync ? 'await ' : ''}${fn.name}(${fn.parameters
+      .map((p) => `input.${p.name.replace('?', '')}`)
+      .join(', ')});
+
+      // Assert
+      expect(result).toBeDefined();
+    });
+  });`;
+  }
+
+  private generateBoundaryTest(fn: FunctionSignature): string {
+    return `  describe('boundary cases', () => {
+    it('should handle empty values', async () => {
+      ${fn.isAsync ? 'await' : ''} expect(
+        ${fn.name}(${fn.parameters.map(() => '{}').join(', ')})
+      ).resolves.toBeDefined();
+    });
+  });`;
+  }
+
+  private generateErrorTest(fn: FunctionSignature): string {
+    return `  describe('error cases', () => {
+    it('should handle invalid input', async () => {
+      ${fn.isAsync ? 'await' : ''} expect(
+        ${fn.name}(${fn.parameters.map(() => 'null').join(', ')})
+      ).rejects.toThrow();
+    });
+  });`;
+  }
+
+  private generateAsyncTest(fn: FunctionSignature): string {
+    return `  describe('async behavior', () => {
+    it('should handle async operations', async () => {
+      const mockInput = ${this.generateMockInput(fn.parameters)};
+
+      const result = await ${fn.name}(${fn.parameters
+      .map((p) => `mockInput.${p.name.replace('?', '')}`)
+      .join(', ')});
+
+      expect(result).toBeDefined();
+    });
+  });`;
+  }
+
+  private generateMockInput(params: Parameter[]): string {
+    const props = params
+      .map((p) => {
+        const name = p.name.replace('?', '');
+        const mockValue = this.getMockValueForType(p.type);
+        return `  ${name}: ${mockValue},`;
+      })
+      .join('\n');
+
+    return `{\n${props}\n}`;
+  }
+
+  private getMockValueForType(type: string): string {
+    if (type.includes('string')) return "'test'";
+    if (type.includes('number')) return '123';
+    if (type.includes('boolean')) return 'true';
+    if (type.includes('Array')) return '[]';
+    if (type.includes('Record') || type.includes('Object')) return '{}';
+    return "''";
+  }
+}
+
+// ============================================================================
+// CLI Interface
+// ============================================================================
+
+function main() {
+  const sourceFile = process.argv[2];
+  const outputFile = process.argv[3];
+
+  if (!sourceFile) {
+    console.error('Usage: ts-node generate-test.ts <source-file> [output-file]');
+    process.exit(1);
+  }
+
+  if (!existsSync(sourceFile)) {
+    console.error(`Error: Source file not found: ${sourceFile}`);
+    process.exit(1);
+  }
+
+  const generator = new TestGenerator(sourceFile);
+  generator.analyze();
+
+  const output = outputFile || sourceFile.replace(/\.(ts|js)$/, '.test.$1');
+
+  if (!existsSync(output)) {
+    writeFileSync(output, generator.generate());
+    console.log(`✓ Generated: ${output}`);
+    console.log(`  Functions: ${generator['functions'].length}`);
+    console.log(`  Branches: ${generator['branches'].length}`);
+  } else {
+    console.log(`[skip] ${output} already exists`);
+  }
+}
+
+main();

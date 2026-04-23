@@ -1,0 +1,280 @@
+#!/usr/bin/env ts-node
+/**
+ * Boundary Violation Checker
+ * Detects code crossing architectural boundaries
+ *
+ * Usage: ts-node .harness/scripts/lint-boundary.ts
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+const EXCLUDE_DIRS = ['node_modules', 'dist', 'build', '.git', '__tests__', 'test'];
+
+interface BoundaryRule {
+  name: string;
+  fromLayer: number;
+  toLayer: number;
+  description: string;
+  allowed: boolean;  // false = never allowed
+}
+
+const BOUNDARY_RULES: BoundaryRule[] = [
+  {
+    name: 'api-to-model-direct',
+    fromLayer: 4,
+    toLayer: 0,
+    description: 'API layer cannot directly import models (must go through service layer)',
+    allowed: false,
+  },
+  {
+    name: 'api-to-model-through-service',
+    fromLayer: 4,
+    toLayer: 0,
+    description: 'API layer must import models only through service layer',
+    allowed: true,
+  },
+  {
+    name: 'page-to-model',
+    fromLayer: 4,
+    toLayer: 0,
+    description: 'Page layer cannot import models',
+    allowed: false,
+  },
+  {
+    name: 'page-to-service',
+    fromLayer: 3,
+    toLayer: 3,
+    description: 'Service layer should not directly depend on other services',
+    allowed: false,
+  },
+  {
+    name: 'no-layer-jumps',
+    fromLayer: 0,
+    toLayer: 4,
+    description: 'Cannot skip layers (0→4 without going through intermediate)',
+    allowed: false,
+  },
+];
+
+// ============================================================================
+// Layer Detection
+// ============================================================================
+
+const LAYERS: Record<string, number> = {
+  'types': 0,
+  'interfaces': 0,
+  'models': 0,
+  'utils': 1,
+  'helpers': 1,
+  'common': 1,
+  'lib': 2,
+  'config': 2,
+  'constants': 2,
+  'services': 3,
+  'core': 3,
+  'domain': 3,
+  'api': 4,
+  'handlers': 4,
+  'controllers': 4,
+  'app': 4,
+  'pages': 4,
+  'components': 3,
+  'hooks': 3,
+  'contexts': 3,
+};
+
+function getFileLayer(filePath: string): number | null {
+  const parts = filePath.split(path.sep);
+  for (const part of parts) {
+    const layer = LAYERS[part];
+    if (layer !== undefined) {
+      return layer;
+    }
+  }
+  return null;
+}
+
+// ============================================================================
+// Import Analysis
+// ============================================================================
+
+interface Import {
+  file: string;
+  line: number;
+  importPath: string;
+  fromLayer: number | null;
+  toLayer: number | null;
+}
+
+function extractImports(content: string, filePath: string): Import[] {
+  const imports: Import[] = [];
+  const lines = content.split('\n');
+  const fileLayer = getFileLayer(filePath);
+
+  if (fileLayer === null) {
+    return imports; // Cannot check boundary for unknown layer
+  }
+
+  const es6Pattern = /import\s+{([^}]+)}\s+from\s+['"]([^'"]+)['"]/g;
+  let match;
+  let lineNum = 0;
+
+  while ((match = es6Pattern.exec(content)) !== null) {
+    lineNum = content.substring(0, match.index).split('\n').length + 1;
+
+    const importPath = match[1];
+    const isInternal = isInternalImport(importPath);
+    
+    if (!isInternal) {
+      continue;
+    }
+
+    const toLayer = getFileLayerFromImport(importPath, path.dirname(filePath));
+    
+    imports.push({
+      file: filePath,
+      line: lineNum,
+      importPath,
+      fromLayer: fileLayer,
+      toLayer,
+    });
+  }
+
+  return imports;
+}
+
+function isInternalImport(importPath: string): boolean {
+  return importPath.startsWith('./') ||
+         importPath.startsWith('../') ||
+         importPath.startsWith('@/');
+}
+
+function getFileLayerFromImport(importPath: string, baseDir: string): number | null {
+  // Absolute path
+  if (importPath.startsWith('@/')) {
+    const moduleName = importPath.substring(2);
+    for (const [name, layer] of Object.entries(LAYERS)) {
+      if (moduleName.startsWith(name)) {
+        return layer;
+      }
+    }
+    return null;
+  }
+
+  // Relative path
+  const fullPath = path.resolve(baseDir, importPath);
+  return getFileLayer(fullPath);
+}
+
+// ============================================================================
+// Boundary Validation
+// ============================================================================
+
+interface BoundaryViolation {
+  file: string;
+  line: number;
+  rule: string;
+  fromLayer: number;
+  toLayer: number;
+  description: string;
+  importPath: string;
+}
+
+function validateBoundaries(imports: Import[]): BoundaryViolation[] {
+  const violations: BoundaryViolation[] = [];
+
+  for (const imp of imports) {
+    if (imp.fromLayer === null || imp.toLayer === null) {
+      continue;
+    }
+
+    for (const rule of BOUNDARY_RULES) {
+      if (imp.fromLayer === rule.fromLayer && imp.toLayer === rule.toLayer) {
+        if (!rule.allowed) {
+          violations.push({
+            file: imp.file,
+            line: imp.line,
+            rule: rule.name,
+            fromLayer: imp.fromLayer,
+            toLayer: imp.toLayer,
+            description: rule.description,
+            importPath: imp.importPath,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
+// ============================================================================
+// File Scanning
+// ============================================================================
+
+function getAllFiles(dir: string, files: string[] = []): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!EXCLUDE_DIRS.includes(entry.name)) {
+        getAllFiles(fullPath, files);
+      }
+    } else if (EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+function main(): void {
+  const projectRoot = process.cwd();
+  const files = getAllFiles(projectRoot);
+  const allImports: Import[] = [];
+
+  console.log(`\n🔍 Analyzing ${files.length} files for boundary violations...\n`);
+
+  for (const file of files) {
+    const content = fs.readFileSync(file, 'utf-8');
+    const imports = extractImports(content, file);
+    allImports.push(...imports);
+  }
+
+  const violations = validateBoundaries(allImports);
+
+  if (violations.length === 0) {
+    console.log('✓ No boundary violations found!\n');
+    process.exit(0);
+  }
+
+  console.log(`✗ Found ${violations.length} boundary violation(s):\n`);
+
+  for (const v of violations) {
+    const fromName = Object.entries(LAYERS).find(([_, l]) => l === v.fromLayer)?.[0] || 'unknown';
+    const toName = Object.entries(LAYERS).find(([_, l]) => l === v.toLayer)?.[0] || 'unknown';
+
+    console.log(`❌ ${v.file}:${v.line}`);
+    console.log(`   Rule: ${v.rule}`);
+    console.log(`   Layer ${fromName} → Layer ${toName}`);
+    console.log(`   Import: ${v.importPath}`);
+    console.log(`   Description: ${v.description}`);
+  }
+
+  process.exit(1);
+}
+
+main();

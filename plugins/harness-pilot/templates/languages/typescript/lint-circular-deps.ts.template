@@ -1,0 +1,200 @@
+#!/usr/bin/env ts-node
+/**
+ * Circular Dependency Detector
+ * Detects circular imports in TypeScript/JavaScript codebase
+ *
+ * Usage: ts-node .harness/scripts/lint-circular-deps.ts
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+const EXCLUDE_DIRS = ['node_modules', 'dist', 'build', '.git', '__tests__', 'test'];
+
+// ============================================================================
+// Dependency Graph
+// ============================================================================
+
+interface DependencyGraph {
+  nodes: Map<string, Set<string>>;
+}
+
+function buildDependencyGraph(projectRoot: string): DependencyGraph {
+  const graph: DependencyGraph = { nodes: new Map() };
+  const files = getAllFiles(projectRoot);
+
+  for (const file of files) {
+    const imports = extractImports(file);
+    const relativeFile = path.relative(projectRoot, file);
+    graph.nodes.set(relativeFile, new Set(imports));
+  }
+
+  return graph;
+}
+
+function extractImports(filePath: string): string[] {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const imports: string[] = [];
+
+  // ES6 imports
+  const es6Pattern = /import\s+.*\s+from\s+['"]([^'"]+)['"]/g;
+  let match;
+  while ((match = es6Pattern.exec(content)) !== null) {
+    const importPath = match[1];
+    if (isInternalImport(importPath)) {
+      const resolved = resolveImport(filePath, importPath);
+      if (resolved) imports.push(resolved);
+    }
+  }
+
+  // Dynamic imports
+  const dynamicPattern = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  while ((match = dynamicPattern.exec(content)) !== null) {
+    const importPath = match[1];
+    if (isInternalImport(importPath)) {
+      const resolved = resolveImport(filePath, importPath);
+      if (resolved) imports.push(resolved);
+    }
+  }
+
+  return imports;
+}
+
+function isInternalImport(importPath: string): boolean {
+  return importPath.startsWith('./') ||
+         importPath.startsWith('../') ||
+         importPath.startsWith('@/');
+}
+
+function resolveImport(fromFile: string, importPath: string): string | null {
+  const dir = path.dirname(fromFile);
+  let resolved = path.resolve(dir, importPath);
+
+  // Try adding extensions
+  for (const ext of EXTENSIONS) {
+    const withExt = resolved + ext;
+    if (fs.existsSync(withExt)) {
+      return path.relative(process.cwd(), withExt);
+    }
+    // Try index file
+    const indexFile = path.join(resolved, 'index' + ext);
+    if (fs.existsSync(indexFile)) {
+      return path.relative(process.cwd(), indexFile);
+    }
+  }
+
+  return null;
+}
+
+function getAllFiles(dir: string, files: string[] = []): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!EXCLUDE_DIRS.includes(entry.name)) {
+        getAllFiles(fullPath, files);
+      }
+    } else if (EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+// ============================================================================
+// Cycle Detection (DFS)
+// ============================================================================
+
+interface Cycle {
+  path: string[];
+}
+
+function findCycles(graph: DependencyGraph): Cycle[] {
+  const cycles: Cycle[] = [];
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+  const path: string[] = [];
+
+  for (const [node] of graph.nodes) {
+    if (!visited.has(node)) {
+      dfs(graph, node, visited, recursionStack, path, cycles);
+    }
+  }
+
+  return cycles;
+}
+
+function dfs(
+  graph: DependencyGraph,
+  node: string,
+  visited: Set<string>,
+  recursionStack: Set<string>,
+  path: string[],
+  cycles: Cycle[]
+): void {
+  visited.add(node);
+  recursionStack.add(node);
+  path.push(node);
+
+  const dependencies = graph.nodes.get(node) || new Set();
+
+  for (const dep of dependencies) {
+    if (!visited.has(dep)) {
+      dfs(graph, dep, visited, recursionStack, path, cycles);
+    } else if (recursionStack.has(dep)) {
+      // Found cycle
+      const cycleStart = path.indexOf(dep);
+      if (cycleStart !== -1) {
+        cycles.push({
+          path: [...path.slice(cycleStart), dep],
+        });
+      }
+    }
+  }
+
+  path.pop();
+  recursionStack.delete(node);
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+function main(): void {
+  const projectRoot = process.cwd();
+
+  console.log('\n🔄 Analyzing circular dependencies...\n');
+
+  const graph = buildDependencyGraph(projectRoot);
+  const cycles = findCycles(graph);
+
+  if (cycles.length === 0) {
+    console.log('✓ No circular dependencies found!\n');
+    process.exit(0);
+  }
+
+  console.log(`✗ Found ${cycles.length} circular dependency(ies):\n`);
+
+  for (let i = 0; i < cycles.length; i++) {
+    const cycle = cycles[i];
+    console.log(`Circular Dependency #${i + 1}:`);
+    console.log('  ' + cycle.path.join('\n    → '));
+    console.log('\n  Rule: Modules must not have circular dependencies.');
+    console.log('  Why:  Circular dependencies cause initialization order issues,');
+    console.log('        make code harder to understand, and prevent tree-shaking.');
+    console.log('  Fix:  Extract shared code to a separate module,');
+    console.log('        or use dependency injection to break the cycle.\n');
+  }
+
+  process.exit(1);
+}
+
+main();

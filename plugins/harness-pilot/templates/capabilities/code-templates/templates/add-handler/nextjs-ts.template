@@ -1,0 +1,108 @@
+// Generated handler template for Next.js
+// Type: {{TYPE}}
+// Name: {{NAME}}
+
+import { NextRequest, NextResponse } from 'next/server';
+
+{{#if EXPORTS}}
+{{EXPORTS}}
+{{/if}}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  try {
+    const params = await context.params;
+
+    // TODO: Implement GET logic
+    return NextResponse.json({
+      success: true,
+      data: { id: params.id },
+    });
+  } catch (error) {
+    console.error('GET error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse> {
+  try {
+    const body = await request.json();
+
+    // TODO: Implement POST logic
+    return NextResponse.json(
+      {
+        success: true,
+        data: body,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('POST error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  try {
+    const params = await context.params;
+    const body = await request.json();
+
+    // TODO: Implement PUT logic
+    return NextResponse.json({
+      success: true,
+      data: { id: params.id, ...body },
+    });
+  } catch (error) {
+    console.error('PUT error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  try {
+    const params = await context.params;
+
+    // TODO: Implement DELETE logic
+    return NextResponse.json({
+      success: true,
+      data: { id: params.id },
+    });
+  } catch (error) {
+    console.error('DELETE error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
+  }
+}

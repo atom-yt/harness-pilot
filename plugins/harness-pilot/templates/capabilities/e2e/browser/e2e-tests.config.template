@@ -1,0 +1,86 @@
+/**
+ * Browser E2E Test Configuration
+ * Auto-generated from page structure and user flows
+ */
+
+export const config = {
+  // Base URL
+  baseUrl: 'http://localhost:3000',
+
+  // Test browser options
+  headless: false, // Set to true for CI/CD
+  slowMo: 50, // Slow down actions by 50ms for visibility
+  viewport: { width: 1280, height: 720 },
+  screenshot: 'only-on-failure',
+
+  // Test suite
+  tests: [
+    {
+      name: 'User Registration Flow',
+      url: '/register',
+      actions: [
+        {
+          type: 'fill',
+          selector: '[data-testid="username"]',
+          value: 'newuser',
+        },
+        {
+          type: 'fill',
+          selector: '[data-testid="email"]',
+          value: 'newuser@example.com',
+        },
+        {
+          type: 'fill',
+          selector: '[data-testid="password"]',
+          value: 'securePassword123',
+        },
+        {
+          type: 'click',
+          selector: '[data-testid="register-button"]',
+        },
+        {
+          type: 'wait',
+          selector: '[data-testid="success-message"]',
+          timeout: 5000,
+        },
+      ],
+      assertions: [
+        {
+          type: 'visible',
+          selector: '[data-testid="success-message"]',
+        },
+        {
+          type: 'text',
+          selector: '[data-testid="success-message"]',
+          value: 'Registration successful',
+        },
+      ],
+    },
+    {
+      name: 'Dashboard Navigation',
+      url: '/dashboard',
+      actions: [
+        {
+          type: 'click',
+          selector: '[data-testid="sidebar-users"]',
+        },
+        {
+          type: 'wait',
+          selector: '[data-testid="users-list"]',
+          timeout: 3000,
+        },
+      ],
+      assertions: [
+        {
+          type: 'visible',
+          selector: '[data-testid="users-list"]',
+        },
+        {
+          type: 'count',
+          selector: '[data-testid="user-item"]',
+          count: 1, // At least 1 user
+        },
+      ],
+    },
+  ],
+} as const;

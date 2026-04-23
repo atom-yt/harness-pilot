@@ -12,6 +12,28 @@ import { spawn, SpawnOptions } from 'child_process';
 // Configuration
 // ============================================================================
 
+interface CapabilityConfig {
+  jit_test: { enabled: boolean; auto_generate: boolean };
+  refactor: { enabled: boolean; threshold: number };
+  security: { enabled: boolean };
+  e2e: { enabled: boolean; api_e2e_enabled: boolean; browser_e2e_enabled: boolean };
+  circular_deps: { enabled: boolean };
+  import_restrictions: { enabled: boolean };
+  boundary_check: { enabled: boolean };
+  semantic_rules: { enabled: boolean };
+}
+
+// Load capabilities configuration if exists
+let capabilities: CapabilityConfig | null = null;
+try {
+  const capabilitiesPath = '.harness/capabilities.json';
+  if (require('fs').existsSync(capabilitiesPath)) {
+    capabilities = require(require('path').resolve(capabilitiesPath))?.capabilities;
+  }
+} catch {
+  // Use defaults if config doesn't exist
+}
+
 const VALIDATION_STEPS = [
   {
     name: 'build',
@@ -31,12 +53,67 @@ const VALIDATION_STEPS = [
     command: 'ts-node .harness/scripts/lint-quality.ts',
     timeout: 60000,
   },
+  ...(capabilities?.security?.enabled ? [{
+    name: 'security-scan',
+    description: 'Security scan',
+    command: 'bash .harness/scripts/security-scan.sh .',
+    timeout: 60000,
+  }] : []),
   {
     name: 'test',
     description: 'Run tests',
     command: 'npm test',
     timeout: 300000,
   },
+  ...(capabilities?.jit_test?.enabled ? [{
+    name: 'jit-test-generate',
+    description: 'JiT test generation',
+    command: 'bash .harness/scripts/generate-test.sh',
+    timeout: 60000,
+  }] : []),
+  ...(capabilities?.e2e?.api_e2e_enabled ? [{
+    name: 'e2e-api',
+    description: 'API E2E tests',
+    command: 'ts-node .harness/e2e/e2e-api.ts',
+    timeout: 180000,
+  }] : []),
+  ...(capabilities?.e2e?.browser_e2e_enabled ? [{
+    name: 'e2e-browser',
+    description: 'Browser E2E tests',
+    command: 'npx playwright test .harness/e2e/e2e-browser.spec.ts',
+    timeout: 300000,
+  }] : []),
+  // TypeScript specific lint checks
+  {
+    name: 'lint-tsc',
+    description: 'TypeScript compilation check',
+    command: 'ts-node .harness/scripts/lint-tsc.ts',
+    timeout: 120000,
+  },
+  ...(capabilities?.circular_deps?.enabled ? [{
+    name: 'lint-circular-deps',
+    description: 'Circular dependency check',
+    command: 'ts-node .harness/scripts/lint-circular-deps.ts',
+    timeout: 60000,
+  }] : []),
+  ...(capabilities?.import_restrictions?.enabled ? [{
+    name: 'lint-imports',
+    description: 'Import restriction check',
+    command: 'ts-node .harness/scripts/lint-imports.ts',
+    timeout: 60000,
+  }] : []),
+  ...(capabilities?.boundary_check?.enabled ? [{
+    name: 'lint-boundary',
+    description: 'Boundary violation check',
+    command: 'ts-node .harness/scripts/lint-boundary.ts',
+    timeout: 60000,
+  }] : []),
+  ...(capabilities?.semantic_rules?.enabled ? [{
+    name: 'lint-semantic',
+    description: 'Semantic rules check',
+    command: 'ts-node .harness/scripts/lint-semantic.ts',
+    timeout: 60000,
+  }] : []),
 ];
 
 // ============================================================================

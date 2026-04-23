@@ -1,0 +1,33 @@
+// Generated service template
+// Type: {{TYPE}}
+// Name: {{NAME}}
+
+export class {{NAME_PREFIX}}{{NAME}}Service {
+  private static instance: {{NAME_PREFIX}}{{NAME}}Service;
+
+  private constructor() {
+    // Private constructor for singleton
+  }
+
+  static getInstance(): {{NAME_PREFIX}}{{NAME}}Service {
+    if (!{{NAME_PREFIX}}{{NAME}}Service.instance) {
+      {{NAME_PREFIX}}{{NAME}}Service.instance = new {{NAME_PREFIX}}{{NAME}}Service();
+    }
+    return {{NAME_PREFIX}}{{NAME}}Service.instance;
+  }
+
+  async initialize(): Promise<void> {
+    // TODO: Initialize service
+  }
+
+  async execute(input: unknown): Promise<unknown> {
+    // TODO: Implement {{NAME_PREFIX}}{{NAME}} logic
+    throw new Error('Not implemented');
+  }
+
+  async cleanup(): Promise<void> {
+    // TODO: Cleanup resources
+  }
+}
+
+export default {{NAME_PREFIX}}{{NAME}}Service.getInstance();

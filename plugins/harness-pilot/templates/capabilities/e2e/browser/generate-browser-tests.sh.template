@@ -1,0 +1,246 @@
+#!/usr/bin/env bash
+# Browser E2E Test Generator
+# Generates E2E test configuration from page structure
+
+set -euo pipefail
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+CONFIG_FILE="${1:-.harness/e2e/browser-tests.json}"
+PAGES_DIR="${2:-app}"
+
+# ============================================================================
+# Page Detection
+# ============================================================================
+
+detect_pages() {
+  local pages_dir=$1
+
+  echo "Detecting pages in $pages_dir..."
+
+  # Find page files (Next.js App Router)
+  local pages=$(find "$pages_dir" -name "page.tsx" -o -name "page.ts" 2>/dev/null | head -20)
+
+  if [[ -z "$pages" ]]; then
+    echo "No pages found"
+    return 1
+  fi
+
+  # Generate test config
+  generate_browser_tests "$pages"
+}
+
+generate_browser_tests() {
+  local pages=$1
+
+  cat > "$CONFIG_FILE" << 'EOF'
+/**
+ * Browser E2E Test Configuration
+ * Auto-generated from detected pages
+ */
+
+export const config = {
+  baseUrl: 'http://localhost:3000',
+  headless: false,
+  screenshot: 'only-on-failure',
+
+  tests: [
+EOF
+
+  # Add test for each page
+  for page in $pages; do
+    local path=$(echo "$page" | sed -e 's|.*/app||' -e 's|/page\.tsx||' -e 's|/page\.ts||' -e 's|^\s*$|/|')
+
+    if [[ -n "$path" ]]; then
+      cat >> "$CONFIG_FILE" << EOF
+    {
+      name: '${path} Page',
+      url: '${path}',
+      actions: [
+        {
+          type: 'navigate',
+          selector: '${path}',
+        },
+      ],
+      assertions: [
+        {
+          type: 'visible',
+          selector: 'main',
+        },
+      ],
+    },
+EOF
+    fi
+  done
+
+  # Close config
+  cat >> "$CONFIG_FILE" << 'EOF'
+  ],
+} as const;
+EOF
+
+  echo "✓ Generated: $CONFIG_FILE"
+}
+
+# ============================================================================
+# User Flow Detection (Interactive)
+# ============================================================================
+
+interact_flow() {
+  echo ""
+  echo "─────────────────────────────────────────────────────────"
+  echo "  User Flow Builder"
+  echo "─────────────────────────────────────────────────────────"
+  echo ""
+  echo "This will help you build E2E tests by recording user interactions."
+  echo ""
+  echo "Instructions:"
+  echo "  1. Start your dev server (e.g., npm run dev)"
+  echo "  2. Provide the starting URL"
+  echo "  3. Enter each step as: action selector [value]"
+  echo ""
+  echo "Actions: click, fill, select, check, wait"
+  echo "Example: click [data-testid='login-button']"
+  echo "         fill [data-testid='email'] test@example.com"
+  echo "         wait [data-testid='dashboard']"
+  echo ""
+  echo "Enter 'done' when finished, 'cancel' to exit"
+  echo ""
+
+  local test_name=""
+  local url=""
+
+  read -p "Test name: " test_name
+  read -p "Starting URL (e.g., /login): " url
+
+  # Open template for this test
+  cat >> "$CONFIG_FILE" << EOF
+
+  {
+    name: '${test_name}',
+    url: '${url}',
+    actions: [
+EOF
+
+  local step=1
+  while true; do
+    read -p "Step ${step} > " cmd
+
+    if [[ "$cmd" == "done" ]]; then
+      break
+    elif [[ "$cmd" == "cancel" ]]; then
+      echo "Cancelled"
+      return 1
+    fi
+
+    # Parse command: action selector [value]
+    local action=$(echo "$cmd" | awk '{print $1}')
+    local selector=$(echo "$cmd" | awk '{print $2}')
+    local value=$(echo "$cmd" | awk '{for(i=3;i<=NF;i++) printf $i" "}')
+
+    # Add to config
+    if [[ -n "$action" ]] && [[ -n "$selector" ]]; then
+      if [[ "$action" == "wait" ]]; then
+        echo "      {" >> "$CONFIG_FILE"
+        echo "        type: 'wait'," >> "$CONFIG_FILE"
+        echo "        selector: ${selector}," >> "$CONFIG_FILE"
+        echo "        timeout: 5000," >> "$CONFIG_FILE"
+        echo "      }," >> "$CONFIG_FILE"
+      else
+        echo "      {" >> "$CONFIG_FILE"
+        echo "        type: '$action'," >> "$CONFIG_FILE"
+        echo "        selector: ${selector}," >> "$CONFIG_FILE"
+        if [[ -n "$value" ]]; then
+          echo "        value: '${value}'," >> "$CONFIG_FILE"
+        fi
+        echo "      }," >> "$CONFIG_FILE"
+      fi
+    fi
+
+    ((step++))
+  done
+
+  echo "    ]," >> "$CONFIG_FILE"
+  echo "    assertions: [" >> "$CONFIG_FILE"
+
+  # Ask for assertions
+  echo ""
+  echo "Enter assertions (same format as actions)"
+  echo "Actions: visible, hidden, text, url, title"
+  echo ""
+
+  local assertion_step=1
+  while true; do
+    read -p "Assertion ${assertion_step} > " cmd
+
+    if [[ "$cmd" == "done" ]]; then
+      break
+    fi
+
+    local type=$(echo "$cmd" | awk '{print $1}')
+    local selector=$(echo "$cmd" | awk '{print $2}')
+    local value=$(echo "$cmd" | awk '{for(i=3;i<=NF;i++) printf $i" "}')
+
+    if [[ -n "$type" ]] && [[ -n "$selector" ]]; then
+      echo "      {" >> "$CONFIG_FILE"
+      echo "        type: '$type'," >> "$CONFIG_FILE"
+      echo "        selector: ${selector}," >> "$CONFIG_FILE"
+      if [[ -n "$value" ]]; then
+        echo "        value: '${value}'," >> "$CONFIG_FILE"
+      fi
+      echo "      }," >> "$CONFIG_FILE"
+    fi
+
+    ((assertion_step++))
+  done
+
+  echo "    ]," >> "$CONFIG_FILE"
+  echo "  }," >> "$CONFIG_FILE"
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+main() {
+  echo "═════════════════════════════════════════════════════"
+  echo "          Browser E2E Test Generator"
+  echo "═════════════════════════════════════════════════════"
+
+  # Mode selection
+  echo ""
+  echo "Select mode:"
+  echo "  1. Auto-detect from pages"
+  echo "  2. Interactive flow builder"
+  echo "  3. Both (auto-detect + manual flows)"
+  echo ""
+
+  read -p "Choice [1-3]: " choice
+
+  case $choice in
+    1)
+      detect_pages "$PAGES_DIR"
+      ;;
+    2)
+      interact_flow
+      ;;
+    3)
+      detect_pages "$PAGES_DIR"
+      interact_flow
+      ;;
+    *)
+      echo "Invalid choice"
+      exit 1
+      ;;
+  esac
+
+  echo ""
+  echo "Next steps:"
+  echo "  1. Review and customize: $CONFIG_FILE"
+  echo "  2. Run tests: npm run e2e:browser"
+  echo "  3. Or run directly: npx playwright test e2e-browser.spec.ts"
+}
+
+main "$@"

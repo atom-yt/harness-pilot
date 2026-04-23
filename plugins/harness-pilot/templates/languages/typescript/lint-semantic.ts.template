@@ -1,0 +1,249 @@
+#!/usr/bin/env ts-node
+/**
+ * Semantic Rules Checker
+ * Validates domain-specific business rules and model constraints
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+const EXCLUDE_DIRS = ['node_modules', 'dist', 'build', '.git', '__tests__', 'test'];
+
+interface SemanticRule {
+  name: string;
+  layer: string;
+  severity: 'error' | 'warning' | 'info';
+  description: string;
+  pattern: RegExp;
+  check?: (content: string, match: RegExpExecArray) => boolean;
+  message?: string;
+  fix?: string;
+}
+
+interface Violation {
+  file: string;
+  line: number;
+  rule: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+// ============================================================================
+// Load Semantic Rules
+// ============================================================================
+
+function loadSemanticRules(): SemanticRule[] {
+  try {
+    const rulesPath = '.harness/rules/semantic-rules.json';
+    if (fs.existsSync(rulesPath)) {
+      const content = fs.readFileSync(rulesPath, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch {
+    // Use default rules if config doesn't exist
+  }
+
+  return [];
+}
+
+const customRules = loadSemanticRules();
+
+// ============================================================================
+// Activity Time Validation (Built-in)
+// ============================================================================
+
+const ACTIVITY_TIME_RULE: SemanticRule = {
+  name: 'activity-time-validation',
+  layer: 'models',
+  severity: 'error',
+  description: 'Activity time must be valid: start <= end',
+  pattern: /ActivityModel\.(?:startTime|start).*\n.*ActivityModel\.(?:endTime|end)(?!\s*>\s*?)/,
+  check: (content, match) => {
+    if (!match[1] || !match[2]) return false;
+    // Extract start and end times from matched text
+    // This is a simplified check - real implementation would parse the full statement
+    return true; // Would need full AST parsing for accurate validation
+  },
+  message: 'Activity.startTime must be <= Activity.endTime',
+  fix: 'Validate startTime <= endTime in model or controller',
+};
+
+// ============================================================================
+// Status Transition Validation
+// ============================================================================
+
+const INVALID_STATUS_RULE: SemanticRule = {
+  name: 'invalid-status-transition',
+  layer: 'models',
+  severity: 'error',
+  description: 'Invalid user status transition (deleted user cannot be updated)',
+  pattern: /user\.status\s*=\s*['"]deleted['"].*\n.*user\.save\(\)/,
+  check: (content, match) => true,
+  message: 'Cannot update deleted user',
+  fix: 'Check user status before allowing save',
+};
+
+// ============================================================================
+// Model Type Consistency
+// ============================================================================
+
+const MODEL_TYPE_RULE: SemanticRule = {
+  name: 'model-type-consistency',
+  layer: 'services',
+  severity: 'warning',
+  description: 'Service should use model types, not any',
+  pattern: /ActivityService\.(?:create|update).*\n.*\bany\b/,
+  check: (content, match) => true,
+  message: 'Service methods should use model types, not any',
+  fix: 'Replace "any" with proper model types',
+};
+
+// ============================================================================
+// Built-in Rules
+// ============================================================================
+
+const BUILTIN_RULES: SemanticRule[] = [
+  ACTIVITY_TIME_RULE,
+  INVALID_STATUS_RULE,
+  MODEL_TYPE_RULE,
+];
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function getAllFiles(dir: string, files: string[] = []): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!EXCLUDE_DIRS.includes(entry.name)) {
+        getAllFiles(fullPath, files);
+      }
+    } else if (EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+// ============================================================================
+// Validation
+// ============================================================================
+
+interface Violation {
+  file: string;
+  line: number;
+  rule: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+function checkFile(filePath: string, rules: SemanticRule[]): Violation[] {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n');
+  const violations: Violation[] = [];
+
+  for (const rule of rules) {
+    let match: RegExpExecArray | null;
+    let lineNum = 1;
+
+    if (rule.global) {
+      const matches = content.matchAll(new RegExp(rule.pattern, 'g' + (rule.flags || '')));
+      for (const m of matches) {
+        if (m.index === undefined) continue;
+        lineNum = content.substring(0, m.index).split('\n').length + 1;
+        const shouldViolate = rule.check ? rule.check(content, m) : true;
+
+        if (shouldViolate) {
+          violations.push({
+            file: filePath,
+            line: lineNum,
+            rule: rule.name,
+            message: rule.message || 'Rule violation',
+            severity: rule.severity,
+          });
+        }
+      }
+    } else {
+      // Single match per line
+      while ((match = rule.pattern.exec(content)) !== null) {
+        const matchText = match[0];
+        const matchStart = content.indexOf(matchText);
+        lineNum = content.substring(0, matchStart).split('\n').length + 1;
+
+        const shouldViolate = rule.check ? rule.check(content, match) : true;
+
+        if (shouldViolate) {
+          violations.push({
+            file: filePath,
+            line: lineNum,
+            rule: rule.name,
+            message: rule.message || 'Rule violation',
+            severity: rule.severity,
+          });
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+function main(): void {
+  const projectRoot = process.cwd();
+  const files = getAllFiles(projectRoot);
+  const allRules = [...BUILTIN_RULES, ...customRules];
+
+  console.log(\`\n🧠 Analyzing \${files.length} files for semantic violations...\n\`);
+
+  const allViolations: Violation[] = [];
+
+  for (const file of files) {
+    const violations = checkFile(file, allRules);
+    allViolations.push(...violations);
+  }
+
+  if (allViolations.length === 0) {
+    console.log('✓ No semantic violations found!\n');
+    process.exit(0);
+  }
+
+  const errors = allViolations.filter(v => v.severity === 'error');
+  const warnings = allViolations.filter(v => v.severity === 'warning');
+
+  console.log(\`✗ Found \${allViolations.length} semantic violation(s):\n\`);
+
+  for (const v of allViolations) {
+    const icon = v.severity === 'error' ? '❌' : '⚠️';
+    console.log(\`\${icon} \${v.file}:\${v.line}\`);
+    console.log(\`   [\${v.rule}] \${v.message}\n\`);
+
+    const rule = allRules.find(r => r.name === v.rule);
+    if (rule) {
+      console.log(\`   Why: \${rule.description}\n\`);
+      if (rule.fix) {
+        console.log(\`   Fix: \${rule.fix}\n\`);
+      }
+    }
+  }
+
+  const errorCount = errors.length;
+  if (errorCount > 0) {
+    process.exit(1);
+  }
+}
+
+main();

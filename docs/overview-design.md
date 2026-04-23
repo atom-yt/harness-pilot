@@ -554,7 +554,7 @@ Ralph Wiggum Loop 抓到问题
 
 ---
 
-## 七、业界在做什么？
+## 八、业界在做什么？
 
 AI Coding Harness 领域有不少成熟方案，各有侧重点。
 
@@ -642,7 +642,7 @@ LLM → Middleware → Tools → Environment → Eval
 
 ---
 
-## 八、从今天开始实践
+## 九、从今天开始实践
 
 好消息：Harness 不是全有或全无的。
 
@@ -686,7 +686,7 @@ LLM → Middleware → Tools → Environment → Eval
 
 ---
 
-## 九、总结
+## 十、总结
 
 **核心思想**：与其教 AI Agent 怎么做，不如让它自己验证做得对不对。
 

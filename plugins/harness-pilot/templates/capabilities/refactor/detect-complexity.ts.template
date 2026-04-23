@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Code Complexity Detection Script
+# Detects functions with high cyclomatic complexity
+
+set -euo pipefail
+
+COMPLEXITY_THRESHOLD=${COMPLEXITY_THRESHOLD:-10}
+COGNITIVE_THRESHOLD=${COGNITIVE_THRESHOLD:-15}
+
+detect_complexity() {
+  local file=$1
+  local language=$2
+
+  case $language in
+    "typescript"|"javascript")
+      detect_ts_complexity "$file"
+      ;;
+    "python")
+      detect_python_complexity "$file"
+      ;;
+    "go")
+      detect_go_complexity "$file"
+      ;;
+  esac
+}
+
+detect_ts_complexity() {
+  local file=$1
+
+  # Simplified complexity detection using grep
+  # Count decision points (if, for, while, case, catch, ternary, &&, ||)
+  local complexity=$(
+    grep -oE '\b(if|for|while|case|catch|try|throw|return|&&|\|\|)' "$file" | \n      wc -l | \n      xargs
+  )
+
+  # Find function names
+  local functions=$(
+    grep -E '(export\s+)?(async\s+)?function\s+\w+' "$file" | \n      sed 's/^.*function \([^ ]*\).*/\1/'
+  )
+
+  echo "$file: complexity=$complexity"
+}
+
+detect_python_complexity() {
+  local file=$1
+
+  # Count decision points
+  local complexity=$(
+    grep -oE '\b(if|elif|for|while|except|finally|and|or|assert|return|yield|with)\b' "$file" | \n      wc -l | \n      xargs
+  )
+
+  echo "$file: complexity=$complexity"
+}
+
+detect_go_complexity() {
+  local file=$1
+
+  # Count decision points
+  local complexity=$(
+    grep -oE '\b(if|for|case|select|defer|return|&&|\|\||<-)\b' "$file" | \n      wc -l | \n      xargs
+  )
+
+  echo "$file: complexity=$complexity"
+}
+
+main() {
+  local directory=$1
+
+  echo "Scanning for code complexity..."
+  echo "  Cyclomatic threshold: $COMPLEXITY_THRESHOLD"
+  echo "  Cognitive threshold: $COGNITIVE_THRESHOLD"
+  echo ""
+
+  # Detect language
+  if [ -f "tsconfig.json" ]; then
+    LANGUAGE="typescript"
+  elif [ -f "requirements.txt" ]; then
+    LANGUAGE="python"
+  elif [ -f "go.mod" ]; then
+    LANGUAGE="go"
+  else
+    echo "Unsupported project type"
+    exit 1
+  fi
+
+  # Scan files
+  local count=0
+  for file in $(find "$directory" -type f \( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" \) -not -name "*.test.*" -not -name "*.spec.*"); do
+    detect_complexity "$file" "$LANGUAGE"
+    ((count++))
+  done
+
+  echo ""
+  echo "Scanned $count file(s)"
+}
+
+main "${1:-.}"

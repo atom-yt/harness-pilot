@@ -1,0 +1,161 @@
+#!/usr/bin/env ts-node
+/**
+ * Code Duplication Detection
+ * Detects duplicated code blocks using token comparison
+ */
+
+import { readFileSync } from 'fs';
+import { glob } from 'glob';
+
+interface DuplicateBlock {
+  file1: string;
+  file2: string;
+  line1: number;
+  line2: number;
+  lines: number;
+  similarity: number;
+}
+
+class DuplicationDetector {
+  private threshold: number;
+  private similarity: number;
+
+  constructor(threshold = 5, similarity = 0.8) {
+    this.threshold = threshold;
+    this.similarity = similarity;
+  }
+
+  async scan(directory: string, pattern = '**/*.{ts,js,py,go}'): Promise<DuplicateBlock[]> {
+    const files = await glob(pattern, { cwd: directory, ignore: ['**/*.test.*', '**/*.spec.*'] });
+    const results: DuplicateBlock[] = [];
+
+    // Read all files
+    const fileContents = new Map<string, string[]>();
+    for (const file of files) {
+      try {
+        const content = readFileSync(`${directory}/${file}`, 'utf-8');
+        fileContents.set(file, content.split('\n'));
+      } catch {
+        // Skip files that can't be read
+      }
+    }
+
+    // Compare all pairs
+    const fileList = Array.from(fileContents.keys());
+    for (let i = 0; i < fileList.length; i++) {
+      for (let j = i + 1; j < fileList.length; j++) {
+        const duplicates = this.compareFiles(
+          fileList[i],
+          fileContents.get(fileList[i])!,
+          fileList[j],
+          fileContents.get(fileList[j])!
+        );
+        results.push(...duplicates);
+      }
+    }
+
+    return results;
+  }
+
+  private compareFiles(
+    file1: string,
+    lines1: string[],
+    file2: string,
+    lines2: string[]
+  ): DuplicateBlock[] {
+    const duplicates: DuplicateBlock[] = [];
+
+    for (let i = 0; i <= lines1.length - this.threshold; i++) {
+      for (let j = 0; j <= lines2.length - this.threshold; j++) {
+        const similarity = this.calculateSimilarity(
+          lines1.slice(i, i + this.threshold),
+          lines2.slice(j, j + this.threshold)
+        );
+
+        if (similarity >= this.similarity) {
+          duplicates.push({
+            file1,
+            file2,
+            line1: i + 1,
+            line2: j + 1,
+            lines: this.threshold,
+            similarity: Math.round(similarity * 100),
+          });
+
+          // Skip ahead
+          i += this.threshold - 1;
+          break;
+        }
+      }
+    }
+
+    return duplicates;
+  }
+
+  private calculateSimilarity(lines1: string[], lines2: string[]): number {
+    let matches = 0;
+    const tokens1 = lines1.map(this.tokenize);
+    const tokens2 = lines2.map(this.tokenize);
+
+    for (let i = 0; i < tokens1.length; i++) {
+      if (this.compareTokens(tokens1[i], tokens2[i])) {
+        matches++;
+      }
+    }
+
+    return matches / tokens1.length;
+  }
+
+  private tokenize(line: string): string[] {
+    return line
+      .replace(/'[^']*'/g, 'STRING')
+      .replace(/"[^"]*"/g, 'STRING')
+      .replace(/`[^`]*`/g, 'STRING')
+      .replace(/\d+/g, 'NUMBER')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(/\W+/)
+      .filter(Boolean);
+  }
+
+  private compareTokens(tokens1: string[], tokens2: string[]): boolean {
+    if (tokens1.length !== tokens2.length) return false;
+
+    return tokens1.every((t, i) => t === tokens2[i]);
+  }
+}
+
+// ============================================================================
+// CLI Interface
+// ============================================================================
+
+async function main() {
+  const directory = process.argv[2] || '.';
+  const threshold = parseInt(process.argv[3] || '5', 10);
+  const similarity = parseFloat(process.argv[4] || '0.8');
+
+  console.log('Scanning for code duplication...');
+  console.log(`  Threshold: ${threshold} lines`);
+  console.log(`  Similarity: ${Math.round(similarity * 100)}%`);
+  console.log();
+
+  const detector = new DuplicationDetector(threshold, similarity);
+  const duplicates = await detector.scan(directory);
+
+  if (duplicates.length === 0) {
+    console.log('No code duplication found.');
+    return;
+  }
+
+  console.log(`Found ${duplicates.length} duplicate(s):`);
+  console.log();
+
+  duplicates.forEach((dup) => {
+    console.log(`  ${dup.file1}:${dup.line1} ↔ ${dup.file2}:${dup.line2}`);
+    console.log(`    Similarity: ${dup.similarity}%`);
+    console.log(`    Lines: ${dup.lines}`);
+    console.log();
+  });
+}
+
+main().catch(console.error);

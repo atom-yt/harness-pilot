@@ -55,9 +55,33 @@ var VALIDATION_STEPS = []ValidationStep{
 		Timeout:     1 * time.Minute,
 	},
 	{
+		Name:        "security-scan",
+		Description: "Security scan",
+		Command:     "bash .harness/scripts/security-scan.sh .",
+		Timeout:     1 * time.Minute,
+	},
+	{
 		Name:        "test",
 		Description: "Run tests",
 		Command:     "go test ./...",
+		Timeout:     5 * time.Minute,
+	},
+	{
+		Name:        "jit-test-generate",
+		Description: "JiT test generation",
+		Command:     "bash .harness/scripts/generate-test.sh",
+		Timeout:     1 * time.Minute,
+	},
+	{
+		Name:        "e2e-api",
+		Description: "API E2E tests",
+		Command:     "go run .harness/e2e/e2e-api.go",
+		Timeout:     3 * time.Minute,
+	},
+	{
+		Name:        "e2e-browser",
+		Description: "Browser E2E tests",
+		Command:     "go test .harness/e2e/e2e-browser_test.go",
 		Timeout:     5 * time.Minute,
 	},
 }

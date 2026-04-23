@@ -1,0 +1,255 @@
+---
+name: semantic-rules
+description: Semantic layer rules and business model validation for domain-specific constraints
+---
+
+# Semantic Rules
+
+## Purpose
+
+Define domain-specific rules that combine layer constraints with business logic validation using models.
+
+## When Used
+
+- During Ralph Wiggum Loop review phase (by code-reviewer agent)
+- When validating new code generation
+- When lint-deps or lint-quality rules are insufficient
+
+## Rule Format
+
+Each semantic rule has:
+
+```typescript
+interface SemanticRule {
+  name: string;                    // Rule name
+  layer: string;                   // Affected layer
+  severity: 'error' | 'warning' | 'info';
+  description: string;               // What this rule enforces
+  pattern: RegExp | string;         // Pattern to match in code
+  fix?: string;                     // Suggested fix
+  examples?: {
+    invalid: string;                 // Example of invalid code
+    valid: string;                   // Example of valid code
+  };
+}
+```
+
+## Built-in Semantic Rules
+
+### Activity Time Rules
+
+```typescript
+{
+  name: 'activity-start-before-end',
+  layer: 'models',
+  severity: 'error',
+  description: 'Activity start time must be before end time',
+  pattern: /ActivityModel\.(?:startTime|start).*\n.*ActivityModel\.(?:endTime|end)/,
+  message: 'Activity.startTime must be <= Activity.endTime',
+  fix: 'Validate startTime <= endTime in model or controller',
+  examples: {
+    invalid: `
+class ActivityModel {
+  startTime: Date;
+  endTime: Date;  // endTime < startTime
+}`,
+    valid: `
+class ActivityModel {
+  startTime: Date;
+  endTime: Date;  // startTime <= endTime
+}`,
+  },
+}
+```
+
+### Business Logic Rules
+
+```typescript
+// Example: User status transitions
+{
+  name: 'invalid-status-transition',
+  layer: 'models',
+  severity: 'error',
+  description: 'Invalid user status transition',
+  pattern: /user\.status\s*=\s*['"]deleted['"].*\n.*user\.save\(\)/,
+  message: 'Cannot update deleted user',
+  fix: 'Check user status before allowing save',
+}
+
+// Example: Activity validation
+{
+  name: 'activity-without-owner',
+  layer: 'models',
+  severity: 'error',
+  description: 'Activity must have an owner',
+  pattern: /new Activity\(.*\).*\n(?!\{.*owner.*\})/,
+  message: 'Activity must specify owner field',
+  fix: 'Add owner field to Activity creation',
+}
+```
+
+### Model-Service Consistency Rules
+
+```typescript
+// Example: Service using model correctly
+{
+  name: 'service-model-consistency',
+  layer: 'services',
+  severity: 'error',
+  description: 'Service must use model types correctly',
+  pattern: /ActivityService\.(?:create|update).*\n.*any\b/,
+  message: 'Service methods should use model types, not any',
+  fix: 'Replace "any" with proper model types',
+  examples: {
+    invalid: `
+async create(data: any): Promise<Activity> {
+  // ...
+}`,
+    valid: `
+async create(data: CreateActivityDTO): Promise<Activity> {
+  // ...
+}`,
+  },
+}
+```
+
+## Custom Semantic Rules
+
+Add custom semantic rules to `.harness/rules/semantic-rules.json`:
+
+```json
+{
+  "rules": [
+    {
+      "name": "custom-rule-name",
+      "layer": "services",
+      "severity": "error",
+      "description": "Description of the rule",
+      "pattern": "regex-pattern",
+      "message": "Error message",
+      "fix": "Suggested fix",
+      "examples": {
+        "invalid": "invalid code example",
+        "valid": "valid code example"
+      }
+    }
+  ]
+}
+```
+
+## Rule Categories
+
+| Category | Description | Example Rules |
+|----------|-------------|---------------|
+| Time Validation | Start ≤ End, Duration constraints | activity-time, event-duration |
+| Status Validation | Valid state transitions | user-status, activity-status |
+| Relationship Validation | Foreign key constraints, ownership | activity-owner, event-participants |
+| Type Consistency | Model types, DTOs | service-types, api-types |
+| Business Logic | Domain-specific constraints | discount-rules, permission-checks |
+
+## Pattern Matching
+
+### Multi-line Patterns
+
+Use `\s*` to match across lines:
+
+```typescript
+// Match pattern across any number of spaces/newlines
+/pattern1\s*pattern2/
+```
+
+### Negation
+
+Use `(?!...)` for negation:
+
+```typescript
+// Match "new Activity" NOT followed by owner
+/new Activity\(.*\).*\n(?!\{.*owner.*\})/
+```
+
+## Severity Levels
+
+| Severity | Description | Action in Loop |
+|----------|-------------|-----------------|
+| error | Blocks merge, must be fixed | Loop cannot proceed |
+| warning | Should be fixed, but not blocking | Loop continues with note |
+| info | Suggestion, best practice | Loop continues |
+
+## Integration
+
+### With code-reviewer agent
+
+The code-reviewer agent reads `.harness/rules/semantic-rules.json` and applies rules:
+
+```typescript
+// In code-reviewer agent
+const semanticRules = loadSemanticRules();
+const violations = applySemanticRules(fileContent, semanticRules);
+```
+
+### With lint-deps
+
+Layer violations from semantic rules are added to layer dependency checks:
+
+```typescript
+// In lint-deps.ts
+const semanticViolations = checkSemanticRules(content, currentLayer);
+allViolations.push(...layerViolations, ...semanticViolations);
+```
+
+## Example Workflow
+
+```
+1. User creates Activity model
+2. Code includes: Activity { startTime, endTime }
+3. Semantic rule detects: startTime > endTime
+4. Loop fails with: "Activity.startTime must be <= Activity.endTime"
+5. Fix: Swap startTime and endTime
+6. Loop passes
+```
+
+## Templates
+
+### Activity Time Validation
+
+```typescript
+// Rule: activity-time-validation
+export const ACTIVITY_TIME_RULE: SemanticRule = {
+  name: 'activity-time-validation',
+  layer: 'models',
+  severity: 'error',
+  description: 'Activity time must be valid: start ≤ end',
+  pattern: /ActivityModel\s*\{[^}]*startTime[^}]*\n[^}]*endTime/,
+  check: (content: string) => {
+    const startMatch = content.match(/startTime:\s*([^,}\n]+)/);
+    const endMatch = content.match(/endTime:\s*([^,}\n]+)/);
+    if (startMatch && endMatch) {
+      return startMatch[1] <= endMatch[1];
+    }
+    return true;
+  },
+  message: 'Activity.startTime must be <= Activity.endTime',
+  fix: 'Validate startTime <= endTime in model or API layer',
+};
+```
+
+### Model Usage Validation
+
+```typescript
+// Rule: model-usage-validation
+export const MODEL_USAGE_RULE: SemanticRule = {
+  name: 'model-usage-validation',
+  layer: 'services',
+  severity: 'warning',
+  description: 'Services should use model types, not any',
+  pattern: /\bany\b/,
+  check: (context: { currentLayer: string, file: string }) => {
+    if (context.currentLayer === 'services' || context.currentLayer === 'core') {
+      return false; // Not a violation in services
+    }
+    return true;
+  },
+  message: 'Avoid using "any" type. Use proper model types for type safety.',
+  fix: 'Replace "any" with specific model type or DTO interface',
+};
+```

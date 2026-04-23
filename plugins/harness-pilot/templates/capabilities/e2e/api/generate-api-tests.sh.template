@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# API E2E Test Generator
+# Generates API E2E test configuration based on existing API routes
+
+set -euo pipefail
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+CONFIG_FILE="${1:-.harness/e2e/api-tests.json}"
+API_DIR="${2:-app/api}"
+
+# ============================================================================
+# API Route Detection
+# ============================================================================
+
+detect_api_routes() {
+  local api_dir=$1
+
+  echo "Detecting API routes in $api_dir..."
+
+  # Find route files
+  local routes=$(find "$api_dir" -name "route.ts" -o -name "route.js" -o -name "[...]/route.ts" 2>/dev/null | head -20)
+
+  if [[ -z "$routes" ]]; then
+    echo "No API routes found"
+    return 1
+  fi
+
+  # Generate test config
+  generate_api_tests "$routes"
+}
+
+generate_api_tests() {
+  local routes=$1
+
+  cat > "$CONFIG_FILE" << 'EOF'
+/**
+ * API E2E Test Configuration
+ * Auto-generated from detected API routes
+ */
+
+export const config = {
+  port: 3000,
+  startCommand: 'npm run dev',
+  startupTimeout: 30000,
+
+  tests: [
+EOF
+
+  # Add test for each route
+  for route in $routes; do
+    local path=$(echo "$route" | sed -e 's|.*/app/api||' -e 's|/route\..*||')
+    local method="GET"
+
+    if [[ -n "$path" ]]; then
+      cat >> "$CONFIG_FILE" << EOF
+    {
+      name: '${path} ${method}',
+      method: '${method}',
+      path: '/api${path}',
+      expectedStatus: 200,
+    },
+EOF
+    fi
+  done
+
+  # Close config
+  cat >> "$CONFIG_FILE" << 'EOF'
+  ],
+} as const;
+EOF
+
+  echo "✓ Generated: $CONFIG_FILE"
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+main() {
+  echo "═══════════════════════════════════════════════════════"
+  echo "          API E2E Test Generator"
+  echo "═══════════════════════════════════════════════════════"
+
+  detect_api_routes "$API_DIR"
+
+  echo ""
+  echo "Next steps:"
+  echo "  1. Review and customize: $CONFIG_FILE"
+  echo "  2. Run tests: npm run e2e:api"
+  echo "  3. Or run directly: ts-node .harness/e2e/e2e-api.ts"
+}
+
+main "$@"

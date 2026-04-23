@@ -1,0 +1,113 @@
+{
+  "version": "1.0",
+  "capabilities": {
+    "jit_test": {
+      "enabled": false,
+      "description": "Just-in-Time test generation for changed code",
+      "config": {
+        "coverage_threshold": 80,
+        "auto_generate_on_pr": true,
+        "test_framework": "{{TEST_FRAMEWORK}}",
+        "max_test_cases_per_function": 5
+      }
+    },
+    "code_templates": {
+      "enabled": false,
+      "description": "Code generation templates for common patterns",
+      "config": {
+        "templates": ["add-api", "add-model", "add-service", "add-handler"],
+        "auto_generate_tests": true
+      }
+    },
+    "refactor": {
+      "enabled": false,
+      "description": "Code refactoring and code smell detection",
+      "config": {
+        "complexity_threshold": 10,
+        "duplication_threshold": 5,
+        "duplication_similarity": 0.8,
+        "max_parameters": 4
+      }
+    },
+    "e2e": {
+      "enabled": false,
+      "description": "End-to-end testing for API and browser workflows",
+      "config": {
+        "api_e2e_enabled": true,
+        "browser_e2e_enabled": true,
+        "headless": false,
+        "browser_tool": "playwright",
+        "supported_browsers": ["playwright", "puppeteer"]
+      }
+    },
+    "circular_deps": {
+      "enabled": false,
+      "description": "Circular dependency detection using dependency graph analysis",
+      "config": {
+        "max_depth": 10,
+        "ignore_patterns": ["types/*", "interfaces/*"]
+      }
+    },
+    "import_restrictions": {
+      "enabled": false,
+      "description": "Import restriction rules (no parent imports, explicit extensions, etc.)",
+      "config": {
+        "no_relative_parent": true,
+        "no_barrel_files": false,
+        "no_deep_imports": 0,
+        "require_explicit_extensions": false,
+        "max_import_depth": 4
+      }
+    },
+    "boundary_check": {
+      "enabled": false,
+      "description": "Boundary violation checker for layer transitions",
+      "config": {
+        "enforce_boundaries": true,
+        "allowed_transitions": []
+      }
+    },
+    "semantic_rules": {
+      "enabled": false,
+      "description": "Semantic layer rules + business model validation",
+      "config": {
+        "rules_file": ".harness/rules/semantic-rules.json",
+        "model_validation": true,
+        "business_rules": true
+      }
+    },
+    "monitoring": {
+      "enabled": false,
+      "description": "Monitoring and alerting integration",
+      "config": {
+        "provider": "{{MONITORING_PROVIDER}}",
+        "enabled_providers": ["datadog", "newrelic", "prometheus", "sentry"]
+      }
+    },
+    "security": {
+      "enabled": false,
+      "description": "Security audit and vulnerability scanning",
+      "config": {
+        "sast_tool": "{{SAST_TOOL}}",
+        "enabled_tools": ["semgrep", "trivy", "npm-audit", "pip-audit", "go-mod-audit"],
+        "scan_dependencies": true
+      }
+    },
+    "logging": {
+      "enabled": false,
+      "description": "Log analysis and anomaly detection",
+      "config": {
+        "log_patterns": ["error", "exception", "critical"],
+        "auto_detect_patterns": true
+      }
+    },
+    "authorization": {
+      "enabled": false,
+      "description": "RBAC and permission verification",
+      "config": {
+        "rbac_enabled": false,
+        "sensitive_operation_audit": true
+      }
+    }
+  }
+}

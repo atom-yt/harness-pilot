@@ -1,0 +1,43 @@
+// Generated API route template
+// Type: {{TYPE}}
+// Name: {{NAME}}
+
+import { Request, Response } from 'express';
+
+{{#if EXPORTS}}
+{{EXPORTS}}
+{{/if}}
+
+export interface {{NAME_PREFIX}}{{NAME}}Request {
+  {{#if FIELDS}}
+{{FIELDS}}
+  {{/if}}
+}
+
+export interface {{NAME_PREFIX}}{{NAME}}Response {
+  success: boolean;
+  data?: {{DATA_TYPE}};
+  error?: string;
+}
+
+export async function {{NAME_PREFIX}}{{NAME}}Handler(
+  req: Request<{{NAME_PREFIX}}{{NAME}}Request>,
+  res: Response<{{NAME_PREFIX}}{{NAME}}Response>
+): Promise<void> {
+  try {
+    // TODO: Implement {{NAME_PREFIX}}{{NAME}} logic
+
+    const response: {{NAME_PREFIX}}{{NAME}}Response = {
+      success: true,
+      data: null,
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('{{NAME_PREFIX}}{{NAME}} error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+}

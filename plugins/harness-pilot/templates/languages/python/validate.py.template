@@ -17,12 +17,47 @@ from typing import List, Optional
 # ============================================================================
 
 @dataclass
+class CapabilityConfig:
+    jit_test_enabled: bool = False
+    jit_test_auto_generate: bool = False
+    refactor_enabled: bool = False
+    security_enabled: bool = False
+    e2e_api_enabled: bool = False
+    e2e_browser_enabled: bool = False
+
+
+@dataclass
 class ValidationStep:
     name: str
     description: str
     command: str
     timeout: int = 120
 
+
+# Load capabilities configuration if exists
+def load_capabilities() -> CapabilityConfig:
+    try:
+        import json
+        from pathlib import Path
+        capabilities_path = Path('.harness/capabilities.json')
+        if capabilities_path.exists():
+            with open(capabilities_path) as f:
+                data = json.load(f)
+                caps = data.get('capabilities', {})
+                return CapabilityConfig(
+                    jit_test_enabled=caps.get('jit_test', {}).get('enabled', False),
+                    jit_test_auto_generate=caps.get('jit_test', {}).get('auto_generate_on_pr', False),
+                    refactor_enabled=caps.get('refactor', {}).get('enabled', False),
+                    security_enabled=caps.get('security', {}).get('enabled', False),
+                    e2e_api_enabled=caps.get('e2e', {}).get('api_e2e_enabled', False),
+                    e2e_browser_enabled=caps.get('e2e', {}).get('browser_e2e_enabled', False),
+                )
+    except Exception:
+        pass
+    return CapabilityConfig()
+
+
+CAPABILITIES = load_capabilities()
 
 VALIDATION_STEPS: List[ValidationStep] = [
     ValidationStep(
@@ -43,12 +78,44 @@ VALIDATION_STEPS: List[ValidationStep] = [
         command='python .harness/scripts/lint-quality.py',
         timeout=60,
     ),
+    *([] if not CAPABILITIES.security_enabled else [
+        ValidationStep(
+            name='security-scan',
+            description='Security scan',
+            command='bash .harness/scripts/security-scan.sh .',
+            timeout=60,
+        ),
+    ]),
     ValidationStep(
         name='test',
         description='Run tests',
         command='pytest',
         timeout=300,
     ),
+    *([] if not CAPABILITIES.jit_test_enabled else [
+        ValidationStep(
+            name='jit-test-generate',
+            description='JiT test generation',
+            command='bash .harness/scripts/generate-test.sh',
+            timeout=60,
+        ),
+    ]),
+    *([] if not CAPABILITIES.e2e_api_enabled else [
+        ValidationStep(
+            name='e2e-api',
+            description='API E2E tests',
+            command='python .harness/e2e/e2e-api.py',
+            timeout=180,
+        ),
+    ]),
+    *([] if not CAPABILITIES.e2e_browser_enabled else [
+        ValidationStep(
+            name='e2e-browser',
+            description='Browser E2E tests',
+            command='playwright test .harness/e2e/e2e-browser.spec.ts',
+            timeout=300,
+        ),
+    ]),
 ]
 
 

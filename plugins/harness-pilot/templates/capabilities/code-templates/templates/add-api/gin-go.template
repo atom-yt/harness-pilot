@@ -1,0 +1,45 @@
+// Generated API handler template for Gin
+// Type: {{TYPE}}
+// Name: {{NAME}}
+
+package {{PACKAGE}}
+
+import (
+  "github.com/gin-gonic/gin"
+  "net/http"
+)
+
+{{#if EXPORTS}}
+{{EXPORTS}}
+{{/if}}
+
+type {{NAME_PREFIX}}{{NAME}}Request struct {
+  {{#if FIELDS}}
+{{FIELDS}}
+  {{/if}}
+}
+
+type {{NAME_PREFIX}}{{NAME}}Response struct {
+  Success bool      `json:"success"`
+  Data    interface{} `json:"data,omitempty"`
+  Error   string    `json:"error,omitempty"`
+}
+
+func {{NamePrefix}}{{NAME}}Handler(c *gin.Context) {
+  var req {{NAME_PREFIX}}{{NAME}}Request
+
+  if err := c.ShouldBindJSON(&req); err != nil {
+    c.JSON(http.StatusBadRequest, {{NAME_PREFIX}}{{NAME}}Response{
+      Success: false,
+      Error:   err.Error(),
+    })
+    return
+  }
+
+  // TODO: Implement {{NAME_PREFIX}}{{NAME}} logic
+
+  c.JSON(http.StatusOK, {{NAME_PREFIX}}{{NAME}}Response{
+    Success: true,
+    Data:    nil,
+  })
+}
