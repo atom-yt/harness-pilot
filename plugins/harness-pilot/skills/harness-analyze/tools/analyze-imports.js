@@ -35,6 +35,12 @@ const PATTERNS = {
   }
 };
 
+// Maximum file size to read (10MB) to prevent OOM
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+// Default threshold for relative import violation detection
+const DEFAULT_RELATIVE_THRESHOLD = 10;
+
 // ============================================================================
 // Analysis Functions
 // ============================================================================
@@ -48,7 +54,15 @@ function detectLanguage(projectDir = process.cwd()) {
   return 'unknown';
 }
 
-function analyzeImports(projectDir = process.cwd()) {
+/**
+ * Analyzes import patterns in source code
+ * @param {string} projectDir - Directory to analyze (defaults to cwd)
+ * @param {Object} options - Analysis options
+ * @param {number} options.relativeThreshold - Threshold for relative import violations
+ * @returns {Object} Analysis results
+ */
+function analyzeImports(projectDir = process.cwd(), options = {}) {
+  const { relativeThreshold = DEFAULT_RELATIVE_THRESHOLD } = options;
   const language = detectLanguage(projectDir);
   const pattern = PATTERNS[language];
 
@@ -69,8 +83,8 @@ function analyzeImports(projectDir = process.cwd()) {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        // Skip node_modules, .git, etc.
-        if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
+        // Skip node_modules, .git, etc. and symlinks to prevent loops
+        if (!entry.name.startsWith('.') && entry.name !== 'node_modules' && !entry.isSymbolicLink()) {
           walkDir(fullPath);
         }
       } else if (pattern.extension.some(ext => entry.name.endsWith(ext))) {
@@ -87,11 +101,16 @@ function analyzeImports(projectDir = process.cwd()) {
 
   for (const file of sourceFiles) {
     try {
+      const stats = fs.statSync(file);
+      if (stats.size > MAX_FILE_SIZE) {
+        console.warn(`Warning: Skipping ${file} (size exceeds ${MAX_FILE_SIZE} bytes)`);
+        continue;
+      }
       const content = fs.readFileSync(file, 'utf8');
       const matches = content.matchAll(pattern.import);
 
       for (const match of matches || []) {
-        const module = match[1];
+        const module = match[1] || match[2];
         totalImports++;
 
         // Extract module name (remove relative paths)
@@ -105,14 +124,14 @@ function analyzeImports(projectDir = process.cwd()) {
         modules[moduleName]++;
       }
     } catch (e) {
-      // Skip files that can't be read
+      console.error(`Warning: Skipping ${file}: ${e.message}`);
     }
   }
 
   // Detect potential violations (relative imports across likely boundaries)
   let potentialViolations = 0;
   for (const [module, count] of Object.entries(modules)) {
-    if (module === '<relative>' && count > 10) {
+    if (module === '<relative>' && count > relativeThreshold) {
       potentialViolations++;
     }
   }
@@ -127,10 +146,9 @@ function analyzeImports(projectDir = process.cwd()) {
   };
 }
 
-// ============================================================================
-// CLI Interface
-// ============================================================================
-
+/**
+ * CLI entry point - outputs JSON analysis results
+ */
 function main() {
   const result = analyzeImports();
   console.log(JSON.stringify(result, null, 2));

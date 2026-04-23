@@ -1,0 +1,19 @@
+{
+  "version": "0.3.0",
+  "language": "typescript",
+  "framework": "nextjs",
+  "components": [
+    "ARCHITECTURE",
+    "DEVELOPMENT",
+    "PRODUCT_SENSE"
+  ],
+  "lastApplied": "2026-04-23T16:46:01Z",
+  "capabilities": {
+    "jitTest": false,
+    "codeTemplates": true,
+    "refactoring": false,
+    "e2e": false,
+    "security": false,
+    "monitoring": false
+  }
+}
