@@ -1,0 +1,29 @@
+{
+  "jit_test": {
+    "enabled": true,
+    "coverage_threshold": 80,
+    "test_framework": "jest",
+    "auto_generate": true,
+    "test_patterns": [
+      "**/__tests__/**/*.test.ts",
+      "**/?(*.)+(spec|test).ts"
+    ]
+  },
+  "code_templates": {
+    "enabled": false
+  },
+  "refactor": {
+    "enabled": false
+  },
+  "e2e": {
+    "enabled": false
+  },
+  "monitoring": {
+    "enabled": false,
+    "provider": null
+  },
+  "security": {
+    "enabled": false,
+    "sast_tool": null
+  }
+}

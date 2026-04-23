@@ -1,0 +1,213 @@
+#!/usr/bin/env ts-node
+/**
+ * Code Quality Checker
+ * Enforces code quality rules
+ *
+ * Usage: ts-node .harness/scripts/lint-quality.ts [--fix]
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const RULES = {
+  noConsoleLog: true,
+  maxFileSize: 500,
+  noDebugger: true,
+  noHardcodedUrls: false,
+  noAny: true,
+};
+
+// Extensions to check
+const EXTENSIONS = ['.ts', '.tsx'];
+
+// Directories to exclude
+const EXCLUDE_DIRS = ['node_modules', 'dist', 'build', '.git'];
+
+// ============================================================================
+// Rule Implementations
+// ============================================================================
+
+interface Issue {
+  file: string;
+  line: number;
+  rule: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+function checkNoConsoleLog(content: string, filePath: string): Issue[] {
+  const issues: Issue[] = [];
+  const lines = content.split('\n');
+
+  lines.forEach((line, index) => {
+    if (/\bconsole\.log\b/.test(line)) {
+      issues.push({
+        file: filePath,
+        line: index + 1,
+        rule: 'no-console-log',
+        message: 'console.log() found.\n'
+          + '   Rule: Use structured logger instead of console.log.\n'
+          + '   Why:  console.log output is unstructured, cannot be filtered by level,\n'
+          + '         and is lost in production. Structured logging enables monitoring and debugging.\n'
+          + '   Fix:  Replace with logger.info(), logger.debug(), or logger.error().\n'
+          + '         Import the project logger from utils/ or lib/.',
+        severity: 'error',
+      });
+    }
+  });
+
+  return issues;
+}
+
+function checkMaxFileSize(content: string, filePath: string): Issue[] {
+  const issues: Issue[] = [];
+  const lines = content.split('\n');
+
+  if (lines.length > RULES.maxFileSize) {
+    issues.push({
+      file: filePath,
+      line: 1,
+      rule: 'max-file-size',
+      message: `File has ${lines.length} lines (max: ${RULES.maxFileSize}).\n`
+        + `   Rule: Single file must not exceed ${RULES.maxFileSize} lines.\n`
+        + '   Why:  Large files are harder to navigate, review, and test. They often indicate\n'
+        + '         mixed responsibilities that should be split into separate modules.\n'
+        + '   Fix:  Extract related functions into separate files. Group by responsibility,\n'
+        + '         not by type (e.g., split by feature, not "all helpers in one file").',
+      severity: 'error',
+    });
+  }
+
+  return issues;
+}
+
+function checkNoDebugger(content: string, filePath: string): Issue[] {
+  const issues: Issue[] = [];
+  const lines = content.split('\n');
+
+  lines.forEach((line, index) => {
+    if (/\bdebugger\b/.test(line)) {
+      issues.push({
+        file: filePath,
+        line: index + 1,
+        rule: 'no-debugger',
+        message: 'debugger statement found.\n'
+          + '   Rule: Remove all debugger statements before commit.\n'
+          + '   Why:  debugger pauses execution in browser DevTools. If shipped to production,\n'
+          + '         it freezes the application for end users.\n'
+          + '   Fix:  Delete the debugger line. Use conditional breakpoints in DevTools instead.',
+        severity: 'error',
+      });
+    }
+  });
+
+  return issues;
+}
+
+function checkNoAny(content: string, filePath: string): Issue[] {
+  const issues: Issue[] = [];
+  const lines = content.split('\n');
+
+  lines.forEach((line, index) => {
+    if (/\bany\b/.test(line) && !line.includes('// eslint-disable-next-line')) {
+      issues.push({
+        file: filePath,
+        line: index + 1,
+        rule: 'no-any',
+        message: '"any" type found.\n'
+          + '   Rule: Avoid using the "any" type in TypeScript.\n'
+          + '   Why:  "any" disables type checking, defeating the purpose of TypeScript.\n'
+          + '         It hides bugs that the compiler would otherwise catch at build time.\n'
+          + '   Fix:  Use a specific type, generic, or "unknown" if the type is truly dynamic.\n'
+          + '         If interfacing with untyped JS, create a type declaration file.',
+        severity: 'warning',
+      });
+    }
+  });
+
+  return issues;
+}
+
+// ============================================================================
+// Main Analysis
+// ============================================================================
+
+function getAllFiles(dir: string, files: string[] = []): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!EXCLUDE_DIRS.includes(entry.name)) {
+        getAllFiles(fullPath, files);
+      }
+    } else if (EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function analyzeFile(filePath: string): Issue[] {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const issues: Issue[] = [];
+
+  if (RULES.noConsoleLog) {
+    issues.push(...checkNoConsoleLog(content, filePath));
+  }
+
+  if (RULES.maxFileSize) {
+    issues.push(...checkMaxFileSize(content, filePath));
+  }
+
+  if (RULES.noDebugger) {
+    issues.push(...checkNoDebugger(content, filePath));
+  }
+
+  if (RULES.noAny) {
+    issues.push(...checkNoAny(content, filePath));
+  }
+
+  return issues;
+}
+
+function main(): void {
+  const projectRoot = process.cwd();
+  const files = getAllFiles(projectRoot);
+  const allIssues: Issue[] = [];
+
+  console.log(`\n📏 Analyzing ${files.length} files for quality issues...\n`);
+
+  for (const file of files) {
+    const issues = analyzeFile(file);
+    allIssues.push(...issues);
+  }
+
+  if (allIssues.length === 0) {
+    console.log('✓ No quality issues found!\n');
+    process.exit(0);
+  }
+
+  const errors = allIssues.filter(i => i.severity === 'error');
+  const warnings = allIssues.filter(i => i.severity === 'warning');
+
+  console.log(`✗ Found ${errors.length} error(s), ${warnings.length} warning(s):\n`);
+
+  for (const issue of allIssues) {
+    const icon = issue.severity === 'error' ? '❌' : '⚠️';
+    console.log(`${icon} ${issue.file}:${issue.line}`);
+    console.log(`   [${issue.rule}] ${issue.message}\n`);
+  }
+
+  if (errors.length > 0) {
+    process.exit(1);
+  }
+}
+
+main();

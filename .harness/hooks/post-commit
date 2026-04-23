@@ -1,0 +1,4 @@
+#!/bin/bash
+# Auto-check harness freshness after commit
+echo "[harness] Checking harness freshness..."
+touch .harness/.needs-update
