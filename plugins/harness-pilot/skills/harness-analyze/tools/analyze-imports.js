@@ -40,7 +40,7 @@ const PATTERNS = {
 // ============================================================================
 
 function detectLanguage(projectDir = process.cwd()) {
-  if (fs.existsSync(path.join(projectDir, 'tsconfig.json')) return 'typescript';
+  if (fs.existsSync(path.join(projectDir, 'tsconfig.json'))) return 'typescript';
   if (fs.existsSync(path.join(projectDir, 'package.json'))) return 'javascript';
   if (fs.existsSync(path.join(projectDir, 'go.mod'))) return 'go';
   if (fs.existsSync(path.join(projectDir, 'requirements.txt')) ||
