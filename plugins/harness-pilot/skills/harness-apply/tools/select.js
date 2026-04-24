@@ -218,14 +218,40 @@ function getMinimumRecommended(mode) {
 }
 
 // ============================================================================
-// Main CLI
+// Interactive Mode
+// ============================================================================
+
+function interactiveSelect(mode) {
+  const items = mode === 'components' ? COMPONENTS : CAPABILITIES;
+  const flatItems = [];
+  for (const [category, data] of Object.entries(items)) {
+    for (const item of data.items) {
+      flatItems.push({ ...item, category, selected: item.default });
+    }
+  }
+
+  return {
+    mode,
+    selected: flatItems.filter(i => i.selected).map(i => i.id)
+  };
+}
+
+// ============================================================================
+// Main CLI (with interactive support)
 // ============================================================================
 
 function main() {
   const args = process.argv.slice(2);
   const mode = args[0] || 'components'; // components | capabilities | templates
-  const action = args[1] || 'prompt';   // prompt | parse
+  const action = args[1] || 'prompt'; // prompt | parse | interactive | defaults
   const input = args[2] || '';
+
+  // Support interactive mode
+  if (action === 'interactive' || action === '-i') {
+    const result = interactiveSelect(mode);
+    console.log(JSON.stringify(result));
+    process.exit(0);
+  }
 
   if (action === 'prompt') {
     if (mode === 'components') {
@@ -252,4 +278,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 // Export for module use
-export { COMPONENTS, CAPABILITIES, TEMPLATES, formatComponentsPrompt, formatCapabilitiesPrompt, parseSelection };
+export { COMPONENTS, CAPABILITIES, TEMPLATES, formatComponentsPrompt, formatCapabilitiesPrompt, parseSelection, interactiveSelect };

@@ -151,9 +151,21 @@ def should_skip_step(step: ValidationStep) -> bool:
                 print(f'   ⊘ {step.name} skipped ({file} not found)')
                 return True
     if step.skip_if_no_test:
-        # Check if there's a tests directory or pytest.ini
-        if not Path('tests').exists() and not Path('test').exists():
-            print(f'   ⊘ {step.name} skipped (no tests directory)')
+        # Check for Python test configuration
+        has_tests = (
+            # Standard test directories
+            Path('tests').exists() or Path('test').exists() or
+            # Test configuration files
+            Path('pytest.ini').exists() or Path('pyproject.toml').exists() or
+            Path('setup.cfg').exists() or Path('tox.ini').exists() or
+            # Test files in current directory
+            any(f.name.startswith('test_') for f in Path('.').iterdir() if f.is_file()) or
+            any(f.name.endswith('_test.py') for f in Path('.').iterdir() if f.is_file()) or
+            # Test in src/tests or src/test directories
+            Path('src/tests').exists() or Path('src/test').exists()
+        )
+        if not has_tests:
+            print(f'   ⊘ {step.name} skipped (no tests found)')
             return True
     return False
 

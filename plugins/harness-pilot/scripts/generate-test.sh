@@ -127,8 +127,18 @@ generate_test_file() {
     if command -v jq >/dev/null 2>&1; then
       JSON_DATA=$(jq -n --arg sf "$source_file" --arg tf "$test_framework" '{SOURCE_FILE: $sf, TEST_FRAMEWORK: $tf}')
     else
-      # Fallback: escape strings properly if jq not available
-      JSON_DATA=$(printf '{"SOURCE_FILE":"%s","TEST_FRAMEWORK":"%s"}' \n        "$(printf '%s' "$source_file" | sed 's/\/\/g; s/"/"/g')" \n        "$(printf '%s' "$test_framework" | sed 's/\/\/g; s/"/"/g')")
+      # Fallback: safe JSON escaping using bash parameter expansion
+      escape_json() {
+        local str="$1"
+        # Escape backslashes first, then double quotes
+        str="${str//\/\}"
+        str="${str//"/"}"
+        str="${str//$'\n'/\n}"
+        str="${str//$'\r'/\r}"
+        str="${str//$'\t'/\t}"
+        printf '%s' "$str"
+      }
+      JSON_DATA=$(printf '{"SOURCE_FILE":"%s","TEST_FRAMEWORK":"%s"}' \n        "$(escape_json "$source_file")" \n        "$(escape_json "$test_framework")")
     fi
     node "$PLUGIN_ROOT/scripts/template-engine.js" "$template" "$JSON_DATA" > "$test_file"
     echo "  ✓ $test_file"
@@ -200,6 +210,92 @@ main() {
   echo "═══════════════════════════════════════════════════════"
   echo "  JiT Test Generation Complete"
   echo "═══════════════════════════════════════════════════════"
+
+  # Run coverage check if requested
+  if [ "${SHOW_COVERAGE:-true}" = "true" ]; then
+    echo ""
+    echo "═══════════════════════════════════════════════════════"
+    echo "  Coverage Report"
+    echo "═══════════════════════════════════════════════════════"
+    check_coverage "$LANGUAGE" "$TEST_FRAMEWORK"
+  fi
+}
+
+# ============================================================================
+# Coverage Checking
+# ============================================================================
+
+check_coverage() {
+  local lang=$1
+  local framework=$2
+  local coverage=0
+  local threshold=${COVERAGE_THRESHOLD:-80}
+
+  case "$lang" in
+    "typescript"|"javascript")
+      if command -v npx >/dev/null 2>&1; then
+        # Try to find coverage report
+        if [ -f "coverage/coverage-summary.json" ]; then
+          coverage=$(node -e "console.log(JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct)" 2>/dev/null || echo "0")
+        elif [ "$framework" = "vitest" ]; then
+          coverage=$(npx vitest run --coverage 2>&1 | grep -o "Lines[[:space:]]*[0-9.]*%" | grep -o "[0-9.]*" || echo "0")
+        fi
+      fi
+      ;;
+    "python")
+      if command -v pytest >/dev/null 2>&1; then
+        coverage=$(python3 -m pytest --cov=. --cov-report=json 2>/dev/null | grep -o "TOTAL.*[0-9]*%" | grep -o "[0-9.]*" || echo "0")
+      fi
+      ;;
+    "go")
+      if command -v go >/dev/null 2>&1; then
+        coverage=$(go test -coverprofile=/tmp/coverage.out ./... 2>&1 | grep "coverage:" | grep -o "[0-9.]*%" | grep -o "[0-9.]*" || echo "0")
+      fi
+      ;;
+    "java")
+      if [ -f "pom.xml" ]; then
+        # JaCoCo (Maven)
+        coverage=$(mvn jacoco:report 2>/dev/null | grep -o "Total[[:space:]]*[0-9]*%" | grep -o "[0-9.]*" || echo "0")
+      elif [ -f "build.gradle" ]; then
+        # JaCoCo (Gradle)
+        coverage=$(gradle jacocoTestReport 2>/dev/null | grep -o "Total[[:space:]]*[0-9]*%" | grep -o "[0-9.]*" || echo "0")
+      fi
+      ;;
+  esac
+
+  # Normalize coverage value
+  coverage=$(echo "$coverage" | grep -o "[0-9.]*" | head -1)
+  coverage=${coverage:-0}
+
+  echo "Coverage: ${coverage}% (Threshold: ${threshold}%)"
+
+  # Check if bc is available for floating point comparison
+  if command -v bc >/dev/null 2>&1; then
+    if (( $(echo "$coverage < $threshold" | bc -l) )); then
+      echo "⚠ Coverage below threshold (${coverage}% < ${threshold}%)"
+      echo "  Recommendations:"
+      echo "  - Add tests for uncovered branches"
+      echo "  - Run: npm test -- --coverage (TS/JS)"
+      echo "  - Run: pytest --cov=. (Python)"
+      echo "  - Run: go test -cover (Go)"
+      echo "  - Run: mvn jacoco:report (Java/Maven)"
+    else
+      echo "✓ Coverage meets threshold"
+    fi
+  else
+    # Fallback to integer comparison (less precise but works without bc)
+    if [ "$coverage" -lt "$threshold" ]; then
+      echo "⚠ Coverage below threshold (${coverage}% < ${threshold}%) [Note: Install 'bc' for precise comparison]"
+      echo "  Recommendations:"
+      echo "  - Add tests for uncovered branches"
+      echo "  - Run: npm test -- --coverage (TS/JS)"
+      echo "  - Run: pytest --cov=. (Python)"
+      echo "  - Run: go test -cover (Go)"
+      echo "  - Run: mvn jacoco:report (Java/Maven)"
+    else
+      echo "✓ Coverage meets threshold"
+    fi
+  fi
 }
 
 # Run main function

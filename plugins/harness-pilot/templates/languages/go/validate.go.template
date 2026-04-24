@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -55,23 +56,52 @@ func loadCapabilities() CapabilityConfig {
 		return config
 	}
 
-	// Simple JSON parsing for capabilities
-	// In production, use encoding/json for proper parsing
-	content := string(data)
-	if strings.Contains(content, `"jit_test"`) && strings.Contains(content, `"enabled":true`) {
-		config.JitTestEnabled = true
+	// Use proper JSON parsing with encoding/json
+	var capData map[string]interface{}
+	if err := json.Unmarshal(data, &capData); err != nil {
+		// If JSON parsing fails, use simple fallback with better pattern matching
+		content := string(data)
+		if strings.Contains(content, `"jit_test"`) && strings.Contains(content, `"enabled":true`) {
+			config.JitTestEnabled = true
+		}
+		if strings.Contains(content, `"refactor"`) && strings.Contains(content, `"enabled":true`) {
+			config.RefactorEnabled = true
+		}
+		if strings.Contains(content, `"security"`) && strings.Contains(content, `"enabled":true`) {
+			config.SecurityEnabled = true
+		}
+		if strings.Contains(content, `"api_e2e_enabled":true`) {
+			config.E2EAPIEnabled = true
+		}
+		if strings.Contains(content, `"browser_e2e_enabled":true`) {
+			config.E2EBrowserEnabled = true
+		}
+		return config
 	}
-	if strings.Contains(content, `"refactor"`) && strings.Contains(content, `"enabled":true`) {
-		config.RefactorEnabled = true
+
+	// Safely extract capabilities with proper type checking
+	if jitTest, ok := capData["jit_test"].(map[string]interface{}); ok {
+		if enabled, ok := jitTest["enabled"].(bool); ok {
+			config.JitTestEnabled = enabled
+		}
 	}
-	if strings.Contains(content, `"security"`) && strings.Contains(content, `"enabled":true`) {
-		config.SecurityEnabled = true
+	if refactor, ok := capData["refactor"].(map[string]interface{}); ok {
+		if enabled, ok := refactor["enabled"].(bool); ok {
+			config.RefactorEnabled = enabled
+		}
 	}
-	if strings.Contains(content, `"api_e2e_enabled":true`) {
-		config.E2EAPIEnabled = true
+	if security, ok := capData["security"].(map[string]interface{}); ok {
+		if enabled, ok := security["enabled"].(bool); ok {
+			config.SecurityEnabled = enabled
+		}
 	}
-	if strings.Contains(content, `"browser_e2e_enabled":true`) {
-		config.E2EBrowserEnabled = true
+	if e2e, ok := capData["e2e"].(map[string]interface{}); ok {
+		if apiEnabled, ok := e2e["api_e2e_enabled"].(bool); ok {
+			config.E2EAPIEnabled = apiEnabled
+		}
+		if browserEnabled, ok := e2e["browser_e2e_enabled"].(bool); ok {
+			config.E2EBrowserEnabled = browserEnabled
+		}
 	}
 
 	return config

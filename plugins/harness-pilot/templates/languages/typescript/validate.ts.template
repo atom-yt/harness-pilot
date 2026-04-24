@@ -23,6 +23,14 @@ interface CapabilityConfig {
   semantic_rules: { enabled: boolean };
 }
 
+interface PackageJson {
+  scripts?: {
+    test?: string;
+    [key: string]: string | undefined;
+  };
+  [key: string]: unknown;
+}
+
 // Load capabilities configuration if exists
 let capabilities: CapabilityConfig | null = null;
 try {
@@ -162,16 +170,18 @@ function shouldSkipStep(step: ValidationStep): boolean {
     }
   }
   if (step.skipIfNoTest) {
-    // Check if package.json has test script
+    // Check if package.json has a valid test script
     if (fileExists('package.json')) {
       try {
-        const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
-        if (!pkg.scripts?.test) {
-          console.log(`   ⊘ ${step.name} skipped (no test script)`);
+        const pkg: PackageJson = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
+        const hasTestScript = pkg.scripts?.test && typeof pkg.scripts.test === 'string' && pkg.scripts.test.length > 0;
+        if (!hasTestScript) {
+          console.log(`   ⊘ ${step.name} skipped (no valid test script in package.json)`);
           return true;
         }
-      } catch {
-        console.log(`   ⊘ ${step.name} skipped (could not read package.json)`);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.log(`   ⊘ ${step.name} skipped (invalid package.json: ${errorMessage})`);
         return true;
       }
     } else {
