@@ -84,6 +84,98 @@ After initial setup, running `harness-apply` again will:
 2. Incrementally update harness knowledge
 3. Run the Ralph Wiggum Loop (review → test → fix cycle, max 3 rounds)
 
+## Configuration
+
+Harness Pilot provides multiple levels of configuration to customize project standards.
+
+### Configuration Files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| manifest.json | `.harness/manifest.json` | Language, framework, components, capabilities |
+| capabilities.json | `.harness/capabilities.json` | Test coverage thresholds, frameworks, settings |
+| ARCHITECTURE.md | `.harness/docs/ARCHITECTURE.md` | Layer rules, dependencies, architecture |
+| DEVELOPMENT.md | `.harness/docs/DEVELOPMENT.md` | Code style, best practices |
+| Language Rules | `.harness/rules/{lang}/development.md` | Language-specific standards |
+
+### Customizing Project Standards
+
+#### Quick Start
+
+```bash
+# Interactive setup - choose components and capabilities
+/harness-pilot:harness-apply
+
+# Auto-generate with defaults
+/harness-pilot:harness-apply --auto
+```
+
+#### Edit manifest.json
+
+```json
+{
+  "language": "typescript",
+  "framework": "nextjs",
+  "components": [
+    "ARCHITECTURE",
+    "DEVELOPMENT",
+    "safety",
+    "git-workflow"
+  ],
+  "capabilities": {
+    "jitTest": true,
+    "codeTemplates": true,
+    "refactoring": true,
+    "e2e": true,
+    "security": false
+  }
+}
+```
+
+#### Edit capabilities.json (Detailed Settings)
+
+```json
+{
+  "jit_test": {
+    "enabled": true,
+    "coverage_threshold": 80,
+    "test_framework": "jest",
+    "auto_generate": true,
+    "test_patterns": [
+      "**/__tests__/**/*.test.ts",
+      "**/?(*.)+(spec|test).ts"
+    ]
+  }
+}
+```
+
+#### Adding New Language/Framework Support
+
+Edit `plugins/harness-pilot/skills/harness-apply/config/detection-rules.json`:
+
+```json
+{
+  "languages": {
+    "rust": {
+      "files": ["Cargo.toml"],
+      "extensions": [".rs"]
+    }
+  },
+  "frameworks": {
+    "actix-web": {
+      "language": "rust",
+      "dependencies": ["actix-web"]
+    }
+  }
+}
+```
+
+Then create template files:
+- `templates/languages/rust/development.md.template`
+- `templates/frameworks/actix-web/ARCHITECTURE.md.template`
+
+See [FAQ](docs/FAQ.md) for more detailed customization options.
+
 ## Usage Scenarios
 
 ### Scenario 1: Analyze Project Health

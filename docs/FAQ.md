@@ -73,13 +73,22 @@ A harness provides:
 
 ### Can I customize the generated files?
 
-Yes! After generation, you can:
-- Edit any file directly
-- Modify layer mappings
-- Add custom quality rules
-- Update validation commands
+Yes! Harness Pilot provides multiple ways to customize project standards:
 
-For repeated customizations, consider creating a `harness.config.json`.
+**Quick Customization:**
+- Edit any file directly (.harness/docs/, .harness/rules/)
+- Modify layer mappings in ARCHITECTURE.md
+- Add custom quality rules in .harness/rules/{language}/development.md
+
+**Configuration Files:**
+- `.harness/manifest.json` - Main project settings (language, framework, components, capabilities)
+- `.harness/capabilities.json` - Detailed settings (test coverage thresholds, frameworks, etc.)
+
+**Advanced Customization:**
+- Add new language/framework support in `plugins/harness-pilot/skills/harness-apply/config/detection-rules.json`
+- Create custom templates in `plugins/harness-pilot/templates/`
+
+For detailed customization guide, see "How do I customize project standards and specifications?" below.
 
 ### What if my language/framework isn't supported?
 
@@ -217,6 +226,148 @@ chmod +x .harness/scripts/*.go
 2. Or manually copy templates without rendering
 
 ## Advanced Questions
+
+### How do I customize project standards and specifications?
+
+Harness Pilot provides multiple levels of configuration to customize project standards including language, framework, testing requirements, and more.
+
+#### Configuration File Hierarchy
+
+```
+.harness/
+├── manifest.json          # Main project config (language, framework, components, capabilities)
+├── capabilities.json      # Detailed capability config (test coverage, frameworks, thresholds)
+├── docs/
+│   ├── ARCHITECTURE.md    # Architecture standards (layer rules, dependencies)
+│   ├── DEVELOPMENT.md     # Development standards
+│   └── PRODUCT_SENSE.md   # Product context
+├── rules/
+│   ├── common/            # Common rules (safety, git workflow)
+│   └── typescript/        # Language-specific rules
+└── scripts/               # Lint/validation scripts
+```
+
+#### Method 1: Use `/harness-apply` Command
+
+```bash
+/harness-apply            # First-time setup, interactive component selection
+/harness-apply --auto     # Use default values, non-interactive
+/harness-apply --init     # Force regenerate (skip Loop)
+```
+
+**Interactive selection includes:**
+- Auto-detect language and framework
+- Select components (ARCHITECTURE, DEVELOPMENT, safety, etc.)
+- Toggle capabilities (JIT test, code templates, refactoring, E2E, security)
+
+#### Method 2: Edit manifest.json Directly
+
+```json
+{
+  "language": "typescript",      // Programming language
+  "framework": "nextjs",        // Framework
+  "components": [               // Enabled components/standards
+    "ARCHITECTURE",
+    "DEVELOPMENT",
+    "safety",
+    "git-workflow"
+  ],
+  "capabilities": {             // Capability toggles
+    "jitTest": true,
+    "codeTemplates": true,
+    "refactoring": true,
+    "e2e": true,
+    "security": false
+  }
+}
+```
+
+#### Method 3: Edit capabilities.json (Detailed Config)
+
+```json
+{
+  "jit_test": {
+    "enabled": true,
+    "coverage_threshold": 80,    // Test coverage threshold
+    "test_framework": "jest",
+    "auto_generate": true,
+    "test_patterns": [
+      "**/__tests__/**/*.test.ts",
+      "**/?(*.)+(spec|test).ts"
+    ]
+  }
+}
+```
+
+#### Method 4: Add New Language/Framework Support
+
+Add entries to `plugins/harness-pilot/skills/harness-apply/config/detection-rules.json`:
+
+```json
+{
+  "languages": {
+    "rust": {
+      "files": ["Cargo.toml"],
+      "extensions": [".rs"]
+    }
+  },
+  "frameworks": {
+    "actix-web": {
+      "language": "rust",
+      "dependencies": ["actix-web"]
+    }
+  }
+}
+```
+
+Then create corresponding template files:
+- `templates/languages/rust/development.md.template`
+- `templates/frameworks/actix-web/ARCHITECTURE.md.template`
+
+#### Method 5: Customize Rule Files
+
+Create or edit `.harness/rules/{language}/development.md`:
+
+```markdown
+---
+paths:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+# Custom Development Standards
+
+## Code Style
+## Naming Conventions
+## Testing Requirements
+```
+
+#### Complete Workflow Example
+
+```
+1. /harness-apply
+   → Detect project (language, framework)
+   → Select needed components
+   → Generate .harness/ directory structure
+
+2. Manually adjust .harness/manifest.json and capabilities.json
+
+3. /harness-analyze
+   → Analyze project health
+   → Generate health report and scoring
+
+4. /harness-apply add-api CreateUser
+   → Use code templates to generate new API endpoint
+```
+
+#### Key Configuration File Locations
+
+| Config | Location | Purpose |
+|--------|----------|---------|
+| Main Config | `.harness/manifest.json` | Language, framework, components |
+| Capability Config | `.harness/capabilities.json` | Test thresholds, framework selection |
+| Architecture Standards | `.harness/docs/ARCHITECTURE.md` | Layer rules, dependencies |
+| Development Standards | `.harness/docs/DEVELOPMENT.md` | Code style, best practices |
+| Language Rules | `.harness/rules/{lang}/development.md` | Language-specific standards |
 
 ### What is handoff and how does it work?
 
