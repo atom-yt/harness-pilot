@@ -41,6 +41,13 @@
     "3": ["handlers/"],
     "4": ["main.go"]
   },
+  "spring-boot": {
+    "0": ["dto/", "model/"],
+    "1": ["util/"],
+    "2": ["service/"],
+    "3": ["repository/", "controller/"],
+    "4": ["application.yml", "Application.java"]
+  },
   "default": {
     "0": ["types/"],
     "1": ["utils/"],
