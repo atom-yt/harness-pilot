@@ -5,14 +5,17 @@
   "components": [
     "ARCHITECTURE",
     "DEVELOPMENT",
-    "PRODUCT_SENSE"
+    "PRODUCT_SENSE",
+    "safety",
+    "git-workflow",
+    "dev-rules"
   ],
-  "lastApplied": "2026-04-23T16:46:01Z",
+  "lastApplied": "2026-04-24T00:02:01.526Z",
   "capabilities": {
-    "jitTest": false,
+    "jitTest": true,
     "codeTemplates": true,
-    "refactoring": false,
-    "e2e": false,
+    "refactoring": true,
+    "e2e": true,
     "security": false,
     "monitoring": false
   }

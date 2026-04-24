@@ -32,6 +32,8 @@ class ValidationStep:
     description: str
     command: str
     timeout: int = 120
+    skip_if_missing: Optional[List[str]] = None
+    skip_if_no_test: bool = False
 
 
 # Load capabilities configuration if exists
@@ -65,6 +67,7 @@ VALIDATION_STEPS: List[ValidationStep] = [
         description='Build project',
         command='python -m pip install -e .',
         timeout=120,
+        skip_if_missing=['setup.py', 'pyproject.toml'],
     ),
     ValidationStep(
         name='lint-arch',
@@ -128,6 +131,7 @@ class StepResult:
     name: str
     success: bool
     duration: float
+    skipped: bool = False
     output: Optional[str] = None
     error: Optional[str] = None
 
@@ -136,8 +140,34 @@ class StepResult:
 # Runner
 # ============================================================================
 
+def should_skip_step(step: ValidationStep) -> bool:
+    """Check if a step should be skipped."""
+    import os
+    from pathlib import Path
+
+    if step.skip_if_missing:
+        for file in step.skip_if_missing:
+            if not Path(file).exists():
+                print(f'   ⊘ {step.name} skipped ({file} not found)')
+                return True
+    if step.skip_if_no_test:
+        # Check if there's a tests directory or pytest.ini
+        if not Path('tests').exists() and not Path('test').exists():
+            print(f'   ⊘ {step.name} skipped (no tests directory)')
+            return True
+    return False
+
+
 def run_step(step: ValidationStep) -> StepResult:
     """Run a single validation step."""
+    if should_skip_step(step):
+        return StepResult(
+            name=step.name,
+            success=True,
+            skipped=True,
+            duration=0,
+        )
+
     start = time.time()
 
     print(f'\n🔧 Running {step.name}...')
@@ -228,8 +258,11 @@ def main() -> None:
     print('═' * 55 + '\n')
 
     for result in results:
-        icon = '✓' if result.success else '✗'
-        print(f'  {icon} {result.name.ljust(15)} {result.duration}s')
+        if result.skipped:
+            print(f'  ⊘ {result.name.ljust(15)} skipped')
+        else:
+            icon = '✓' if result.success else '✗'
+            print(f'  {icon} {result.name.ljust(15)} {result.duration}s')
 
     print(f'\n  Total: {total_duration}s')
     print('═' * 55 + '\n')

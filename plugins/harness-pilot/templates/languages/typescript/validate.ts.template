@@ -34,12 +34,13 @@ try {
   // Use defaults if config doesn't exist
 }
 
-const VALIDATION_STEPS = [
+const VALIDATION_STEPS: ValidationStep[] = [
   {
     name: 'build',
     description: 'Compile TypeScript',
     command: 'npm run build',
     timeout: 120000,
+    skipIfMissing: ['package.json'],
   },
   {
     name: 'lint-arch',
@@ -64,6 +65,7 @@ const VALIDATION_STEPS = [
     description: 'Run tests',
     command: 'npm test',
     timeout: 300000,
+    skipIfNoTest: true,
   },
   ...(capabilities?.jit_test?.enabled ? [{
     name: 'jit-test-generate',
@@ -117,19 +119,80 @@ const VALIDATION_STEPS = [
 ];
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+function fileExists(path: string): boolean {
+  try {
+    return require('fs').existsSync(require('path').resolve(path));
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
 // Runner
 // ============================================================================
+
+interface ValidationStep {
+  name: string;
+  description: string;
+  command: string;
+  timeout: number;
+  skipIfMissing?: string[];
+  skipIfNoTest?: boolean;
+}
 
 interface StepResult {
   name: string;
   success: boolean;
+  skipped?: boolean;
   duration: number;
   output?: string;
   error?: string;
 }
 
-async function runStep(step: typeof VALIDATION_STEPS[0]): Promise<StepResult> {
+function shouldSkipStep(step: ValidationStep): boolean {
+  if (step.skipIfMissing) {
+    for (const file of step.skipIfMissing) {
+      if (!fileExists(file)) {
+        console.log(`   ⊘ ${step.name} skipped (${file} not found)`);
+        return true;
+      }
+    }
+  }
+  if (step.skipIfNoTest) {
+    // Check if package.json has test script
+    if (fileExists('package.json')) {
+      try {
+        const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
+        if (!pkg.scripts?.test) {
+          console.log(`   ⊘ ${step.name} skipped (no test script)`);
+          return true;
+        }
+      } catch {
+        console.log(`   ⊘ ${step.name} skipped (could not read package.json)`);
+        return true;
+      }
+    } else {
+      console.log(`   ⊘ ${step.name} skipped (no package.json)`);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function runStep(step: ValidationStep): Promise<StepResult> {
   const start = Date.now();
+
+  if (shouldSkipStep(step)) {
+    return {
+      name: step.name,
+      success: true,
+      skipped: true,
+      duration: 0,
+    };
+  }
 
   return new Promise((resolve) => {
     console.log(`\n🔧 Running ${step.name}...`);
@@ -208,8 +271,12 @@ async function main(): Promise<void> {
   console.log('═══════════════════════════════════════════════════════\n');
 
   for (const result of results) {
-    const icon = result.success ? '✓' : '✗';
-    console.log(`  ${icon} ${result.name.padEnd(15)} ${result.duration}s`);
+    if (result.skipped) {
+      console.log(`  ⊘ ${result.name.padEnd(15)} skipped`);
+    } else {
+      const icon = result.success ? '✓' : '✗';
+      console.log(`  ${icon} ${result.name.padEnd(15)} ${result.duration}s`);
+    }
   }
 
   console.log(`\n  Total: ${totalDuration}s`);

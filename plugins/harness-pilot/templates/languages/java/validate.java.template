@@ -25,10 +25,16 @@ public class Validate {
     System.out.println("=== Validation Pipeline ===");
     System.out.println();
 
-    // Build
-    results.add(runCommand("build", getBuildCommand(projectDir)));
+    // Build (skip if no build file)
+    String buildCommand = getBuildCommand(projectDir);
+    if (buildCommand == null) {
+      results.add(new ValidationResult("build", true));
+      System.out.println("⊘ build skipped (no build file found)");
+    } else {
+      results.add(runCommand("build", buildCommand));
+    }
 
-    if (!results.get(0).passed) {
+    if (!results.isEmpty() && !results.get(0).passed) {
       System.out.println("✗ Build failed");
       printResults(results);
       System.exit(1);
@@ -45,11 +51,17 @@ public class Validate {
       }
     }
 
-    // Test
-    results.add(runCommand("test", testCommand));
+    // Test (skip if no tests)
+    if (hasTests(projectDir)) {
+      results.add(runCommand("test", testCommand));
+    } else {
+      results.add(new ValidationResult("test", true));
+      System.out.println("⊘ test skipped (no tests found)");
+    }
 
     printResults(results);
-    System.exit(results.stream().allMatch(r -> r.passed).size() == results.size() ? 0 : 1);
+    long failedCount = results.stream().filter(r -> !r.passed && !r.skipped).count();
+    System.exit(failedCount == 0 ? 0 : 1);
   }
 
   private static String getBuildCommand(String projectDir) {
@@ -58,7 +70,25 @@ public class Validate {
     } else if (Files.exists(Paths.get(projectDir, "build.gradle"))) {
       return "gradle build";
     }
-    return "javac *.java";
+    return null; // No build file found
+  }
+
+  private static boolean hasTests(String projectDir) {
+    // Check for test directory
+    if (Files.exists(Paths.get(projectDir, "src/test"))) {
+      return true;
+    }
+    // Check for test files
+    File dir = new File(projectDir);
+    File[] files = dir.listFiles();
+    if (files != null) {
+      for (File f : files) {
+        if (f.isDirectory() && f.getName().equals("test")) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private static ValidationResult runCommand(String step, String command) {
@@ -86,24 +116,41 @@ public class Validate {
   private static void printResults(List<ValidationResult> results) {
     System.out.println();
     for (ValidationResult r : results) {
-      String status = r.passed ? "✓" : "✗";
-      System.out.println(status + " " + r.step);
+      if (r.skipped) {
+        System.out.println("⊘ " + r.step);
+      } else {
+        String status = r.passed ? "✓" : "✗";
+        System.out.println(status + " " + r.step);
+      }
     }
     System.out.println();
-    int passed = (int) results.stream().filter(r -> r.passed).count();
-    int total = results.size();
-    System.out.println("Results: " + passed + "/" + total + " passed");
+    int passed = (int) results.stream().filter(r -> r.passed && !r.skipped).count();
+    int total = (int) results.stream().filter(r -> !r.skipped).count();
+    if (total > 0) {
+      System.out.println("Results: " + passed + "/" + total + " passed");
+    } else {
+      System.out.println("All steps skipped");
+    }
   }
 
   static class ValidationResult {
     String step;
     boolean passed;
+    boolean skipped;
     String output;
 
     ValidationResult(String step, boolean passed, String output) {
       this.step = step;
       this.passed = passed;
+      this.skipped = false;
       this.output = output;
+    }
+
+    ValidationResult(String step, boolean skipped) {
+      this.step = step;
+      this.passed = true;
+      this.skipped = skipped;
+      this.output = "";
     }
   }
 }

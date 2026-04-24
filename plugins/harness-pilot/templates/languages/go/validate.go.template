@@ -17,15 +17,18 @@ import (
 // ============================================================================
 
 type ValidationStep struct {
-	Name        string
-	Description string
-	Command     string
-	Timeout     time.Duration
+	Name         string
+	Description  string
+	Command      string
+	Timeout      time.Duration
+	SkipIfMissing []string // Skip if these files don't exist
+	SkipIfNoTest  bool    // Skip if no tests found
 }
 
 type StepResult struct {
 	Name     string
 	Success  bool
+	Skipped  bool
 	Duration time.Duration
 	Output   string
 	Error    string
@@ -101,7 +104,44 @@ var VALIDATION_STEPS = []ValidationStep{
 // Runner
 // ============================================================================
 
+func shouldSkipStep(step ValidationStep) bool {
+	for _, file := range step.SkipIfMissing {
+		if _, err := os.Stat(file); os.IsNotExist(err) {
+			fmt.Printf("   ⊘ %s skipped (%s not found)\n", step.Name, file)
+			return true
+		}
+	}
+	if step.SkipIfNoTest {
+		// Check if there's a tests directory or _test.go files
+		if _, err := os.Stat("tests"); os.IsNotExist(err) {
+			// Check for _test.go files
+			files, _ := os.ReadDir(".")
+			hasTest := false
+			for _, f := range files {
+				if strings.HasSuffix(f.Name(), "_test.go") {
+					hasTest = true
+					break
+				}
+			}
+			if !hasTest {
+				fmt.Printf("   ⊘ %s skipped (no tests found)\n", step.Name)
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func runStep(step ValidationStep) StepResult {
+	if shouldSkipStep(step) {
+		return StepResult{
+			Name:     step.Name,
+			Success:  true,
+			Skipped:  true,
+			Duration: 0,
+		}
+	}
+
 	start := time.Now()
 
 	fmt.Printf("\n🔧 Running %s...\n", step.Name)
@@ -146,10 +186,11 @@ func runStep(step ValidationStep) StepResult {
 func buildValidationSteps() []ValidationStep {
 	steps := []ValidationStep{
 		{
-			Name:        "build",
-			Description: "Build project",
-			Command:     "go build ./...",
-			Timeout:     2 * time.Minute,
+			Name:         "build",
+			Description:  "Build project",
+			Command:      "go build ./...",
+			Timeout:      2 * time.Minute,
+			SkipIfMissing: []string{"go.mod"},
 		},
 		{
 			Name:        "lint-arch",
@@ -180,6 +221,7 @@ func buildValidationSteps() []ValidationStep {
 		Description: "Run tests",
 		Command:     "go test ./...",
 		Timeout:     5 * time.Minute,
+		SkipIfNoTest: true,
 	})
 
 	if CAPABILITIES.JitTestEnabled {
@@ -262,11 +304,15 @@ func main() {
 	fmt.Println(strings.Repeat("═", 55) + "\n")
 
 	for _, result := range results {
-		icon := "✓"
-		if !result.Success {
-			icon = "✗"
+		if result.Skipped {
+			fmt.Printf("  ⊘ %-15s skipped\n", result.Name+":")
+		} else {
+			icon := "✓"
+			if !result.Success {
+				icon = "✗"
+			}
+			fmt.Printf("  %s %-15s %.0fs\n", icon, result.Name+":", result.Duration.Seconds())
 		}
-		fmt.Printf("  %s %-15s %.0fs\n", icon, result.Name+":", result.Duration.Seconds())
 	}
 
 	fmt.Printf("\n  Total: %.0fs\n", totalDuration.Seconds())
