@@ -272,8 +272,13 @@ function main() {
   }
 }
 
+// ============================================================================
 // Run if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// ============================================================================
+
+const scriptPath = fileURLToPath(import.meta.url);
+const invokedPath = process.argv[1];
+if (scriptPath === invokedPath) {
   main();
 }
 

@@ -7,7 +7,7 @@
  */
 
 import java.nio.file.*;
-import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.regex.*;
 
@@ -84,10 +84,13 @@ public class LintDeps {
 
   private static List<DependencyViolation> scanJavaFiles(String rootDir, Map<String, String> layerMapping) {
     List<DependencyViolation> violations = new ArrayList<>();
-    Files.walk(Paths.get(rootDir))
-      .filter(p -> p.toString().endsWith(".java"))
-      .filter(p -> !p.toString().contains("/test/"))
-      .forEach(file -> {
+
+    // Use try-with-resources to auto-close the Stream
+    try (Stream<Path> paths = Files.walk(Paths.get(rootDir))) {
+      paths
+        .filter(p -> p.toString().endsWith(".java"))
+        .filter(p -> !p.toString().contains("/test/"))
+        .forEach(file -> {
         try {
           List<String> imports = extractImports(file);
           String fromLayer = getLayer(file.toString(), layerMapping);
@@ -158,5 +161,12 @@ public class LintDeps {
     int lineNumber;
     String fromLayer;
     String toLayer;
+
+    DependencyViolation(String sourceFile, int lineNumber, String fromLayer, String toLayer) {
+      this.sourceFile = sourceFile;
+      this.lineNumber = lineNumber;
+      this.fromLayer = fromLayer;
+      this.toLayer = toLayer;
+    }
   }
 }

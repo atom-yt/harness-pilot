@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.mockito.Mockito;
 import org.mockito.Mock;
 import org.mockito.InjectMocks;
+import static org.mockito.Mockito.*;
+
+import java.util.List;
 
 import com.{{ORG_NAME}}.{{PROJECT_NAME}}.{{SOURCE_CLASS}};
 

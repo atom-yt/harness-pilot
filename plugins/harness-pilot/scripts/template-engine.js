@@ -14,6 +14,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 
 // ============================================================================
 // LRU Cache
@@ -287,7 +288,9 @@ function main() {
 }
 
 // Run CLI if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+const scriptPath = fileURLToPath(import.meta.url);
+const invokedPath = process.argv[1];
+if (scriptPath === invokedPath) {
   main();
 }
 

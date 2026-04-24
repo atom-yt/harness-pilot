@@ -7,6 +7,8 @@
  */
 
 import { spawn, SpawnOptions } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // ============================================================================
 // Configuration
@@ -34,12 +36,16 @@ interface PackageJson {
 // Load capabilities configuration if exists
 let capabilities: CapabilityConfig | null = null;
 try {
-  const capabilitiesPath = '.harness/capabilities.json';
-  if (require('fs').existsSync(capabilitiesPath)) {
-    capabilities = require(require('path').resolve(capabilitiesPath))?.capabilities;
+  const capabilitiesPath = path.resolve('.harness/capabilities.json');
+  if (fs.existsSync(capabilitiesPath)) {
+    const content = fs.readFileSync(capabilitiesPath, 'utf8');
+    const parsed = JSON.parse(content);
+    if (parsed && typeof parsed.capabilities === 'object') {
+      capabilities = parsed.capabilities as CapabilityConfig;
+    }
   }
 } catch {
-  // Use defaults if config doesn't exist
+  // Use defaults if config doesn't exist or is invalid
 }
 
 const VALIDATION_STEPS: ValidationStep[] = [
@@ -130,9 +136,9 @@ const VALIDATION_STEPS: ValidationStep[] = [
 // Helper Functions
 // ============================================================================
 
-function fileExists(path: string): boolean {
+function fileExists(filePath: string): boolean {
   try {
-    return require('fs').existsSync(require('path').resolve(path));
+    return fs.existsSync(path.resolve(filePath));
   } catch {
     return false;
   }
@@ -173,7 +179,7 @@ function shouldSkipStep(step: ValidationStep): boolean {
     // Check if package.json has a valid test script
     if (fileExists('package.json')) {
       try {
-        const pkg: PackageJson = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
+        const pkg: PackageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
         const hasTestScript = pkg.scripts?.test && typeof pkg.scripts.test === 'string' && pkg.scripts.test.length > 0;
         if (!hasTestScript) {
           console.log(`   ⊘ ${step.name} skipped (no valid test script in package.json)`);
