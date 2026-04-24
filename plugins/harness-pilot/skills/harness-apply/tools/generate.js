@@ -8,23 +8,16 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { loadConfig } from '../../../lib/config.js';
+import { getDirname } from '../../../lib/path-utils.js';
+import {
+  getHarnessRoot,
+  getDocsPath,
+  getScriptsPath,
+  getRulesPath
+} from '../../../lib/constants.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ============================================================================
-// Config Loading
-// ============================================================================
-
-function loadConfig(filename) {
-  try {
-    const configPath = path.join(__dirname, '../config', filename);
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  } catch (err) {
-    return null;
-  }
-}
+const __dirname = getDirname(import.meta.url);
 
 const layerMappings = loadConfig('layer-mappings.json') || {};
 const qualityRules = loadConfig('quality-rules.json') || {};
@@ -175,15 +168,15 @@ function generateHarness(options) {
 
   const results = [];
 
-  // Create directories
+  const harnessRoot = getHarnessRoot(projectDir);
   const dirs = [
-    '.harness/docs',
-    '.harness/scripts',
-    '.harness/memory/episodic',
-    '.harness/memory/procedural',
-    '.harness/trace/failures',
-    '.harness/rules/common',
-    `.harness/rules/${language}`
+    path.join(harnessRoot, 'docs'),
+    path.join(harnessRoot, 'scripts'),
+    path.join(harnessRoot, 'memory/episodic'),
+    path.join(harnessRoot, 'memory/procedural'),
+    path.join(harnessRoot, 'trace/failures'),
+    path.join(harnessRoot, 'rules/common'),
+    path.join(harnessRoot, `rules/${language}`)
   ];
 
   for (const dir of dirs) {
@@ -241,7 +234,7 @@ function generateHarness(options) {
     lastApplied: new Date().toISOString(),
     capabilities: defaults.capabilities || {}
   };
-  const manifestPath = path.join(projectDir, '.harness/manifest.json');
+  const manifestPath = getManifestPath(projectDir);
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
   results.push({ type: 'file', path: '.harness/manifest.json', created: true });
 

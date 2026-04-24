@@ -8,23 +8,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { loadConfig } from '../../../lib/config.js';
+import { getDirname } from '../../../lib/path-utils.js';
+import { getManifestPath, COMMON_DIRS } from '../../../lib/constants.js';
+import { readJSONSync } from '../../../lib/fs-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ============================================================================
-// Config Loading
-// ============================================================================
-
-function loadConfig(filename) {
-  try {
-    const configPath = path.join(__dirname, '../config', filename);
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  } catch (err) {
-    return null;
-  }
-}
+const __dirname = getDirname(import.meta.url);
 
 const detectionRules = loadConfig('detection-rules.json') || {};
 
@@ -32,8 +21,22 @@ const detectionRules = loadConfig('detection-rules.json') || {};
 // Detection Functions
 // ============================================================================
 
+/**
+ * Detects language using configured rules.
+ * Falls back to simple detection if config not available.
+ */
 function detectLanguage() {
-  for (const [lang, rules] of Object.entries(detectionRules.languages || {})) {
+  if (!detectionRules.languages) {
+    // Fallback to simple detection
+    if (fs.existsSync('tsconfig.json')) return 'typescript';
+    if (fs.existsSync('package.json')) return 'javascript';
+    if (fs.existsSync('pom.xml') || fs.existsSync('build.gradle')) return 'java';
+    if (fs.existsSync('go.mod')) return 'go';
+    if (fs.existsSync('requirements.txt') || fs.existsSync('pyproject.toml')) return 'python';
+    return 'unknown';
+  }
+
+  for (const [lang, rules] of Object.entries(detectionRules.languages)) {
     if (rules.files) {
       for (const file of rules.files) {
         if (fs.existsSync(file)) {
@@ -58,9 +61,10 @@ function detectFramework(language) {
   if (!langRules) return 'none';
 
   // Check framework by dependencies in package.json
-  if (fs.existsSync('package.json')) {
+  const pkgPath = 'package.json';
+  if (fs.existsSync(pkgPath)) {
     try {
-      const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
       for (const [fw, fwRules] of Object.entries(detectionRules.frameworks || {})) {
@@ -105,7 +109,7 @@ function detectDirectories() {
 }
 
 function detectHarnessStatus() {
-  const manifestPath = '.harness/manifest.json';
+  const manifestPath = getManifestPath();
 
   if (!fs.existsSync('.harness')) {
     return { exists: false, lastApply: null };
@@ -113,7 +117,7 @@ function detectHarnessStatus() {
 
   if (fs.existsSync(manifestPath)) {
     try {
-      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const manifest = readJSONSync(manifestPath);
       return {
         exists: true,
         lastApply: manifest.lastApplied || null,
@@ -142,10 +146,10 @@ function detect() {
     framework,
     structure: {
       sourceDirs: directories,
-      hasTypesDir: fs.existsSync('types/'),
-      hasUtilsDir: fs.existsSync('utils/'),
-      hasComponentsDir: fs.existsSync('components/'),
-      hasServicesDir: fs.existsSync('services/')
+      hasTypesDir: fs.existsSync(COMMON_DIRS.types + '/'),
+      hasUtilsDir: fs.existsSync(COMMON_DIRS.utils + '/'),
+      hasComponentsDir: fs.existsSync(COMMON_DIRS.components + '/'),
+      hasServicesDir: fs.existsSync(COMMON_DIRS.services + '/')
     },
     harness,
     timestamp: new Date().toISOString()

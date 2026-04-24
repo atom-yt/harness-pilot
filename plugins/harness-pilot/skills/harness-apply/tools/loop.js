@@ -1,11 +1,17 @@
 #!/usr/bin/env node
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
+import fs from 'fs/promises';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import { getHarnessRoot, getTasksPath, getHandoffsPath } from '../../../lib/constants.js';
+import { getDirname } from '../../../lib/path-utils.js';
+import { readJSON, writeJSON, fileExists } from '../../../lib/fs-utils.js';
 
-const HARNESS_ROOT = process.env.HARNESS_ROOT || path.join(process.cwd(), '.harness');
-const TASKS_DIR = path.join(HARNESS_ROOT, 'tasks');
-const HANDOFFS_DIR = path.join(HARNESS_ROOT, 'handoffs');
+const __dirname = getDirname(import.meta.url);
+
+const HARNESS_ROOT = process.env.HARNESS_ROOT || getHarnessRoot();
+const TASKS_DIR = getTasksPath(process.env.HARNESS_ROOT || process.cwd());
+const HANDOFFS_DIR = getHandoffsPath(process.env.HARNESS_ROOT || process.cwd());
 
 class RalphWiggumLoop {
   constructor(config = {}) {
@@ -40,7 +46,7 @@ class RalphWiggumLoop {
       startTime: new Date().toISOString(),
       progress: { currentStep: 'init', iteration: 0 }
     };
-    await fs.writeFile(path.join(taskDir, 'task.json'), JSON.stringify(task, null, 2));
+    await writeJSON(path.join(taskDir, 'task.json'), task);
     return taskDir;
   }
 
@@ -57,7 +63,7 @@ class RalphWiggumLoop {
 
     const taskDir = path.join(TASKS_DIR, taskId);
     await fs.mkdir(taskDir, { recursive: true });
-    await fs.writeFile(path.join(taskDir, 'checkpoint.json'), JSON.stringify(checkpoint, null, 2));
+    await writeJSON(path.join(taskDir, 'checkpoint.json'), checkpoint);
 
     return { checkpointId, path: path.join(taskDir, 'checkpoint.json') };
   }
@@ -75,7 +81,7 @@ class RalphWiggumLoop {
       artifacts: { taskArtifact: path.join(TASKS_DIR, taskId) }
     };
 
-    await fs.writeFile(path.join(sessionDir, 'agent-state.json'), JSON.stringify(agentState, null, 2));
+    await writeJSON(path.join(sessionDir, 'agent-state.json'), agentState);
 
     const resumeInstruction = {
       resumeInstruction: {
@@ -87,7 +93,7 @@ class RalphWiggumLoop {
       validation: { checksum: `sha256:${this.calculateChecksum(agentState)}`, verified: true }
     };
 
-    await fs.writeFile(path.join(sessionDir, 'resume.json'), JSON.stringify(resumeInstruction, null, 2));
+    await writeJSON(path.join(sessionDir, 'resume.json'), resumeInstruction);
 
     const nextSteps = {
       nextAction: 'continue-loop',
@@ -97,7 +103,7 @@ class RalphWiggumLoop {
 
     const taskDir = path.join(TASKS_DIR, taskId);
     await fs.mkdir(taskDir, { recursive: true });
-    await fs.writeFile(path.join(taskDir, 'next-steps.json'), JSON.stringify(nextSteps, null, 2));
+    await writeJSON(path.join(taskDir, 'next-steps.json'), nextSteps);
 
     const latestLink = path.join(HANDOFFS_DIR, '.latest');
     try { await fs.unlink(latestLink); } catch {}
@@ -109,11 +115,8 @@ class RalphWiggumLoop {
   async resolve(handoffId = null) {
     const sessionDir = handoffId ? path.join(HANDOFFS_DIR, handoffId) : path.join(HANDOFFS_DIR, '.latest');
 
-    const resumeJson = await fs.readFile(path.join(sessionDir, 'resume.json'), 'utf8');
-    const resume = JSON.parse(resumeJson);
-
-    const stateJson = await fs.readFile(path.join(sessionDir, 'agent-state.json'), 'utf8');
-    const state = JSON.parse(stateJson);
+    const resume = await readJSON(path.join(sessionDir, 'resume.json'));
+    const state = await readJSON(path.join(sessionDir, 'agent-state.json'));
 
     const expectedChecksum = resume.validation.checksum.replace('sha256:', '');
     const actualChecksum = this.calculateChecksum(state);
@@ -127,11 +130,8 @@ class RalphWiggumLoop {
 
     let task = {}, nextSteps = {};
     try {
-      const taskJson = await fs.readFile(path.join(taskDir, 'task.json'), 'utf8');
-      task = JSON.parse(taskJson);
-
-      const nextStepsJson = await fs.readFile(path.join(taskDir, 'next-steps.json'), 'utf8');
-      nextSteps = JSON.parse(nextStepsJson);
+      task = await readJSON(path.join(taskDir, 'task.json'));
+      nextSteps = await readJSON(path.join(taskDir, 'next-steps.json'));
     } catch {}
 
     return {
@@ -204,8 +204,8 @@ Example:
   }
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-module.exports = { RalphWiggumLoop };
+export { RalphWiggumLoop };

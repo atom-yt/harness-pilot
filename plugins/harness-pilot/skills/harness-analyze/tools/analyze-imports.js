@@ -7,10 +7,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { getDirname } from '../../../lib/path-utils.js';
+import { detectLanguage, getExtensions } from '../../../lib/detect-language.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
 // ============================================================================
 // Pattern Definitions
@@ -41,19 +41,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 // Default threshold for relative import violation detection
 const DEFAULT_RELATIVE_THRESHOLD = 10;
 
-// ============================================================================
-// Analysis Functions
-// ============================================================================
-
-function detectLanguage(projectDir = process.cwd()) {
-  if (fs.existsSync(path.join(projectDir, 'tsconfig.json'))) return 'typescript';
-  if (fs.existsSync(path.join(projectDir, 'package.json'))) return 'javascript';
-  if (fs.existsSync(path.join(projectDir, 'go.mod'))) return 'go';
-  if (fs.existsSync(path.join(projectDir, 'requirements.txt')) ||
-      fs.existsSync(path.join(projectDir, 'pyproject.toml'))) return 'python';
-  return 'unknown';
-}
-
 /**
  * Analyzes import patterns in source code
  * @param {string} projectDir - Directory to analyze (defaults to cwd)
@@ -78,6 +65,8 @@ function analyzeImports(projectDir = process.cwd(), options = {}) {
 
   // Find source files
   const sourceFiles = [];
+  const extensions = getExtensions(language);
+
   const walkDir = (dir) => {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
@@ -87,7 +76,7 @@ function analyzeImports(projectDir = process.cwd(), options = {}) {
         if (!entry.name.startsWith('.') && entry.name !== 'node_modules' && !entry.isSymbolicLink()) {
           walkDir(fullPath);
         }
-      } else if (pattern.extension.some(ext => entry.name.endsWith(ext))) {
+      } else if (extensions.some(ext => entry.name.endsWith(ext))) {
         sourceFiles.push(fullPath);
       }
     }

@@ -7,28 +7,21 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { getDirname } from '../../../lib/path-utils.js';
+import { THRESHOLDS } from '../../../lib/constants.js';
+import { readJSONSync, writeJSONSync } from '../../../lib/fs-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
 const HISTORY_FILE = '.harness/analyze-history.json';
-const MAX_HISTORY = 30;
+const MAX_HISTORY = THRESHOLDS.historySize;
 
 // ============================================================================
 // History Management
 // ============================================================================
 
 function loadHistory() {
-  try {
-    const historyPath = path.join(process.cwd(), HISTORY_FILE);
-    if (fs.existsSync(historyPath)) {
-      return JSON.parse(fs.readFileSync(historyPath, 'utf8'));
-    }
-  } catch {
-    // Ignore errors
-  }
-  return [];
+  return readJSONSync(path.join(process.cwd(), HISTORY_FILE), []);
 }
 
 function saveHistory(entry) {
@@ -42,8 +35,7 @@ function saveHistory(entry) {
       history.splice(0, history.length - MAX_HISTORY);
     }
 
-    fs.mkdirSync(path.dirname(historyPath), { recursive: true });
-    fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf8');
+    writeJSONSync(historyPath, history);
   } catch {
     // Ignore errors
   }
@@ -229,7 +221,7 @@ function main() {
     // Accept JSON string directly or file path
     let data;
     if (input.endsWith('.json') || fs.existsSync(input)) {
-      data = JSON.parse(fs.readFileSync(input, 'utf8'));
+      data = readJSONSync(input);
     } else {
       data = JSON.parse(input);
     }
@@ -238,7 +230,7 @@ function main() {
     if (!data.weights) {
       const configPath = path.join(process.cwd(), '.harness/analyze-config.json');
       if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        const config = readJSONSync(configPath);
         data.weights = config.weights;
       }
     }

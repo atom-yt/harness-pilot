@@ -8,23 +8,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { loadConfig } from '../../../lib/config.js';
+import { getDirname } from '../../../lib/path-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ============================================================================
-// Config Loading
-// ============================================================================
-
-function loadConfig(filename) {
-  try {
-    const configPath = path.join(__dirname, '../config', filename);
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  } catch (err) {
-    return null;
-  }
-}
+const __dirname = getDirname(import.meta.url);
 
 const defaults = loadConfig('defaults.json') || {};
 
