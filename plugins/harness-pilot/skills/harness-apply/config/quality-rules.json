@@ -1,4 +1,5 @@
 {
+  "version": "1.0.0",
   "typescript": {
     "lintDeps": {
       "enabled": true,
@@ -80,6 +81,24 @@
       "clippy": true,
       "maxFileSize": 500,
       "maxFunctionLines": 50
+    }
+  },
+  "java": {
+    "lintDeps": {
+      "enabled": true,
+      "maxDepth": 4,
+      "enforceLayerMapping": true
+    },
+    "lintQuality": {
+      "enabled": true,
+      "checkstyle": true,
+      "maxFileSize": 500,
+      "maxMethodLines": 50,
+      "maxClassLines": 500,
+      "noSystemOut": true
+    },
+    "validate": {
+      "enabled": true
     }
   }
 }

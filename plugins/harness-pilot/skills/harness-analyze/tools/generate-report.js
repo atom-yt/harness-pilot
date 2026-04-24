@@ -12,6 +12,61 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const HISTORY_FILE = '.harness/analyze-history.json';
+const MAX_HISTORY = 30;
+
+// ============================================================================
+// History Management
+// ============================================================================
+
+function loadHistory() {
+  try {
+    const historyPath = path.join(process.cwd(), HISTORY_FILE);
+    if (fs.existsSync(historyPath)) {
+      return JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+    }
+  } catch {
+    // Ignore errors
+  }
+  return [];
+}
+
+function saveHistory(entry) {
+  try {
+    const historyPath = path.join(process.cwd(), HISTORY_FILE);
+    const history = loadHistory();
+    history.push(entry);
+
+    // Keep last MAX_HISTORY entries
+    if (history.length > MAX_HISTORY) {
+      history.splice(0, history.length - MAX_HISTORY);
+    }
+
+    fs.mkdirSync(path.dirname(historyPath), { recursive: true });
+    fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf8');
+  } catch {
+    // Ignore errors
+  }
+}
+
+function compareWithHistory(currentScore) {
+  const history = loadHistory();
+  if (history.length === 0) {
+    return { trend: 'new', previous: null };
+  }
+
+  const lastEntry = history[history.length - 1];
+  const diff = currentScore - lastEntry.totalScore;
+  const trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'stable';
+
+  return {
+    trend,
+    previous: lastEntry,
+    diff,
+    historyLength: history.length
+  };
+}
+
 // ============================================================================
 // Report Generation
 // ============================================================================
@@ -35,13 +90,29 @@ function generateReport(data) {
     docs = {},
     architecture = {},
     imports = {},
-    testCoverage = { score: 0 }
+    testCoverage = { score: 0 },
+    weights = { docs: 0.35, architecture: 0.35, test: 0.3 }
   } = data;
 
-  // Calculate scores
+  // Calculate scores with custom weights
   const docScore = docs.coverage || 0;
   const archScore = architecture.score || 0;
-  const totalScore = Math.round((docScore * 0.35 + archScore * 0.35 + testCoverage.score * 0.3));
+  const testScore = testCoverage.score || 0;
+
+  // Normalize weights (sum to 1.0)
+  const totalWeight = weights.docs + weights.architecture + weights.test;
+  const normWeights = {
+    docs: weights.docs / totalWeight,
+    architecture: weights.architecture / totalWeight,
+    test: weights.test / totalWeight
+  };
+
+  const totalScore = Math.round(
+    docScore * normWeights.docs +
+    archScore * normWeights.architecture +
+    testScore * normWeights.test
+  );
+
   const grade = getGrade(totalScore);
 
   const lines = [
@@ -58,7 +129,7 @@ function generateReport(data) {
   // Category scores
   lines.push(`Documentation      ${String(docScore).padStart(3)}/100  ${generateProgressBar(docScore)}  ${docScore >= 70 ? '✓' : '✗'}`);
   lines.push(`Architecture       ${String(archScore).padStart(3)}/100  ${generateProgressBar(archScore)}  ${archScore >= 70 ? '✓' : '✗'}`);
-  lines.push(`Test Coverage      ${String(testCoverage.score || 0).padStart(3)}/100  ${generateProgressBar(testCoverage.score || 0)}  ${(testCoverage.score || 0) >= 70 ? '✓' : '✗'}`);
+  lines.push(`Test Coverage      ${String(testScore).padStart(3)}/100  ${generateProgressBar(testScore)}  ${testScore >= 70 ? '✓' : '✗'}`);
 
   lines.push('');
   lines.push('=== Details ===');
@@ -93,6 +164,28 @@ function generateReport(data) {
     lines.push(`  Files analyzed: ${imports.filesAnalyzed || 'N/A'}`);
     lines.push('');
   }
+
+  // History comparison
+  const comparison = compareWithHistory(totalScore);
+
+  if (comparison.trend !== 'new') {
+    lines.push('=== History Trend ===');
+    lines.push(`Trend: ${comparison.trend}`);
+    lines.push(`Previous Score: ${comparison.previous?.totalScore || 'N/A'}`);
+    lines.push(`Difference: ${comparison.diff > 0 ? '+' : ''}${comparison.diff}`);
+    lines.push('');
+  }
+
+  // Save current analysis to history
+  saveHistory({
+    timestamp: new Date().toISOString(),
+    totalScore,
+    docScore,
+    archScore,
+    testScore,
+    docFiles: docs.files?.length || 0,
+    projectName
+  });
 
   // Recommendations
   lines.push('=== Recommendations ===');
@@ -140,6 +233,16 @@ function main() {
     } else {
       data = JSON.parse(input);
     }
+
+    // Load custom weights from config if not provided
+    if (!data.weights) {
+      const configPath = path.join(process.cwd(), '.harness/analyze-config.json');
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        data.weights = config.weights;
+      }
+    }
+
     console.log(generateReport(data));
   } catch (err) {
     console.error('Error:', err.message);

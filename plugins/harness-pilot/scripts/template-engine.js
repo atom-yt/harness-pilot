@@ -57,6 +57,20 @@ function hashContext(context) {
   return crypto.createHash('md5').update(JSON.stringify(context)).digest('hex');
 }
 
+/**
+ * Escape HTML entities to prevent XSS
+ */
+function escapeHTML(str) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return String(str).replace(/[&<>"']/g, char => map[char]);
+}
+
 // ============================================================================
 // Template Engine
 // ============================================================================
@@ -197,23 +211,33 @@ class TemplateEngine {
 
   /**
    * Render variable substitutions
+   * {{VAR}} = escaped (HTML-safe by default)
+   * {{:VAR}} = raw (no escaping)
+   * {{-VAR}} = raw (alternative syntax)
    */
   renderVariables(template) {
-    // Match {{VAR}} patterns (but not {{#if}} or {{#each}} which are already processed)
-    // Supports @-prefixed variables (@index, @first, @last) and regular variables
-    const pattern = /\{\{(@?\w+(?:\.\w+)*)\}\}/g;
-
-    return template.replace(pattern, (match, path) => {
+    // Process raw variables first ({{:VAR}} or {{-VAR}})
+    const rawPattern = /\{\{[:-](@?\w+(?:\.\w+)*)\}\}/g;
+    template = template.replace(rawPattern, (match, path) => {
       const value = this.getContextValue(path);
-
       if (value === undefined || value === null) {
-        // Leave as-is for missing values
         return match;
       }
-
-      // Convert to string
       return String(value);
     });
+
+    // Process escaped variables ({{VAR}})
+    const escapedPattern = /\{\{(@?\w+(?:\.\w+)*)\}\}/g;
+    template = template.replace(escapedPattern, (match, path) => {
+      const value = this.getContextValue(path);
+      if (value === undefined || value === null) {
+        return match;
+      }
+      // Escape HTML entities by default
+      return escapeHTML(String(value));
+    });
+
+    return template;
   }
 }
 

@@ -1,9 +1,16 @@
 {
+  "version": "1.0.0",
   "qualityRules": {
     "noConsoleLog": true,
     "maxFileSize": 500,
     "typescriptStrictMode": true,
-    "noHardcodedStrings": false
+    "noHardcodedStrings": false,
+    "java": {
+      "maxMethodLines": 50,
+      "maxClassLines": 500,
+      "checkstyleEnabled": true,
+      "useLombok": false
+    }
   },
   "loop": {
     "maxIterations": 3,

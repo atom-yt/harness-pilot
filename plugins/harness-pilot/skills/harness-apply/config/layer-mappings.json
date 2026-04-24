@@ -1,4 +1,5 @@
 {
+  "version": "1.0.0",
   "nextjs": {
     "0": ["types/"],
     "1": ["utils/"],
