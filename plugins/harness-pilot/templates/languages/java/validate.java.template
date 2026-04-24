@@ -1,0 +1,109 @@
+#!/usr/bin/env java
+/**
+ * Unified Validation Pipeline for Java
+ * Runs all checks in sequence: build → lint-deps → lint-quality → test
+ *
+ * Usage: java .harness/scripts/validate.java [test-command]
+ */
+
+import java.io.*;
+import java.util.*;
+
+public class Validate {
+
+  private static final String[] LINT_SCRIPTS = {
+    ".harness/scripts/lint-deps.java",
+    ".harness/scripts/lint-quality.java"
+  };
+
+  public static void main(String[] args) {
+    String testCommand = args.length > 0 ? args[0] : "mvn test";
+
+    String projectDir = System.getProperty("user.dir");
+    List<ValidationResult> results = new ArrayList<>();
+
+    System.out.println("=== Validation Pipeline ===");
+    System.out.println();
+
+    // Build
+    results.add(runCommand("build", getBuildCommand(projectDir)));
+
+    if (!results.get(0).passed) {
+      System.out.println("✗ Build failed");
+      printResults(results);
+      System.exit(1);
+    }
+
+    // Lint Scripts
+    for (String script : LINT_SCRIPTS) {
+      String name = script.substring(script.lastIndexOf('/') + 1, script.lastIndexOf('.'));
+      results.add(runCommand(name, "java " + script));
+      if (!results.get(results.size() - 1).passed) {
+        System.out.println("✗ " + name + " failed");
+        printResults(results);
+        System.exit(1);
+      }
+    }
+
+    // Test
+    results.add(runCommand("test", testCommand));
+
+    printResults(results);
+    System.exit(results.stream().allMatch(r -> r.passed).size() == results.size() ? 0 : 1);
+  }
+
+  private static String getBuildCommand(String projectDir) {
+    if (Files.exists(Paths.get(projectDir, "pom.xml"))) {
+      return "mvn clean package";
+    } else if (Files.exists(Paths.get(projectDir, "build.gradle"))) {
+      return "gradle build";
+    }
+    return "javac *.java";
+  }
+
+  private static ValidationResult runCommand(String step, String command) {
+    System.out.println("→ " + step + "...");
+
+    try {
+      ProcessBuilder pb = new ProcessBuilder(command.split(" "));
+      pb.directory(new File(System.getProperty("user.dir")));
+      Process p = pb.start();
+
+      BufferedReader reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+      StringBuilder output = new StringBuilder();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        output.append(line).append("\n");
+      }
+
+      int exitCode = p.waitFor();
+      return new ValidationResult(step, exitCode == 0, output.toString());
+    } catch (Exception e) {
+      return new ValidationResult(step, false, e.getMessage());
+    }
+  }
+
+  private static void printResults(List<ValidationResult> results) {
+    System.out.println();
+    for (ValidationResult r : results) {
+      String status = r.passed ? "✓" : "✗";
+      System.out.println(status + " " + r.step);
+    }
+    System.out.println();
+    int passed = (int) results.stream().filter(r -> r.passed).count();
+    int total = results.size();
+    System.out.println("Results: " + passed + "/" + total + " passed");
+  }
+
+  static class ValidationResult {
+    String step;
+    boolean passed;
+    String output;
+
+    ValidationResult(String step, boolean passed, String output) {
+      this.step = step;
+      this.passed = passed;
+      this.output = output;
+    }
+  }
+}

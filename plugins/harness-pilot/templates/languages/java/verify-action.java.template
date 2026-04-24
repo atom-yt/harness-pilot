@@ -1,0 +1,88 @@
+#!/usr/bin/env java
+/**
+ * Pre-action Validation Hook for Java
+ * Validates environment before running actions.
+ *
+ * Usage: java .harness/scripts/verify-action.java
+ */
+
+import java.io.*;
+import java.nio.file.*;
+
+public class VerifyAction {
+
+  private static final String[] REQUIRED_FILES = {
+    "pom.xml", "build.gradle", "build.gradle.kts"
+  };
+
+  public static void main(String[] args) {
+    String projectDir = System.getProperty("user.dir");
+    List<String> issues = new ArrayList<>();
+
+    // Check project structure
+    issues.addAll(checkProjectStructure(projectDir));
+
+    // Check required files
+    issues.addAll(checkRequiredFiles(projectDir));
+
+    // Check Java source
+    issues.addAll(checkJavaSource(projectDir));
+
+    if (issues.isEmpty()) {
+      System.out.println("✓ Pre-action validation passed");
+      System.exit(0);
+    }
+
+    System.out.println("✗ Pre-action validation failed:");
+    for (String issue : issues) {
+      System.out.println("  - " + issue);
+    }
+
+    System.exit(1);
+  }
+
+  private static List<String> checkProjectStructure(String rootDir) {
+    List<String> issues = new ArrayList<>();
+    Path srcDir = Paths.get(rootDir, "src/main/java");
+
+    if (!Files.exists(srcDir)) {
+      issues.add("Missing src/main/java directory");
+    }
+
+    return issues;
+  }
+
+  private static List<String> checkRequiredFiles(String rootDir) {
+    List<String> issues = new ArrayList<>();
+
+    for (String file : REQUIRED_FILES) {
+      if (!Files.exists(Paths.get(rootDir, file))) {
+        issues.add("Missing " + file);
+      }
+    }
+
+    return issues;
+  }
+
+  private static List<String> checkJavaSource(String rootDir) {
+    List<String> issues = new ArrayList<>();
+
+    try {
+      Path srcDir = Paths.get(rootDir, "src/main/java");
+      if (Files.exists(srcDir)) {
+        long javaFiles = Files.walk(srcDir)
+          .filter(p -> p.toString().endsWith(".java"))
+          .filter(p -> !p.toString().contains("/test/"))
+          .count();
+
+        if (javaFiles == 0) {
+          issues.add("No Java source files found");
+        }
+      }
+    } catch (Exception e) {
+      issues.add("Cannot scan Java source: " + e.getMessage());
+    }
+
+    return issues;
+  }
+}

@@ -1,0 +1,40 @@
+package com.{{ORG_NAME}}.{{PROJECT_NAME}}.controller;
+
+import com.{{ORG_NAME}}.{{PROJECT_NAME}}.service.{{RESOURCE_NAME}}Service;
+import com.{{ORG_NAME}}.{{PROJECT_NAME}}.dto.{{RESOURCE_NAME}}DTO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/{{RESOURCE_NAME_LOWERCASE}}")
+@RequiredArgsConstructor
+public class {{RESOURCE_NAME}}Controller {
+
+    private final {{RESOURCE_NAME}}Service service;
+
+    @GetMapping
+    public List<{{RESOURCE_NAME}}DTO> findAll() {
+        return service.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public {{RESOURCE_NAME}}DTO findById(@PathVariable Long id) {
+        return service.findById(id).orElseThrow(() ->
+            new RuntimeException("{{RESOURCE_NAME}} not found with id: " + id));
+    }
+
+    @PostMapping
+    public {{RESOURCE_NAME}}DTO create(@RequestBody {{RESOURCE_NAME}}DTO dto) {
+        return service.create(dto);
+    }
+
+    @PutMapping("/{id}")
+    public {{RESOURCE_NAME}}DTO update(@PathVariable Long id, @RequestBody {{RESOURCE_NAME}}DTO dto) {
+        return service.update(id, dto);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        service.delete(id);
+    }
+}

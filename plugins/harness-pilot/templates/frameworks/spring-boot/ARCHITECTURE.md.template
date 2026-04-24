@@ -1,0 +1,110 @@
+# {{PROJECT_NAME}} Architecture
+
+## Spring Boot Layer Structure
+
+```
+src/main/java/com/{{ORG_NAME}}/{{PROJECT_NAME}}/
+├── controller/        # REST endpoints (@RestController)
+├── service/           # Business logic (@Service)
+├── repository/        # Data access (JPA repositories)
+├── model/             # Domain entities (@Entity)
+├── dto/               # Data transfer objects
+├── config/            # Configuration classes
+├── exception/         # Custom exceptions
+└── util/              # Shared utilities
+```
+
+## Dependency Rules
+
+### Allowed Directions
+- controller → service (HTTP to business logic)
+- service → repository (business logic to data access)
+- service → service (domain service coordination)
+
+### Forbidden Directions
+- controller → repository (bypass business layer)
+- controller → model (DTOs should be used)
+- repository → service (data layer should not call business layer)
+
+## Common Annotations
+
+| Layer | Annotation | Purpose |
+|--------|-----------|---------|
+| controller | @RestController | HTTP endpoints |
+| controller | @RequestMapping | Route mapping |
+| service | @Service | Business logic |
+| service | @Transactional | Transaction boundaries |
+| repository | @Repository | Data access |
+| repository | @Entity | JPA entities |
+| model | @Table | Database table |
+| model | @Id | Primary key |
+
+## API Patterns
+
+### REST Endpoints
+```java
+@RestController
+@RequestMapping("/api/{{RESOURCE_NAME}}")
+@RequiredArgsConstructor
+public class {{RESOURCE_NAME}}Controller {
+    private final {{RESOURCE_NAME}}Service service;
+
+    @GetMapping
+    public List<{{RESOURCE_NAME}}DTO> findAll() {
+        return service.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public {{RESOURCE_NAME}}DTO findById(@PathVariable Long id) {
+        return service.findById(id).orElseThrow(NotFoundException::new);
+    }
+}
+```
+
+### Service Layer
+```java
+@Service
+@RequiredArgsConstructor
+public class {{RESOURCE_NAME}}Service {
+    private final {{RESOURCE_NAME}}Repository repository;
+
+    public List<{{RESOURCE_NAME}}DTO> findAll() {
+        return repository.findAll().stream()
+            .map(this::toDTO)
+            .collect(Collectors.toList());
+    }
+
+    public Optional<{{RESOURCE_NAME}}DTO> findById(Long id) {
+        return repository.findById(id).map(this::toDTO);
+    }
+}
+```
+
+## Configuration
+
+### Application Properties
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/{{DB_NAME}}
+    username: {{DB_USER}}
+    password: {{DB_PASSWORD}}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+logging:
+  level:
+    com.{{ORG_NAME}}.{{PROJECT_NAME}}: DEBUG
+```
+
+## Build Commands
+- Maven: `mvn clean install`
+- Gradle: `gradle build`
+- Package: `mvn package -DskipTests`
+- Run: `java -jar target/{{PROJECT_NAME}}-0.0.1.jar`
+
+## Test Commands
+- Maven: `mvn test`
+- Gradle: `gradle test`
+- Coverage: `mvn jacoco:report`

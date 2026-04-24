@@ -1,0 +1,162 @@
+#!/usr/bin/env java
+/**
+ * Dependency Linter for Java
+ * Enforces layer dependency rules and package structure.
+ *
+ * Usage: java .harness/scripts/lint-deps.java
+ */
+
+import java.nio.file.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.regex.*;
+
+public class LintDeps {
+
+  // Configuration
+  private static final String LAYER_MAPPING_FILE = ".harness/layer-mapping.json";
+
+  public static void main(String[] args) {
+    String projectDir = System.getProperty("user.dir");
+    String layerMappingFile = Paths.get(projectDir, LAYER_MAPPING_FILE).toString();
+    Map<String, String> layerMapping = loadLayerMapping(layerMappingFile);
+
+    List<DependencyViolation> violations = scanJavaFiles(projectDir, layerMapping);
+
+    if (violations.isEmpty()) {
+      System.out.println("✓ No dependency violations found");
+      System.exit(0);
+    }
+
+    for (DependencyViolation v : violations) {
+      System.out.printf("✗ %s:%d - %s → %s (forbidden)%n",
+        v.sourceFile, v.lineNumber, v.fromLayer, v.toLayer);
+    }
+
+    System.out.printf("Found %d violation(s)%n", violations.size());
+    System.exit(1);
+  }
+
+  private static Map<String, String> loadLayerMapping(String filepath) {
+    Map<String, String> mapping = new HashMap<>();
+
+    try {
+      List<String> lines = Files.readAllLines(Paths.get(filepath));
+      Pattern pkgPattern = Pattern.compile(""([^"]+)":\s*"([^"]+)"");
+
+      for (String line : lines) {
+        java.util.regex.Matcher m = pkgPattern.matcher(line);
+        if (m.find()) {
+          mapping.put(m.group(1).replace('.', '/'), m.group(2));
+        }
+      }
+    } catch (Exception e) {
+      // No layer mapping file
+    }
+
+    return mapping;
+  }
+
+  private static String getLayer(String filePath, Map<String, String> layerMapping) {
+    String pkg = extractPackage(filePath);
+    for (Map.Entry<String, String> entry : layerMapping.entrySet()) {
+      if (pkg.startsWith(entry.getKey())) {
+        return entry.getValue();
+      }
+    }
+    return "unknown";
+  }
+
+  private static String extractPackage(String filePath) {
+    try {
+      List<String> lines = Files.readAllLines(Paths.get(filePath));
+      for (String line : lines) {
+        java.util.regex.Matcher m = Pattern.compile("package\s+([a-z][a-z0-9.]*)").matcher(line);
+        if (m.find()) {
+          return m.group(1);
+        }
+      }
+    } catch (Exception e) {
+      // File not readable
+    }
+    return "";
+  }
+
+  private static List<DependencyViolation> scanJavaFiles(String rootDir, Map<String, String> layerMapping) {
+    List<DependencyViolation> violations = new ArrayList<>();
+    Files.walk(Paths.get(rootDir))
+      .filter(p -> p.toString().endsWith(".java"))
+      .filter(p -> !p.toString().contains("/test/"))
+      .forEach(file -> {
+        try {
+          List<String> imports = extractImports(file);
+          String fromLayer = getLayer(file.toString(), layerMapping);
+          String fromPackage = extractPackage(file.toString());
+
+          for (String imp : imports) {
+            if (imp.startsWith(".")) continue; // Skip relative
+
+            String targetFile = findSourceFile(rootDir, imp);
+            if (targetFile != null) {
+              String toLayer = getLayer(targetFile, layerMapping);
+              String toPackage = extractPackage(targetFile);
+
+              if (isForbiddenDependency(fromLayer, toLayer, fromPackage, toPackage)) {
+                violations.add(new DependencyViolation(
+                  fromPackage.replace('/', '.') + ".java",
+                  findLineNumber(file, imp),
+                  fromLayer,
+                  toLayer
+                ));
+              }
+            }
+          }
+        } catch (Exception e) {
+          // Skip files with errors
+        }
+      });
+
+    return violations;
+  }
+
+  private static List<String> extractImports(Path file) {
+    List<String> imports = new ArrayList<>();
+    try {
+      List<String> lines = Files.readAllLines(file);
+      Pattern pattern = Pattern.compile("import\s+([a-z][a-z0-9.]*)");
+      for (String line : lines) {
+        java.util.regex.Matcher m = pattern.matcher(line);
+        if (m.find() && !m.group(1).startsWith("java.")) {
+          imports.add(m.group(1));
+        }
+      }
+    } catch (Exception e) {}
+    return imports;
+  }
+
+  private static String findSourceFile(String rootDir, String pkg) {
+    Path targetPath = Paths.get(rootDir, pkg.replace('.', '/') + ".java");
+    return Files.exists(targetPath) ? targetPath.toString() : null;
+  }
+
+  private static boolean isForbiddenDependency(String from, String to, String fromPkg, String toPkg) {
+    return !to.equals(from) && !fromPkg.startsWith(toPkg);
+  }
+
+  private static int findLineNumber(Path file, String target) {
+    try {
+      List<String> lines = Files.readAllLines(file);
+      for (int i = 0; i < lines.size(); i++) {
+        if (lines.get(i).contains(target)) return i + 1;
+      }
+    } catch (Exception e) {}
+    return 0;
+  }
+
+  static class DependencyViolation {
+    String sourceFile;
+    int lineNumber;
+    String fromLayer;
+    String toLayer;
+  }
+}

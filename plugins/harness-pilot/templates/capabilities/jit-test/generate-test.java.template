@@ -1,0 +1,87 @@
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.*;
+import org.mockito.Mockito;
+import org.mockito.Mock;
+import org.mockito.InjectMocks;
+
+import com.{{ORG_NAME}}.{{PROJECT_NAME}}.{{SOURCE_CLASS}};
+
+/**
+ * Generated test for {{SOURCE_CLASS}}
+ * Generated on: {{GENERATED_DATE}}
+ */
+class {{SOURCE_CLASS}}Test {
+
+    @Mock
+    private {{SOURCE_CLASS}}Repository repository;
+
+    @InjectMocks
+    private {{SOURCE_CLASS}}Service service;
+
+    @BeforeEach
+    void setUp() {
+        Mockito.openMocks(this);
+    }
+
+    @AfterEach
+    void tearDown() {
+        Mockito.reset();
+    }
+
+    @Test
+    void testFindAll() {
+        List<{{SOURCE_CLASS}}> expected = List.of(
+            {{SOURCE_CLASS}}.builder().id(1L).name("Test1").build(),
+            {{SOURCE_CLASS}}.builder().id(2L).name("Test2").build()
+        );
+
+        when(repository.findAll()).thenReturn(expected);
+
+        List<{{SOURCE_CLASS}}DTO> result = service.findAll();
+
+        assertFalse(result.isEmpty());
+        assertEquals(2, result.size());
+        assertEquals("Test1", result.get(0).getName());
+        verify(repository).findAll();
+    }
+
+    @Test
+    void testFindById() {
+        {{SOURCE_CLASS}} entity = {{SOURCE_CLASS}}.builder().id(1L).name("Test").build();
+
+        when(repository.findById(1L)).thenReturn(java.util.Optional.of(entity));
+
+        var result = service.findById(1L);
+
+        assertTrue(result.isPresent());
+        assertEquals("Test", result.get().getName());
+        verify(repository).findById(1L);
+    }
+
+    @Test
+    void testCreate() {
+        {{SOURCE_CLASS}}DTO dto = {{SOURCE_CLASS}}DTO.builder().name("New Test").build();
+
+        service.create(dto);
+
+        verify(repository).save(any({{SOURCE_CLASS}}.class));
+    }
+
+    @Test
+    void testUpdate() {
+        {{SOURCE_CLASS}}DTO dto = {{SOURCE_CLASS}}DTO.builder().id(1L).name("Updated").build();
+
+        service.update(1L, dto);
+
+        verify(repository).save(any({{SOURCE_CLASS}}.class));
+    }
+
+    @Test
+    void testDelete() {
+        service.delete(1L);
+
+        verify(repository).deleteById(1L);
+    }
+}

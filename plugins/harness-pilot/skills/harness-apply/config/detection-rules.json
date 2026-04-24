@@ -21,6 +21,10 @@
     "rust": {
       "files": ["Cargo.toml"],
       "extensions": [".rs"]
+    },
+    "java": {
+      "files": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "extensions": [".java"]
     }
   },
   "frameworks": {
@@ -48,17 +52,29 @@
     "gin": {
       "language": "go",
       "dependencies": ["gin"]
+    },
+    "spring-boot": {
+      "language": "java",
+      "dependencies": ["spring-boot-starter"],
+      "files": ["application.yml", "application.yaml", "application.properties"],
+      "directories": ["src/main/java"]
+    },
+    "spring-mvc": {
+      "language": "java",
+      "dependencies": ["spring-webmvc"]
     }
   },
   "directories": {
     "source": [
       "src/", "app/", "lib/", "components/",
       "services/", "types/", "utils/", "hooks/",
-      "contexts/", "pages/", "api/", "handlers/", "routes/"
+      "contexts/", "pages/", "api/", "handlers/", "routes/",
+      "src/main/java/", "src/test/java/"
     ],
     "config": [
       "tsconfig.json", "package.json", "go.mod", "Cargo.toml",
-      "requirements.txt", "pyproject.toml", "setup.py", "settings.py", "manage.py"
+      "requirements.txt", "pyproject.toml", "setup.py", "settings.py", "manage.py",
+      "pom.xml", "build.gradle", "build.gradle.kts"
     ]
   }
 }
