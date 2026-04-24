@@ -332,6 +332,93 @@ Agent 输出：
 manifest.json 记录完整状态，增量更新不会覆盖你的自定义规则。
 ```
 
+### 场景七：跨会话任务恢复（Handoff 机制）
+
+```bash
+你：帮我给这个项目加 Harness，包括完整验证
+
+Agent 执行中...
+[执行 40+ 次 tool call 后]
+
+=== 上下文接近限制 ===
+检测到 tokens: 124,500 / 200,000
+触发 Handoff 机制
+
+=== Handoff 触发 ===
+任务 ID: task_20260424_143022_a1b2c3d4
+状态: Ralph Wiggum Loop - 第 1 轮完成，验证失败
+
+已保存到: .harness/handoffs/sess_20260424_143022/
+  - agent-state.json (前一个 agent 的状态)
+  - context.json (关键决策和假设)
+  - resume.json (恢复指令)
+
+待修复问题:
+  1. src/handler/auth.ts - 缺少错误路径测试
+  2. src/handler/auth.ts - 架构违规（导入 internal/config）
+
+=== 会话结束 ===
+
+恢复方式:
+  /harness-apply --resume
+  或说: "继续之前的任务"
+```
+
+第二天，你继续工作：
+
+```bash
+你：继续之前的任务
+
+Agent: 检测到未完成任务 task_20260424_143022_a1b2c3d4
+
+=== 恢复摘要 ===
+上次位置: Ralph Wiggum Loop - 第 1 轮
+关键决策:
+  - 使用 Layer 3 放置 auth handler
+  - 实现 JWT 验证
+
+加载上下文... ✓
+
+=== 第 2 轮 Ralph Wiggum Loop ===
+✓ Code reviewer: 发现 2 个问题
+✓ Auto-fix: 修复错误路径测试，架构问题需手动修复
+✓ 验证: build 通过, lint-arch 通过, test 通过
+
+=== 任务完成 ===
+总轮数: 2
+修改文件: 3
+测试结果: 全部通过
+```
+
+**Handoff 的核心价值：**
+
+| 问题 | Handoff 的解法 |
+|------|---------------|
+| 上下文被错误日志填满 | 定期清空，从干净状态重启 |
+| Agent "遗忘"最初目标 | 通过 artifacts 持久化关键决策 |
+| 长任务单会话跑不完 | 跨会话接力，任意时间点可恢复 |
+| 恢复后不知道从哪开始 | next-steps.json 明确下一步 |
+
+**文件结构：**
+
+```
+.harness/
+├── tasks/                    # 任务 artifacts
+│   ├── {task-id}/
+│   │   ├── task.json         # 任务状态和进度
+│   │   ├── checkpoint.json    # 检查点快照
+│   │   └── next-steps.json   # 下一步骤
+│   └── .current              # 当前任务符号链接
+└── handoffs/                 # 跨会话 handoffs
+    ├── {session-id}/
+    │   ├── agent-state.json  # 前一个 agent 的状态
+    │   ├── context.json      # 上下文摘要（关键决策、假设）
+    │   └── resume.json      # 恢复指令
+    └── .latest              # 最新 handoff 符号链接
+```
+
+就像接力赛——跑不动了就把接力棒交给下一个人，不用从头重新跑。
+
 ---
 
 ## 五、设计思路
@@ -345,6 +432,19 @@ manifest.json 记录完整状态，增量更新不会覆盖你的自定义规则
 | **情景记忆** | "上次踩坑是 macOS 的问题" | 记录具体问题和解决方法 |
 | **程序记忆** | "做披萨要先揉面再烤" | 记录标准操作流程 |
 | **失败记忆** | "我总在 deadline 前熬夜" | 分析失败模式，避免再犯 |
+
+### 第四种：跨会话记忆（Handoff）
+
+Agent 的上下文窗口是有限的，长任务执行到一半就会被错误日志、代码 diff 填满。
+
+Handoff 机制通过**结构化 artifacts** 实现跨会话状态传递：
+
+```
+Session A → 写到文件 → Session B
+(agent-state.json, context.json, resume.json)
+```
+
+不是依赖 AI 的"记忆"，而是通过文件系统持久化——不会出错，不会遗忘，不会被上下文压缩掉。
 
 ### 文件结构长什么样？
 
@@ -363,14 +463,25 @@ my-project/
     ├── hooks/
     │   └── post-commit       ← git post-commit 触发验证
     ├── memory/            ← 三种记忆
-    ├── tasks/             ← 任务状态
+    ├── tasks/             ← 任务状态和检查点（handoff 用）
+    │   ├── {task-id}/
+    │   │   ├── task.json
+    │   │   ├── checkpoint.json
+    │   │   └── next-steps.json
+    │   └── .current
+    ├── handoffs/          ← 跨会话 handoffs
+    │   ├── {session-id}/
+    │   │   ├── agent-state.json
+    │   │   ├── context.json
+    │   │   └── resume.json
+    │   └── .latest
     ├── trace/             ← 失败轨迹
     └── rules/
         └── common/
             └── safety.md  ← AI 安全约束
 ```
 
-所有生成文件都集中在 `.harness/` 目录下，不污染项目根目录。`manifest.json` 记录当前状态，支持增量更新。
+所有生成文件都集中在 `.harness/` 目录下，不污染项目根目录。`manifest.json` 记录当前状态，支持增量更新；`tasks/` 和 `handoffs/` 支持跨会话任务恢复。
 
 ### 在动手之前先问"能不能做"
 
@@ -711,12 +822,16 @@ harness-apply 开始执行，每个结构性操作前先跑预验证
   ↓
 完成后 Ralph Wiggum Loop 自动审查-修复（最多 3 轮）
   ↓
-每个阶段存检查点、跑验证
+上下文接近限制？触发 Handoff，保存状态到 artifacts
+  ↓
+新会话恢复：从 artifacts 加载上下文，继续执行
   ↓
 任务做完，经验教训记下来，下一个 Agent 接着用
 ```
 
 Agent 不需要更聪明——它只是能看见更多了。
+
+也不用担心长任务跑不完——Handoff 机制让它可以跨会话接力，就像跑马拉松可以换人接棒。
 
 ### 最后一句
 
