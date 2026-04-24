@@ -216,6 +216,9 @@ my-project/
     ├── scripts/
     │   ├── lint-deps.*        # Layer dependency checking
     │   ├── lint-quality.*     # Code quality rules
+    │   ├── lint-imports.*     # Import restriction and circular dependency detection
+    │   ├── lint-semantic.*   # Semantic business logic validation
+    │   ├── lint-tsc.*        # TypeScript compilation checking
     │   └── validate.*         # Unified validation pipeline
     ├── rules/
     │   ├── common/
@@ -223,10 +226,39 @@ my-project/
     │   │   └── git-workflow.md # Git workflow rules
     │   └── {language}/
     │       └── development.md # Language-specific guidelines
-    ├── memory/                # Agent experience storage
+    ├── memory/                # Agent experience storage (episodic/procedural)
     ├── trace/                 # Failure records for pattern analysis
     ├── hooks/                 # Git hooks (post-commit validation)
     └── tasks/                 # Task state tracking
+```
+
+**Plugin Structure (harness-pilot internal):**
+
+```
+plugins/harness-pilot/
+├── .claude-plugin/     # Plugin metadata (plugin.json)
+├── .harness/           # Harness infrastructure for plugin
+├── agents/             # Agent definitions (code-reviewer, refactoring-agent)
+├── hooks/              # Session hooks
+├── lib/                # Shared utility modules (Layer 2)
+│   ├── config.js       # Configuration loading utilities
+│   ├── constants.js    # Centralized constants
+│   ├── detect-language.js # Language/framework detection
+│   ├── fs-utils.js    # File system operations
+│   ├── path-utils.js  # Cross-platform path handling
+│   └── README.md      # lib/ documentation
+├── schemas/            # JSON schemas
+├── scripts/            # Build and utility scripts
+│   └── template-engine.js # Template rendering engine
+├── skills/             # Claude Code skills
+│   ├── harness-analyze/  # Analysis skill
+│   └── harness-apply/    # Generation/apply skill
+├── templates/          # Code generation templates
+│   ├── base/            # Generic templates
+│   ├── languages/       # Language-specific templates
+│   ├── frameworks/      # Framework-specific templates
+│   └── rules/           # Rule templates
+└── tests/              # Plugin tests
 ```
 
 **Key Features:**
@@ -286,6 +318,7 @@ analyze → apply → develop → apply (loop) → ship
 | TypeScript | Full support (lint scripts + rules) |
 | JavaScript | Rules only |
 | Python | Full support (lint scripts + rules) |
+| Java | Rules and detection rules |
 | Go | Full support (lint scripts + rules) |
 
 ## Supported Frameworks
@@ -297,7 +330,10 @@ analyze → apply → develop → apply (loop) → ship
 | Express.js | JavaScript | Template available |
 | Django | Python | Template available |
 | FastAPI | Python | Template available |
+| Flask | Python | Template available |
 | Gin | Go | Template available |
+| Spring Boot | Java | Template available |
+| Spring MVC | Java | Template available |
 
 ## Documentation
 

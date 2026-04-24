@@ -36,15 +36,31 @@ harness-pilot/
 │       ├── hooks/                     # Session hooks
 │       │   ├── hooks.json
 │       │   └── session-start
+│       ├── lib/                       # Shared utility modules (Layer 2)
+│       │   ├── config.js             # Configuration loading
+│       │   ├── constants.js          # Centralized constants
+│       │   ├── detect-language.js    # Language/framework detection
+│       │   ├── fs-utils.js           # File system operations
+│       │   ├── path-utils.js         # Cross-platform paths
+│       │   └── README.md             # lib/ documentation
 │       ├── scripts/
 │       │   └── template-engine.js     # Template rendering engine
 │       ├── skills/
 │       │   ├── harness-analyze/       # Health analysis & scoring
+│       │   │   └── tools/            # Analysis tools
 │       │   └── harness-apply/         # Generation + reentrant update + Loop
+│       │       └── tools/            # Apply tools (detect, select, generate, loop)
 │       ├── templates/
 │       │   ├── base/                  # Base templates
 │       │   ├── languages/             # Language-specific templates
+│       │   │   ├── typescript/
+│       │   │   ├── python/
+│       │   │   ├── java/
+│       │   │   └── go/
 │       │   ├── frameworks/            # Framework-specific templates
+│       │   │   ├── nextjs/
+│       │   │   ├── django/
+│       │   │   └── spring/
 │       │   └── rules/                 # Rule templates
 │       └── tests/
 │           └── template-engine.test.js
@@ -56,6 +72,10 @@ harness-pilot/
 │   ├── FAQ.md
 │   └── overview-design.md
 ├── README.md
+└── .harness/                          # Harness infrastructure for plugin
+    ├── docs/
+    ├── scripts/
+    └── manifest.json
 ```
 
 ## Adding a New Language
@@ -147,10 +167,45 @@ node plugins/harness-pilot/scripts/template-engine.js \
 5. Run `harness-apply` again to test reentrant update
 6. Verify Ralph Wiggum Loop executes correctly
 
+### Unit Testing
+
+Run the template engine tests:
+```bash
+node plugins/harness-pilot/tests/template-engine.test.js
+```
+
 ### Test Projects
 
 Use existing test projects as reference:
 - `test-projects/harness-test-nextjs/`
+
+## Contributing to lib/ Modules
+
+The `lib/` directory contains shared utility modules that are imported by skills and scripts. When contributing to lib:
+
+1. **Follow Layer 2 rules**: lib modules can import from each other and external packages, but NOT from skills or agents
+2. **Keep modules focused**: Each module has a single responsibility
+3. **Add JSDoc comments**: Document all exported functions
+4. **Update README.md**: Document new functions in `lib/README.md`
+
+**Module Responsibilities:**
+
+| Module | Responsibility |
+|--------|----------------|
+| `config.js` | Load JSON configuration files |
+| `constants.js` | Store shared constants (paths, thresholds, etc.) |
+| `detect-language.js` | Detect project language and framework |
+| `fs-utils.js` | File system operations with error handling |
+| `path-utils.js` | Cross-platform path handling |
+
+**Import Example:**
+```js
+// In a skill tool
+import { loadConfig } from '../lib/config.js';
+import { detectLanguage } from '../lib/detect-language.js';
+import { readJSON, writeJSON } from '../lib/fs-utils.js';
+import { getManifestPath } from '../lib/constants.js';
+```
 
 ## License
 

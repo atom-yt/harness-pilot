@@ -93,6 +93,9 @@ my-project/
     ├── scripts/
     │   ├── lint-deps.*        # Layer dependency checking
     │   ├── lint-quality.*     # Code quality rules
+    │   ├── lint-imports.*     # Import restrictions and circular dependencies
+    │   ├── lint-semantic.*   # Semantic business logic validation
+    │   ├── lint-tsc.*        # TypeScript compilation checking
     │   └── validate.*         # Unified validation pipeline
     ├── rules/
     │   ├── common/
@@ -104,6 +107,25 @@ my-project/
     ├── trace/                 # Failure records
     ├── hooks/                 # Git hooks (post-commit)
     └── manifest.json          # Harness state for reentrant updates
+```
+
+**Plugin Structure (harness-pilot internal):**
+
+```
+plugins/harness-pilot/
+├── lib/                    # Shared utility modules (Layer 2)
+│   ├── config.js          # Configuration loading
+│   ├── constants.js       # Centralized constants
+│   ├── detect-language.js # Language/framework detection
+│   ├── fs-utils.js       # File system operations
+│   ├── path-utils.js     # Cross-platform paths
+│   └── README.md         # lib/ documentation
+├── skills/
+│   ├── harness-analyze/   # Analysis skill
+│   └── harness-apply/     # Generation/apply skill
+├── agents/               # Agent definitions
+├── templates/            # Code generation templates
+└── tests/               # Plugin tests
 ```
 
 ## Agents
@@ -118,9 +140,10 @@ Used by harness-apply during Ralph Wiggum Loop review phase. Reads `.harness/doc
 
 | Language | Status | Templates Available |
 |----------|--------|---------------------|
-| TypeScript | Full | lint-deps.ts, lint-quality.ts, validate.ts, development.md |
+| TypeScript | Full | lint-deps.ts, lint-quality.ts, lint-imports.ts, lint-semantic.ts, lint-tsc.ts, validate.ts, development.md |
 | JavaScript | Rules | development.md |
 | Python | Full | lint-deps.py, lint-quality.py, validate.py, development.md |
+| Java | Rules | development.md, detection rules |
 | Go | Full | lint-deps.go, lint-quality.go, validate.go, development.md |
 
 ## Supported Frameworks
@@ -132,7 +155,10 @@ Used by harness-apply during Ralph Wiggum Loop review phase. Reads `.harness/doc
 | Express.js | JavaScript | Template available |
 | Django | Python | Template available |
 | FastAPI | Python | Template available |
+| Flask | Python | Template available |
 | Gin | Go | Template available |
+| Spring Boot | Java | Template available |
+| Spring MVC | Java | Template available |
 
 ## Error Handling
 

@@ -10,7 +10,7 @@
     "git-workflow",
     "dev-rules"
   ],
-  "lastApplied": "2026-04-24T00:02:01.526Z",
+  "lastApplied": "2026-04-25T00:29:24.000Z",
   "capabilities": {
     "jitTest": true,
     "codeTemplates": true,
@@ -26,5 +26,24 @@
   "handoffs": {
     "latest": null,
     "enabled": true
-  }
+  },
+  "newDirectories": [
+    "plugins/harness-pilot/lib/"
+  ],
+  "newFiles": [
+    "plugins/harness-pilot/lib/config.js",
+    "plugins/harness-pilot/lib/constants.js",
+    "plugins/harness-pilot/lib/detect-language.js",
+    "plugins/harness-pilot/lib/fs-utils.js",
+    "plugins/harness-pilot/lib/path-utils.js",
+    "plugins/harness-pilot/lib/README.md"
+  ],
+  "loop": {
+    "lastRun": "2026-04-25T00:29:24.000Z",
+    "iterations": 1,
+    "status": "PASS"
+  },
+  "documentationUpdates": [
+    "2026-04-25T00:32:00.000Z - Added harness-pilot Plugin Architecture section to ARCHITECTURE.md documenting lib/ directory"
+  ]
 }

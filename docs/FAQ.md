@@ -47,18 +47,28 @@ A harness provides:
 ### What files are created?
 
 ```
-AGENTS.md                    # Navigation map
-docs/ARCHITECTURE.md         # Architecture, layers, rules
-docs/DEVELOPMENT.md          # Build/test/lint commands
-.harness/scripts/lint-deps.*          # Layer dependency checker
-.harness/scripts/lint-quality.*       # Code quality checker
-.harness/scripts/validate.*           # Validation pipeline
-.harness/memory/              # Agent memory storage
-.harness/tasks/               # Task tracking
-.harness/trace/               # Execution traces
-.harness/rules/common/safety.md       # AI safety constraints
-.harness/rules/common/git-workflow.md # Git workflow rules
-.harness/rules/{language}/development.md # Language guidelines
+.harness/
+├── docs/
+│   ├── ARCHITECTURE.md         # Architecture, layers, rules
+│   ├── DEVELOPMENT.md          # Build/test/lint commands
+│   └── PRODUCT_SENSE.md         # Business context
+├── scripts/
+│   ├── lint-deps.*             # Layer dependency checker
+│   ├── lint-quality.*          # Code quality checker
+│   ├── lint-imports.*          # Import restriction and circular dependency detection
+│   ├── lint-semantic.*        # Semantic business logic validation
+│   ├── lint-tsc.*             # TypeScript compilation checking
+│   └── validate.*              # Validation pipeline
+├── rules/
+│   ├── common/
+│   │   ├── safety.md           # AI safety constraints
+│   │   └── git-workflow.md     # Git workflow rules
+│   └── {language}/
+│       └── development.md      # Language guidelines
+├── memory/                      # Agent memory storage
+├── trace/                       # Execution traces
+├── hooks/                       # Git hooks
+└── manifest.json                # Harness state tracking
 ```
 
 ### Can I customize the generated files?
@@ -119,13 +129,50 @@ The lint-quality script enforces:
 - No debugger statements
 - Optional: No hardcoded URLs, no `any` types
 
+### How do the frontend lint scripts work (TypeScript/JavaScript)?
+
+The harness includes enhanced frontend-specific linting:
+
+| Script | Purpose |
+|--------|---------|
+| `lint-tsc.*` | TypeScript compiler check (tsc --noEmit) |
+| `lint-imports.*` | Import restriction rules and circular dependency detection |
+| `lint-semantic.*` | Business logic validation (start < end, price > 0) |
+
+**Import Restrictions:**
+- No relative parent imports (../) beyond configured depth
+- Max depth of ../ imports (configurable)
+- Require explicit extensions (optional)
+- No barrel file imports (optional)
+
+**Circular Dependency Detection:**
+- Builds dependency graph from imports
+- Uses DFS to find cycles
+- Reports all circular paths
+- Prevents initialization order issues
+
+**Boundary Violation Check:**
+- Validates layer transitions
+- Prevents API → Model direct access
+- Enforces service layer for data access
+- Detects architecture violations
+
+**Semantic Rules:**
+- Business logic validation based on rules + model
+- Example: Activity time validation (startTime ≤ endTime)
+- Model-generated fix suggestions
+- Custom rules via configuration
+
 ### How does validate work?
 
 The validate script runs a pipeline:
 1. Build the project
-2. Run architecture lint (lint-deps)
-3. Run quality lint (lint-quality)
-4. Run tests
+2. Run TypeScript compiler check (if TypeScript)
+3. Run import restrictions and circular dependency check
+4. Run architecture lint (lint-deps)
+5. Run quality lint (lint-quality)
+6. Run semantic validation (if enabled)
+7. Run tests
 
 ## Error Troubleshooting
 
