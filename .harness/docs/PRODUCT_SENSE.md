@@ -1,4 +1,4 @@
-# harness-test-nextjs — Product Context
+# harness-pilot — Product Context
 
 ## What This Project Does
 
@@ -62,4 +62,3 @@
 
 - [ ] 
 - [ ] 
-
