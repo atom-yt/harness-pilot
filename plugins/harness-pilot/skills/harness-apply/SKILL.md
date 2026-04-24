@@ -168,6 +168,50 @@ If loop exhausted:
   - Suggest manual intervention
 ```
 
+## Handoff (Cross-Session Resume)
+
+**Trigger conditions:**
+1. Context window approaching limit (tokens > 100k)
+2. Loop iterations exhausted with unresolved issues
+3. User explicitly requests handoff
+
+**Handoff flow:**
+```
+1. CALL loop("checkpoint", { state, changes })
+   Saves current execution state
+
+2. CALL loop("handoff", { taskId, reason })
+   Creates handoff artifacts:
+   - .harness/tasks/{taskId}/checkpoint.json
+   - .harness/tasks/{taskId}/next-steps.json
+   - .harness/handoffs/{sessionId}/agent-state.json
+   - .harness/handoffs/{sessionId}/resume.json
+
+3. Output resume instructions:
+   === Handoff Triggered ===
+   Reason: {reason}
+   Task ID: {taskId}
+   Resume: /harness-apply --resume {taskId}
+```
+
+**Resume flow:**
+```
+1. Detect resume intent:
+   - User says "continue", "resume", "--resume"
+   - User provides task ID
+
+2. CALL loop("resolve", [handoffId])
+   Loads handoff artifacts
+   Verifies checksum
+
+3. From clean context:
+   - Load contextSummary from resume.json
+   - Load keyFiles mentioned in state
+   - Execute next-steps.json sequentially
+
+4. Continue from checkpoint
+```
+
 ## Superpowers Detection
 
 Before starting, check if Superpowers is installed:

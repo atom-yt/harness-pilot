@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Next Steps Artifact",
+  "description": "Steps to continue after handoff",
+  "type": "object",
+  "required": ["nextAction", "priority", "steps"],
+  "properties": {
+    "nextAction": {
+      "type": "string",
+      "enum": ["continue-loop", "run-validation", "finalize", "report-failure"],
+      "description": "Next action to take"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["immediate", "high", "medium", "low"],
+      "description": "Execution priority"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "action"],
+        "properties": {
+          "id": { "type": "string" },
+          "action": { "type": "string" },
+          "condition": { "type": "string" },
+          "params": { "type": "object" },
+          "expectedOutput": { "type": "string" }
+        }
+      },
+      "description": "Steps to execute"
+    },
+    "fallback": {
+      "type": "object",
+      "properties": {
+        "condition": { "type": "string" },
+        "action": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "description": "Fallback action when steps fail"
+    }
+  }
+}

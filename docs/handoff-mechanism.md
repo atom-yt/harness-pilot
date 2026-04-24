@@ -1,8 +1,12 @@
 # Harness Pilot Handoff 机制设计
 
 > 基于 Anthropic Effective Harnesses 的跨会话状态恢复设计
+>
+> **状态：已实现 ✓** (2026-04-24)
 
 ---
+
+## 快速开始
 
 ## 设计背景
 
@@ -455,6 +459,54 @@ Harness 应用完成！
 | **上下文恢复不完整** | 包含 keyDecisions 和 assumptions 字段 |
 | **循环 handoff** | 限制最大 handoff 次数（如 5 次） |
 | **任务状态不一致** | 使用事务式更新，确保原子性 |
+
+---
+
+## CLI 快速参考
+
+### loop.js 命令
+
+```bash
+# 查看帮助
+node loop.js
+
+# 创建检查点
+node loop.js checkpoint
+
+# 触发 handoff
+node loop.js handoff <taskId> <reason>
+# 示例
+node loop.js handoff task_20260424_a1b2c3d4 "context-limit"
+
+# 恢复会话
+node loop.js resolve [sessionId]
+# 示例（使用最新）
+node loop.js resolve
+# 示例（指定会话）
+node loop.js resolve sess_1713945022000
+```
+
+### 检查当前状态
+
+```bash
+# 检查是否有活动任务
+cat .harness/tasks/.current/task.json 2>/dev/null || echo "No active task"
+
+# 检查是否有未恢复的 handoff
+cat .harness/handoffs/.latest/resume.json 2>/dev/null || echo "No pending handoff"
+```
+
+---
+
+## 实施状态
+
+| Phase | 内容 | 状态 | 日期 |
+|-------|------|------|
+| 1 | 基础结构 + JSON Schemas | ✓ 完成 | 2026-04-24 |
+| 2 | loop.js 工具实现 | ✓ 完成 | 2026-04-24 |
+| 3 | SKILL 集成 | ✓ 完成 | 2026-04-24 |
+| 4 | manifest.json 扩展 | ✓ 完成 | 2026-04-24 |
+| 5 | 测试与文档 | ✓ 完成 | 2026-04-24 |
 
 ---
 

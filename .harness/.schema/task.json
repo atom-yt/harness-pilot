@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task Artifact",
+  "description": "Task state and progress tracking artifact",
+  "type": "object",
+  "required": ["taskId", "type", "status", "startTime", "context", "progress"],
+  "properties": {
+    "taskId": {
+      "type": "string",
+      "pattern": "^task_[0-9]{8}T[0-9]{6}_[a-f0-9]{8}$",
+      "description": "Unique task identifier"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["harness-apply", "harness-analyze", "code-review", "e2e-test"],
+      "description": "Task type"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["running", "paused", "completed", "failed"],
+      "description": "Current task status"
+    },
+    "startTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Task start time (ISO 8601)"
+    },
+    "endTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Task end time (when completed/failed)"
+    },
+    "lastCheckpoint": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last checkpoint timestamp"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["initial", "codegen", "reentry"],
+      "description": "Execution mode"
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "language": { "type": "string" },
+        "framework": { "type": "string" },
+        "projectRoot": { "type": "string" }
+      },
+      "description": "Project context"
+    },
+    "progress": {
+      "type": "object",
+      "properties": {
+        "completedSteps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "currentStep": { "type": "string" },
+        "remainingSteps": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "iterationCount": { "type": "integer" },
+        "totalToolCalls": { "type": "integer" },
+        "errors": { "type": "integer" },
+        "contextTokens": { "type": "integer" }
+      }
+    },
+    "failureReason": {
+      "type": "string",
+      "description": "Reason for failure (when status=failed)"
+    }
+  }
+}

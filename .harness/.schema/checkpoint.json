@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Checkpoint Artifact",
+  "description": "Execution checkpoint with state and changes",
+  "type": "object",
+  "required": ["checkpointId", "timestamp", "state"],
+  "properties": {
+    "checkpointId": {
+      "type": "string",
+      "pattern": "^cp_[0-9]{13}$",
+      "description": "Unique checkpoint identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Checkpoint creation time"
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "phase": { "type": "string" },
+        "iteration": { "type": "integer" },
+        "reviewResult": { "type": "object" },
+        "testResult": { "type": "object" },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "action": { "type": "string" },
+              "lines": { "type": "string" }
+            }
+          }
+        }
+      },
+      "description": "Execution state at checkpoint"
+    },
+    "memorySnapshot": {
+      "type": "object",
+      "properties": {
+        "keyDecisions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "pendingQuestions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "description": "Agent memory snapshot"
+    }
+  }
+}

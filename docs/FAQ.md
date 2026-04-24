@@ -171,6 +171,50 @@ chmod +x .harness/scripts/*.go
 
 ## Advanced Questions
 
+### What is handoff and how does it work?
+
+Handoff is a cross-session resume mechanism that allows long-running tasks to continue after context limits are reached.
+
+**When does handoff trigger?**
+- Context window approaching limit (tokens > 100k)
+- Loop iterations exhausted with unresolved issues
+- User explicitly requests handoff
+
+**How to resume?**
+```bash
+# Say naturally
+"continue the previous task"
+
+# Or use explicit command
+/harness-apply --resume
+
+# Or specify task ID
+/harness-apply --resume task_20260424_a1b2c3d4
+```
+
+**Artifacts created:**
+- `.harness/tasks/{taskId}/` - Task state, checkpoint, next steps
+- `.harness/handoffs/{sessionId}/` - Agent state, resume instruction
+
+### How do I clean up handoff artifacts?
+
+Artifacts are automatically cleaned based on age:
+- **task artifacts**: 7 days (running), 30 days (completed)
+- **handoff artifacts**: 3 days (or immediately after successful resume)
+
+Manual cleanup:
+```bash
+# Remove all tasks
+rm -rf .harness/tasks/*
+
+# Remove all handoffs
+rm -rf .harness/handoffs/*
+
+# Remove specific task/handoff
+rm -rf .harness/tasks/task_20260424_a1b2c3d4
+rm -rf .harness/handoffs/sess_1713945022000
+```
+
 ### Can I use Harness Pilot on existing projects?
 
 Yes! Use `harness-analyze` first to assess the project, then `harness-apply` to customize setup for existing code.

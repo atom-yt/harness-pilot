@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Harness Manifest",
+  "description": "Main harness configuration and state file",
+  "type": "object",
+  "required": ["version", "language", "framework", "lastApplied"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\d+\.\d+\.\d+$",
+      "description": "Harness version that created this manifest"
+    },
+    "language": {
+      "type": "string",
+      "enum": ["typescript", "javascript", "python", "go", "rust", "java"],
+      "description": "Primary programming language"
+    },
+    "framework": {
+      "type": "string",
+      "description": "Framework (e.g., nextjs, react, express, django)"
+    },
+    "components": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Enabled components (ARCHITECTURE, DEVELOPMENT, etc.)"
+    },
+    "lastApplied": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last harness-apply execution timestamp"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "jitTest": { "type": "boolean" },
+        "codeTemplates": { "type": "boolean" },
+        "refactoring": { "type": "boolean" },
+        "e2e": { "type": "boolean" },
+        "security": { "type": "boolean" },
+        "monitoring": { "type": "boolean" }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "description": "Task tracking for handoff support",
+      "properties": {
+        "current": {
+          "type": "string",
+          "pattern": "^task_[0-9]{8}T[0-9]{6}_[a-f0-9]{8}$",
+          "description": "Current active task ID"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "taskId": { "type": "string" },
+              "status": { "type": "string" },
+              "endTime": { "type": "string", "format": "date-time" }
+            }
+          },
+          "description": "Task history"
+        }
+      }
+    },
+    "handoffs": {
+      "type": "object",
+      "description": "Handoff configuration",
+      "properties": {
+        "latest": {
+          "type": "string",
+          "pattern": "^sess_[0-9]{13}$",
+          "description": "Latest handoff session ID"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Handoff feature enabled"
+        }
+      }
+    }
+  }
+}

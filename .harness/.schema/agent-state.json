@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent State Artifact",
+  "description": "Previous agent state for handoff",
+  "type": "object",
+  "required": ["sessionId", "agentType", "terminationReason", "stateSnapshot"],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "pattern": "^sess_[0-9]{13}$",
+      "description": "Session identifier"
+    },
+    "agentType": {
+      "type": "string",
+      "enum": ["harness-apply", "harness-analyze", "code-reviewer"],
+      "description": "Agent type"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model used (e.g., claude-opus-4-6)"
+    },
+    "terminationReason": {
+      "type": "string",
+      "enum": ["context-window-reset", "max-iterations", "user-request", "error"],
+      "description": "Reason for handoff"
+    },
+    "stateSnapshot": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string" },
+        "currentStep": { "type": "string" },
+        "iteration": { "type": "integer" },
+        "contextTokens": { "type": "integer" },
+        "totalToolCalls": { "type": "integer" }
+      },
+      "description": "Agent state at termination"
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "taskArtifact": { "type": "string" },
+        "checkpoint": { "type": "string" },
+        "nextSteps": { "type": "string" }
+      },
+      "description": "Paths to related artifacts"
+    }
+  }
+}

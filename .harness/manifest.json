@@ -18,5 +18,13 @@
     "e2e": true,
     "security": false,
     "monitoring": false
+  },
+  "tasks": {
+    "current": null,
+    "history": []
+  },
+  "handoffs": {
+    "latest": null,
+    "enabled": true
   }
 }

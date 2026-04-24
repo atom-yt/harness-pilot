@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Resume Instruction Artifact",
+  "description": "Instructions for resuming a handoff session",
+  "type": "object",
+  "required": ["resumeInstruction", "validation"],
+  "properties": {
+    "resumeInstruction": {
+      "type": "object",
+      "required": ["action", "taskId", "contextSummary"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["load-task", "load-checkpoint", "continue-step"]
+        },
+        "taskId": { "type": "string" },
+        "resumeFrom": { "type": "string" },
+        "contextSummary": {
+          "type": "object",
+          "properties": {
+            "taskType": { "type": "string" },
+            "currentPhase": { "type": "string" },
+            "lastDecision": { "type": "string" },
+            "keyFiles": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "loadedMemories": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["checksum", "verified"],
+      "properties": {
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA256 checksum for integrity"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Verification status"
+        }
+      }
+    }
+  }
+}

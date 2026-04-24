@@ -58,6 +58,26 @@ All tools are in `plugins/harness-pilot/skills/harness-analyze/tools/`:
    Output: Visual ASCII report
 
 6. Show follow-up recommendations
+
+7. Check for active tasks/handoffs
+   - Check .harness/tasks/.current
+   - Check .harness/handoffs/.latest
+   - Display pending tasks if present
+```
+
+## Task Status Display
+
+Check for active tasks and handoffs:
+
+```
+if .harness/tasks/.current exists:
+  Read task.json
+  Display: { taskId, status, currentStep, lastCheckpoint }
+
+if .harness/handoffs/.latest exists:
+  Read resume.json
+  Display: { handoffId, taskId, resumeFrom, timestamp }
+  Suggest: Resume with /harness-apply --resume {taskId}
 ```
 
 ## Scoring Rubric
