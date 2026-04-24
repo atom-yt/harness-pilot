@@ -127,18 +127,13 @@ generate_test_file() {
     if command -v jq >/dev/null 2>&1; then
       JSON_DATA=$(jq -n --arg sf "$source_file" --arg tf "$test_framework" '{SOURCE_FILE: $sf, TEST_FRAMEWORK: $tf}')
     else
-      # Fallback: safe JSON escaping using bash parameter expansion
-      escape_json() {
-        local str="$1"
-        # Escape backslashes first, then double quotes
-        str="${str//\/\}"
-        str="${str//"/"}"
-        str="${str//$'\n'/\n}"
-        str="${str//$'\r'/\r}"
-        str="${str//$'\t'/\t}"
-        printf '%s' "$str"
-      }
-      JSON_DATA=$(printf '{"SOURCE_FILE":"%s","TEST_FRAMEWORK":"%s"}' \n        "$(escape_json "$source_file")" \n        "$(escape_json "$test_framework")")
+      # Fallback: use Node.js for reliable JSON escaping
+      JSON_DATA=$(node -e "
+        const source = process.argv[1];
+        const framework = process.argv[2];
+        // JSON.stringify automatically handles all escaping
+        console.log(JSON.stringify({ SOURCE_FILE: source, TEST_FRAMEWORK: framework }));
+      " -- "$source_file" "$test_framework")
     fi
     node "$PLUGIN_ROOT/scripts/template-engine.js" "$template" "$JSON_DATA" > "$test_file"
     echo "  ✓ $test_file"

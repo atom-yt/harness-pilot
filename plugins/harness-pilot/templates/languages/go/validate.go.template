@@ -143,20 +143,28 @@ func shouldSkipStep(step ValidationStep) bool {
 	}
 	if step.SkipIfNoTest {
 		// Check if there's a tests directory or _test.go files
-		if _, err := os.Stat("tests"); os.IsNotExist(err) {
-			// Check for _test.go files
+		// Check multiple locations - any one existing means tests are present
+		hasTest := false
+
+		// Check for tests directory
+		if _, err := os.Stat("tests"); err == nil {
+			hasTest = true
+		}
+
+		// Check for _test.go files in current directory
+		if !hasTest {
 			files, _ := os.ReadDir(".")
-			hasTest := false
 			for _, f := range files {
 				if strings.HasSuffix(f.Name(), "_test.go") {
 					hasTest = true
 					break
 				}
 			}
-			if !hasTest {
-				fmt.Printf("   ⊘ %s skipped (no tests found)\n", step.Name)
-				return true
-			}
+		}
+
+		if !hasTest {
+			fmt.Printf("   ⊘ %s skipped (no tests found)\n", step.Name)
+			return true
 		}
 	}
 	return false
@@ -188,7 +196,11 @@ func runStep(step ValidationStep) StepResult {
 	if err != nil {
 		fmt.Printf("   ✗ %s failed (%.0fs)\n", step.Name, duration.Seconds())
 		if len(output) > 0 {
-			fmt.Printf("   Error: %s\n", strings.TrimSpace(string(output)[:200]))
+			outStr := string(output)
+			if len(outStr) > 200 {
+				outStr = outStr[:200]
+			}
+			fmt.Printf("   Error: %s\n", strings.TrimSpace(outStr))
 		}
 		return StepResult{
 			Name:     step.Name,

@@ -158,12 +158,22 @@ def should_skip_step(step: ValidationStep) -> bool:
             # Test configuration files
             Path('pytest.ini').exists() or Path('pyproject.toml').exists() or
             Path('setup.cfg').exists() or Path('tox.ini').exists() or
-            # Test files in current directory
-            any(f.name.startswith('test_') for f in Path('.').iterdir() if f.is_file()) or
-            any(f.name.endswith('_test.py') for f in Path('.').iterdir() if f.is_file()) or
             # Test in src/tests or src/test directories
             Path('src/tests').exists() or Path('src/test').exists()
         )
+
+        # Check for test files (wrap in try-except for permission errors)
+        if not has_tests:
+            try:
+                has_test_files = (
+                    any(f.name.startswith('test_') for f in Path('.').iterdir() if f.is_file()) or
+                    any(f.name.endswith('_test.py') for f in Path('.').iterdir() if f.is_file())
+                )
+                has_tests = has_tests or has_test_files
+            except (PermissionError, OSError):
+                # If we can't read the directory, assume tests might exist
+                pass
+
         if not has_tests:
             print(f'   ⊘ {step.name} skipped (no tests found)')
             return True
