@@ -13,6 +13,49 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
+
+// ============================================================================
+// LRU Cache
+// ============================================================================
+
+class LRUCache {
+  constructor(maxSize = 100) {
+    this.maxSize = maxSize;
+    this.cache = new Map();
+  }
+
+  get(key) {
+    if (this.cache.has(key)) {
+      const value = this.cache.get(key);
+      this.cache.delete(key);
+      this.cache.set(key, value);
+      return value;
+    }
+    return undefined;
+  }
+
+  set(key, value) {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+// Global cache instance
+const TEMPLATE_CACHE = new LRUCache(100);
+
+function hashContext(context) {
+  return crypto.createHash('md5').update(JSON.stringify(context)).digest('hex');
+}
 
 // ============================================================================
 // Template Engine
@@ -21,6 +64,7 @@ import path from 'path';
 class TemplateEngine {
   constructor() {
     this.context = {};
+    this.useCache = true;
   }
 
   /**
@@ -51,6 +95,26 @@ class TemplateEngine {
    * Render a template string with the current context
    */
   render(template) {
+    if (!this.useCache) {
+      return this._renderImpl(template);
+    }
+
+    const cacheKey = `${hashContext(this.context)}:${template.slice(0, 50)}`;
+    const cached = TEMPLATE_CACHE.get(cacheKey);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const result = this._renderImpl(template);
+    TEMPLATE_CACHE.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Internal render implementation (without cache)
+   */
+  _renderImpl(template) {
     let result = template;
 
     // Process conditionals: {{#if VAR}}...{{/if}}

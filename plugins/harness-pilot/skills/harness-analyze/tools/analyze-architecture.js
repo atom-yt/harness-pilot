@@ -18,8 +18,11 @@ const __dirname = path.dirname(__filename);
 
 function loadConfig(filename) {
   try {
-    const configPath = path.join(__dirname, '../../harness-apply/config', filename);
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    // Support HARNESS_CONFIG_DIR override for testing/alternate locations
+    const configDir = process.env.HARNESS_CONFIG_DIR
+      ? path.join(process.env.HARNESS_CONFIG_DIR, filename)
+      : path.join(__dirname, '../../harness-apply/config', filename);
+    return JSON.parse(fs.readFileSync(configDir, 'utf8'));
   } catch (err) {
     return null;
   }

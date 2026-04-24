@@ -12,11 +12,31 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const CACHE_FILE = path.join(process.cwd(), '.harness/.analyze-cache.json');
+
 // ============================================================================
 // Analysis Functions
 // ============================================================================
 
-function analyzeDocs(projectDir = process.cwd()) {
+function loadCache() {
+  try {
+    const content = fs.readFileSync(CACHE_FILE, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return { timestamp: 0 };
+  }
+}
+
+function saveCache() {
+  try {
+    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+    fs.writeFileSync(CACHE_FILE, JSON.stringify({ timestamp: Date.now() }), 'utf8');
+  } catch {
+    // Ignore cache save errors
+  }
+}
+
+function analyzeDocs(projectDir = process.cwd(), incremental = false) {
   const harnessDir = path.join(projectDir, '.harness');
   const docsDir = path.join(harnessDir, 'docs');
 
@@ -64,7 +84,15 @@ function analyzeDocs(projectDir = process.cwd()) {
 // ============================================================================
 
 function main() {
-  const result = analyzeDocs();
+  const args = process.argv.slice(2);
+  const incremental = args.includes('--incremental') || args.includes('-i');
+
+  const result = analyzeDocs(undefined, incremental);
+
+  if (incremental) {
+    saveCache();
+  }
+
   console.log(JSON.stringify(result, null, 2));
 }
 

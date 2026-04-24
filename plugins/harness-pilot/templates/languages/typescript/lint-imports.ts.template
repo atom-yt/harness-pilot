@@ -152,6 +152,16 @@ function checkFile(filePath: string): ImportInfo[] {
 
   const imports = extractImports(content);
 
+  // Build line number index for imports (O(n) instead of O(n*m))
+  const importLineMap = new Map<string, number>();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const importMatch = line.match(/import\s+.*\s+from\s+['"]([^'"]+)['"]/);
+    if (importMatch) {
+      importLineMap.set(importMatch[1], i + 1);
+    }
+  }
+
   for (const importPath of imports) {
     // Only check internal imports (relative paths like ./ or ../)
     // Skip external dependencies and node_modules
@@ -159,7 +169,7 @@ function checkFile(filePath: string): ImportInfo[] {
       continue;
     }
 
-    const lineNum = lines.findIndex(line => line.includes(importPath)) + 1;
+    const lineNum = importLineMap.get(importPath) ?? lines.findIndex(line => line.includes(importPath)) + 1;
 
     for (const restriction of importRestrictions) {
       if (restriction.check(importPath, filePath, filePath)) {
