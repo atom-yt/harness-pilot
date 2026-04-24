@@ -117,6 +117,10 @@ class TemplateEngine {
 function resolveTemplate(type, language, framework) {
   const pluginRoot = path.join(__dirname, '../..', '..');
 
+  if (type === 'AGENTS') {
+    return path.join(pluginRoot, 'templates/base/AGENTS.md.template');
+  }
+
   if (type === 'ARCHITECTURE') {
     const priorities = [
       path.join(pluginRoot, 'templates/frameworks', framework, 'ARCHITECTURE.md.template'),
@@ -162,7 +166,8 @@ function generateHarness(options) {
     PROJECT_NAME: path.basename(projectDir),
     LANGUAGE: language,
     FRAMEWORK: framework,
-    GENERATED_AT: new Date().toISOString()
+    GENERATED_DATE: new Date().toISOString().split('T')[0],
+    CURRENT_YEAR: new Date().getFullYear().toString()
   };
 
   const engine = new TemplateEngine();
@@ -187,6 +192,16 @@ function generateHarness(options) {
       fs.mkdirSync(fullPath, { recursive: true });
       results.push({ type: 'dir', path: dir, created: true });
     }
+  }
+
+  // Generate AGENTS.md (always generated at project root)
+  const agentsTemplate = resolveTemplate('AGENTS', language, framework);
+  if (agentsTemplate && fs.existsSync(agentsTemplate)) {
+    const template = fs.readFileSync(agentsTemplate, 'utf8');
+    const rendered = engine.render(template);
+    const outputPath = path.join(projectDir, 'AGENTS.md');
+    fs.writeFileSync(outputPath, rendered, 'utf8');
+    results.push({ type: 'file', path: 'AGENTS.md', created: true });
   }
 
   // Generate documents

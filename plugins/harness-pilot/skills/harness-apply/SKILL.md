@@ -16,6 +16,15 @@ The single "action" skill for Harness. Handles everything from initial setup to 
 3. **Reentrant update** — Detect code changes, incrementally update harness knowledge
 4. **Ralph Wiggum Loop** — Automated review-test-fix quality cycle
 
+## First Principles
+
+**From core requirements, not templates**
+
+1. **Clarify intent** — Stop and discuss when goals are unclear. Don't assume.
+2. **Shortest path** — Suggest better approaches when path isn't optimal.
+3. **Root cause** — Fix at source, not patches. Every decision must answer "why".
+4. **Cut noise** — Output only decision-critical information.
+
 ## Mode Selection
 
 Mode is determined automatically:
@@ -209,6 +218,49 @@ Always output in this structure:
 {validation results if applicable}
 
 {loop verdict: APPROVED / NEEDS_CHANGES / LOOP_EXHAUSTED}
+```
+
+## Template Engine Integration
+
+Generate context and render templates:
+
+```bash
+# Example context
+CONTEXT='{
+  "PROJECT_NAME": "my-app",
+  "LANGUAGE": "typescript",
+  "FRAMEWORK": "nextjs",
+  "GENERATED_DATE": "2026-04-24",
+  "LAYER_MAPPING": [...],
+  "CURRENT_YEAR": "2026"
+}'
+
+# Render template
+node plugins/harness-pilot/scripts/template-engine.js <template> "$CONTEXT"
+```
+
+### Render Documents
+
+```bash
+# AGENTS.md — agent navigation map (always generated)
+node plugins/harness-pilot/scripts/template-engine.js \n  plugins/harness-pilot/templates/base/AGENTS.md.template "$CONTEXT" > AGENTS.md
+
+# ARCHITECTURE.md — priority: framework > language > base
+TEMPLATE=""
+if [ "$FRAMEWORK" != "none" ] && [ -f "plugins/harness-pilot/templates/frameworks/$FRAMEWORK/ARCHITECTURE.md.template" ]; then
+  TEMPLATE="plugins/harness-pilot/templates/frameworks/$FRAMEWORK/ARCHITECTURE.md.template"
+elif [ -f "plugins/harness-pilot/templates/languages/$LANGUAGE/ARCHITECTURE.md.template" ]; then
+  TEMPLATE="plugins/harness-pilot/templates/languages/$LANGUAGE/ARCHITECTURE.md.template"
+else
+  TEMPLATE="plugins/harness-pilot/templates/base/ARCHITECTURE.md.template"
+fi
+node plugins/harness-pilot/scripts/template-engine.js "$TEMPLATE" "$CONTEXT" > .harness/docs/ARCHITECTURE.md
+
+# DEVELOPMENT.md
+node plugins/harness-pilot/scripts/template-engine.js \n  plugins/harness-pilot/templates/base/DEVELOPMENT.md.template "$CONTEXT" > .harness/docs/DEVELOPMENT.md
+
+# PRODUCT_SENSE.md
+node plugins/harness-pilot/scripts/template-engine.js \n  plugins/harness-pilot/templates/base/PRODUCT_SENSE.md.template "$CONTEXT" > .harness/docs/PRODUCT_SENSE.md
 ```
 
 ## Configuration
