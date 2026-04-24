@@ -8,6 +8,9 @@ set -euo pipefail
 # Configuration
 # ============================================================================
 
+# Use plugin root from environment or fallback to relative path
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 COVERAGE_THRESHOLD=${COVERAGE_THRESHOLD:-80}
 MAX_TESTS_PER_FUNCTION=${MAX_TESTS_PER_FUNCTION:-5}
 TEST_FRAMEWORK=${TEST_FRAMEWORK:-}
@@ -39,6 +42,15 @@ detect_test_framework() {
       ;;
     "go")
       echo "go-test"
+      ;;
+    "java")
+      if [ -f "pom.xml" ] && grep -q "junit" pom.xml 2>/dev/null; then
+        echo "junit"
+      elif [ -f "build.gradle" ] && grep -q "testng" build.gradle 2>/dev/null; then
+        echo "testng"
+      else
+        echo "junit" # default
+      fi
       ;;
     *)
       echo "unknown"
@@ -82,15 +94,19 @@ generate_test_file() {
   case $language in
     "typescript"|"javascript")
       test_file="${source_file%.*}.test.${source_file##*.}"
-      template="plugins/harness-pilot/templates/capabilities/jit-test/generate-test.${language}.template"
+      template="$PLUGIN_ROOT/templates/capabilities/jit-test/generate-test.${language}.template"
       ;;
     "python")
       test_file="${source_file%.*}_test.py"
-      template="plugins/harness-pilot/templates/capabilities/jit-test/generate-test.py.template"
+      template="$PLUGIN_ROOT/templates/capabilities/jit-test/generate-test.py.template"
       ;;
     "go")
       test_file="${source_file%.*}_test.go"
-      template="plugins/harness-pilot/templates/capabilities/jit-test/generate-test.go.template"
+      template="$PLUGIN_ROOT/templates/capabilities/jit-test/generate-test.go.template"
+      ;;
+    "java")
+      test_file="${source_file%.*}Test.java"
+      template="$PLUGIN_ROOT/templates/capabilities/jit-test/generate-test.java.template"
       ;;
     *)
       echo "Unsupported language: $language"
@@ -114,7 +130,7 @@ generate_test_file() {
       # Fallback: escape strings properly if jq not available
       JSON_DATA=$(printf '{"SOURCE_FILE":"%s","TEST_FRAMEWORK":"%s"}' \n        "$(printf '%s' "$source_file" | sed 's/\/\/g; s/"/"/g')" \n        "$(printf '%s' "$test_framework" | sed 's/\/\/g; s/"/"/g')")
     fi
-    node plugins/harness-pilot/scripts/template-engine.js "$template" "$JSON_DATA" > "$test_file"
+    node "$PLUGIN_ROOT/scripts/template-engine.js" "$template" "$JSON_DATA" > "$test_file"
     echo "  ✓ $test_file"
   else
     echo "[warn] Template not found: $template"
@@ -133,6 +149,8 @@ main() {
   # Detect language
   if [ -f "tsconfig.json" ] || grep -q '"typescript"' package.json 2>/dev/null; then
     LANGUAGE="typescript"
+  elif [ -f "pom.xml" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+    LANGUAGE="java"
   elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
     LANGUAGE="python"
   elif [ -f "go.mod" ]; then
@@ -161,7 +179,7 @@ main() {
   echo "Analyzing changed files..."
 
   # Filter to source files only
-  SOURCE_FILES=$(echo "$CHANGED_FILES" | grep -E '\.(ts|js|py|go)$' | \n                 grep -v '\.test\.' | \n                 grep -v '\.spec\.' | \n                 grep -v '_test\.go$' || echo "")
+  SOURCE_FILES=$(echo "$CHANGED_FILES" | grep -E '\.(ts|js|py|go|java)$' | \n                 grep -v '\.test\.' | \n                 grep -v '\.spec\.' | \n                 grep -v '_test\.go$' | \n                 grep -v 'Test\.java$' || echo "")
 
   if [ -z "$SOURCE_FILES" ]; then
     echo "No source files found in changes."

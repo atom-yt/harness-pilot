@@ -141,7 +141,8 @@ function formatCapabilitiesPrompt(context) {
     const priName = priority.charAt(0).toUpperCase() + priority.slice(1) + ' Priority:';
     lines.push(`  ${priName}`);
     for (const item of data.items) {
-      const check = capDefaults[item.id] ?? item.default ? '☑' : '☐';
+      const capDefault = capDefaults[item.id];
+      const check = (capDefault !== undefined ? capDefault : item.default) ? '☑' : '☐';
       lines.push(`  ${check} ${item.name} (${item.desc})`);
     }
     lines.push('');
@@ -205,7 +206,8 @@ function getMinimumRecommended(mode) {
     const capDefaults = defaults.capabilities || {};
     for (const data of Object.values(CAPABILITIES)) {
       for (const item of data.items) {
-        if (capDefaults[item.id] ?? item.default) {
+        const capDefault = capDefaults[item.id];
+        if (capDefault !== undefined ? capDefault : item.default) {
           result.push(item.id);
         }
       }

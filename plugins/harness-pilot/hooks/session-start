@@ -7,57 +7,63 @@ set -euo pipefail
 HARNESS_DIR=".harness"
 MANIFEST="$HARNESS_DIR/manifest.json"
 
+# Cross-platform stat function
+get_mtime() {
+  local file="$1"
+  # Try GNU stat first (Linux)
+  if stat -c "%Y" "$file" 2>/dev/null; then
+    return 0
+  fi
+  # Try BSD stat (macOS)
+  if stat -f "%m" "$file" 2>/dev/null; then
+    return 0
+  fi
+  # Fallback: use ls -l
+  if ls -l -t "$file" 2>/dev/null | head -1 | awk '{print $6, $7, $8}'; then
+    return 0
+  fi
+  echo "0"
+}
+
 build_output() {
   local output=""
 
   if [ -f "$MANIFEST" ]; then
-    # Harness exists — check freshness
     output="[harness] Harness detected."
-
-    # Check if source code is newer than manifest
-    MANIFEST_TIME=$(stat -f %m "$MANIFEST" 2>/dev/null || stat -c %Y "$MANIFEST" 2>/dev/null || echo 0)
-    LATEST_SRC=$(find . -maxdepth 3 -type f \( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" \) \
-      -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' \
-      -exec stat -f %m {} 2>/dev/null \; | sort -rn | head -1)
-
-    if [ -n "$LATEST_SRC" ] && [ "$LATEST_SRC" -gt "$MANIFEST_TIME" ]; then
-      output="${output}\n[harness] Source code changed since last harness update. Run 'harness-apply' to update."
-    fi
 
     # Check for .needs-update flag (set by git hook)
     if [ -f "$HARNESS_DIR/.needs-update" ]; then
-      output="${output}\n[harness] Harness update pending (triggered by git hook). Run 'harness-apply' to update."
+      output="${output}\n[harness] Harness update pending (triggered by git hook). Run harness-apply to update."
     fi
 
     # Check for recent failures
     if [ -d "$HARNESS_DIR/trace/failures" ]; then
       failure_count=$(find "$HARNESS_DIR/trace/failures" -name "*.md" -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
       if [ "$failure_count" -gt 0 ]; then
-        output="${output}\n[harness] ${failure_count} failure records in .harness/trace/failures/"
+        output="${output}\n[harness] ${failure_count} failure record(s) in .harness/trace/failures/"
       fi
     fi
   elif [ -d "$HARNESS_DIR" ]; then
     # Partial harness without manifest
-    output="[harness] Harness directory exists but manifest.json is missing. Run 'harness-apply --init' to regenerate."
+    output="[harness] Harness directory exists but manifest.json is missing. Run harness-apply --init to regenerate."
   else
     # No harness
-    output="[harness] No harness detected. Run 'harness-analyze' to assess or 'harness-apply' to generate."
+    output="[harness] No harness detected. Run harness-analyze to assess or harness-apply to generate."
   fi
 
   printf '%s' "$output"
 }
 
-# Build context output
 raw_output=$(build_output)
 
 # Escape for JSON
-json_output=$(printf '%s' "$raw_output" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' -e 's/\r/\\r/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+json_output=$(printf '%s' "$raw_output" | sed -e 's/\/\/g' -e 's/"/"/g' -e 's/	/\t/g' -e 's/\r/\r/g' | sed ':a;N;$!ba;s/\n/\n/g')
 
 # Platform-specific output format
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-  echo "{\"additional_context\": \"${json_output}\"}"
+  echo "{"additional_context": "${json_output}"}"
 elif [ -n "${CODEX_PLUGIN_ROOT:-}" ]; then
-  echo "{\"additionalContext\": \"${json_output}\"}"
+  echo "{"additionalContext": "${json_output}"}"
 else
-  echo "{\"hookSpecificOutput\": {\"additionalContext\": \"${json_output}\"}}"
+  echo "{"hookSpecificOutput": {"additionalContext": "${json_output}"}}"
 fi

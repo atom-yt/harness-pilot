@@ -36,7 +36,7 @@ const MAX_ITERATIONS = defaults.loop?.maxIterations || 3;
 
 function getCommands(manifest) {
   const lang = manifest.language || 'typescript';
-  const ext = { typescript: 'ts', javascript: 'js', python: 'py', go: 'go', rust: 'rs' }[lang] || 'ts';
+  const ext = { typescript: 'ts', javascript: 'js', python: 'py', go: 'go', rust: 'rs', java: 'java' }[lang] || 'ts';
 
   return {
     build: manifest.buildCommand || 'npm run build',
@@ -45,6 +45,21 @@ function getCommands(manifest) {
     test: manifest.testCommand || 'npm test',
     validate: `.harness/scripts/validate.${ext}`
   };
+}
+
+// Interpreter mapping by file extension
+const INTERPRETERS = {
+  'js': 'node',
+  'ts': 'ts-node',
+  'py': 'python3',
+  'go': 'go run',
+  'rs': 'cargo run --manifest-path',
+  'java': 'java -cp'
+};
+
+function getInterpreter(filepath) {
+  const ext = filepath.split('.').pop();
+  return INTERPRETERS[ext] || 'node';
 }
 
 function runCommand(cmd) {
@@ -74,7 +89,8 @@ function runValidationPipeline(commands) {
   // Lint Architecture
   if (fs.existsSync(commands.lintArch)) {
     console.log('  → lint-arch...');
-    const lintArch = runCommand(`node ${commands.lintArch}`);
+    const interpreter = getInterpreter(commands.lintArch);
+    const lintArch = runCommand(`${interpreter} ${commands.lintArch}`);
     results.push({ step: 'lint-arch', ...lintArch });
     if (!lintArch.passed) {
       return { passed: false, results, failedAt: 'lint-arch' };
@@ -84,7 +100,8 @@ function runValidationPipeline(commands) {
   // Lint Quality
   if (fs.existsSync(commands.lintQuality)) {
     console.log('  → lint-quality...');
-    const lintQuality = runCommand(`node ${commands.lintQuality}`);
+    const interpreter = getInterpreter(commands.lintQuality);
+    const lintQuality = runCommand(`${interpreter} ${commands.lintQuality}`);
     results.push({ step: 'lint-quality', ...lintQuality });
     if (!lintQuality.passed) {
       return { passed: false, results, failedAt: 'lint-quality' };
@@ -102,7 +119,8 @@ function runValidationPipeline(commands) {
   // Validate
   if (fs.existsSync(commands.validate)) {
     console.log('  → validate...');
-    const validate = runCommand(`node ${commands.validate}`);
+    const interpreter = getInterpreter(commands.validate);
+    const validate = runCommand(`${interpreter} ${commands.validate}`);
     results.push({ step: 'validate', ...validate });
     if (!validate.passed) {
       return { passed: false, results, failedAt: 'validate' };
