@@ -1,671 +1,323 @@
 # Harness Pilot 概要设计
 
-> 一份给工程师看的通俗指南，不讲代码，只讲为什么做、做什么、怎么用
+> Harness Pilot 插件的设计文档——核心问题、解决思路、架构设计与实现细节
 
 ---
 
-## 一、这是什么？
+## 文档导航
 
-**一句话概括**：给代码库加一套"规则说明书"和"自动检查器"，专门给 AI Agent 用。
-
-更形象的比喻：
-
-```
-想象你是一个新来的工程师，第一天上班。
-
-没有 Harness 的情况：
-  你不知道 internal/types/ 不能 import internal/config/
-  你不知道新文件该放哪个目录
-  你不知道这个项目有什么"潜规则"
-  于是你开始写代码，写完被 CI 打回来，修完又被其他规则打回来……
-
-有 Harness 的情况：
-  一进门就看到 .harness/ 目录 —"你好，这是我们的地图和规则"
-  打开文档看到分层规则 —"这是我们的建筑结构"
-  写代码前跑一下检查 —"这面墙能不能拆？不能，那我换个方案"
-  验证通过了再提交 —"好的，这个改动没问题"
-```
-
-### 为什么需要这个？
-
-让我们从一个真实场景说起。
-
-```
-用户: "帮我加一个用户认证功能"
-
-Agent: [思考] "好的，我需要创建一个类型文件..."
-       [写代码] 200 行代码完成
-       [运行 lint] ❌ 失败！types 不能 import config
-       [修复] 移动代码到合适位置
-       [再运行 lint] ❌ 又失败！另一个违规
-       [循环 3 次] 上下文窗口被错误日志填满，Agent 开始"遗忘"目标
-```
-
-**这不是 Agent 不够聪明** —— 这是 Agent **看不见**。
-
-### 看不见的东西在哪里？
-
-代码库中的约束往往是"隐形"的：
-
-- "大家都知道 internal/api 不应该 import internal/ui" —— 但新人不知道，Agent 也不知道
-- "这个包只能被 Layer 3 以下的东西 import" —— 写在 Wiki 上，AI 读不到
-- "新功能必须先写测试" —— 每个人都"默认知道"，没人写下来
-
-### 换个角度想问题
-
-如果换成一个新入职的工程师，他可能也不熟悉代码库，但他至少会问：
-
-```
-"这个文件应该放在哪个目录？"
-"这样 import 可以吗？"
-"有没有什么命名规范要注意？"
-```
-
-他在行动前寻求验证。
-
-**AI Agent 不会**。它直接干。
+| 章节 | 内容 | 读者 |
+|------|------|------|
+| 一、核心问题 | 问题简述 | 全部 |
+| 二、解决思路 | 范式转换与差异化定位 | 全部 |
+| 三、项目愿景与设计原则 | 目标、问题矩阵、四条设计原则 | 全部 |
+| 四、核心功能 | 两个 Skill、Agent 体系、模板系统 | 用户 |
+| 五、关键机制 | Ralph Wiggum Loop、Handoff、Hooks | 开发者 |
+| 六、架构设计 | 插件结构、目录布局、共享工具库 | 开发者 |
+| 七、业界对比 | 工具/循环/测试机制对比 | 全部 |
+| 八、总结 | 核心理念与行动建议 | 全部 |
+| 附录 | 语言与框架支持清单 | 用户 |
 
 ---
 
-## 二、业界现状：为什么别的方案不够好？
+## 一、核心问题：AI Agent 在代码库中的协作挑战
 
-现在大家是怎么让 AI Agent "守规矩"的？
+AI Agent 在代码库协作中面临的核心问题是**可见性**——项目中的分层约束、命名规范、架构约定对 Agent 来说是隐性的。如果这些规则不在 Git 仓库中以明确形式存在，Agent 就无法感知，导致反复违规、修复循环、上下文被错误日志填满。
 
-| 方案 | 怎么做 | 实际体验 |
-|------|--------|----------|
-| **System Prompt** | 在 Prompt 里写一堆规则 | 规则太多了装不下，而且随代码变化，永远追不上 |
-| **RAG 检索** | 从 Wiki 里找相关规则 | 检索可能不准，规则还是靠"自觉遵守"，等于没有 |
-| **CI/CD Lint** | 代码提交后检查 | 发现太晚了！代码已经写完了，重写很累 |
-| **项目级规范文件** | 写个 AGENTS.md 文件 | Agent 能看见，但遵守全靠"自觉"，不强制 |
-| **ESLint 等工具** | 检查代码风格 | 只能检查格式，检查不了架构约束 |
+**隐性规则示例**：
 
-### 核心矛盾："教" vs "验"
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      "教" vs "验"                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                         │
-│   System Prompt      →  教 Agent 怎么做                   │
-│   RAG               →  教 Agent 哪有知识                 │
-│   CI/CD Lint        →  验 Agent 做得对不对（但时机太晚）     │
-│                                                         │
-│   Harness            →  让 Agent 自己验证做得对不对                 │
-│                     （在写代码之前，而非之后）                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Harness 的不同
-
-| 维度 | 别人这么做 | Harness 这么做 |
-|------|-----------|----------------|
-| 规则在哪 | Wiki、Prompt | 代码库里，Git 跟踪 |
-| 什么时候检查 | 写完代码后 | **写代码前** |
-| 靠什么保证 | 靠 Agent 自觉 | 靠**自动化脚本** |
-
-就像开车：
-
-```
-别人的方案：写好《驾驶手册》，让司机背下来
-Harness 的方案：装个防撞系统，撞之前就刹车
-```
+| 隐性规则 | 来源 | Agent 能否感知 |
+|---------|------|---------------|
+| 新模块必须先写测试 | 工程文化 | ❌ |
+| 包命名必须用 kebab-case | 开发规范文档（非项目内） | ❌ |
+| 数据库查询只能在 `repository/` 层，`service/` 层不能直接调用 ORM | 架构评审会议纪要 | ❌ |
+| 日志输出前必须脱敏（用户 ID、手机号、Token） | 安全合规 Wiki | ❌ |
+| 错误码必须统一使用 `errors/` 目录下的枚举，不能硬编码字符串 | 历史 PR 评审意见 | ❌ |
+| `utils/` 目录只允许纯函数，不能持有状态或产生副作用 | 设计评审记录 | ❌ |
+| 新增对外 API 接口必须同步更新 `docs/API.md` | 团队口头约定 | ❌ |
 
 ---
 
-## 三、项目愿景
+## 二、解决思路：从"教"到"验"的范式转变
 
-让 AI Agent 在代码库中**可靠协作**，而不是反复犯错。
+现有方案（System Prompt、RAG、CI/CD Lint 等）的根本限制在于：要么规则追不上代码变化，要么检查时机太晚，要么约束力靠"自觉"。
 
-### 能解决什么问题？
+Harness Pilot 的差异化在于：**规则在 Git 仓库中版本化、在写代码前预验证、靠自动化脚本强制执行**。
 
-| 问题 | Harness 的解法 |
-|------|---------------|
-| 新 Agent 不懂项目规矩 | 一看 .harness/ 就明白 |
-| 规则不断变化，Agent 跟不上 | 规则在 Git 里，session-start hook 自动检查新鲜度 |
-| 写了半天代码才发现违规 | 写之前先验证，不行就别写 |
-| 同样的错误反复出现 | Ralph Wiggum Loop 自动修复，记忆系统避免再犯 |
-
-### 一个更本质的观点
-
-**仓库是 Agent 的操作系统**
-
-```
-CPU 很强大，但没有操作系统就是一块高速却无方向的芯片：
-  不知道硬盘在哪
-  不知道网络协议是什么
-  不知道哪些内存地址可以写
-
-LLM 也一样：
-  推理能力很强
-  但不知道你的 internal/types/ 不能 import internal/config/
-  不知道新文件该放哪个目录
-
-Harness 就是给它装的"操作系统"
-```
-
-### 几条关键原则
-
-1. **仓库是唯一的事实来源**
-
-   钉钉里的讨论、Aone 上的约定、架构师脑子里的蓝图，对 Agent 来说都不存在。
-
-   不在仓库里，Agent 就看不见；看不见就会违反。
-
-   所以第一步是把一切编码到仓库中：架构决策、层级约束、命名规范。
-
-   不是写在 Wiki 里，不是发在群里，而是作为版本化的文件提交到 Git。
-
-2. **`.harness/` 是地图，不是手册**
-
-   很多团队的第一反应是写一个巨大的规则文件，500 行，什么都有。
-
-   问题是：当一切都重要时，什么都不重要。
-
-   500 行的指令文件挤占了 Agent 宝贵的上下文窗口，留给实际任务的空间反而少了。
-
-   `.harness/docs/` 里的文档应该结构清晰，按需加载，详细内容分文件组织，Agent 只读它需要的部分。
-
-3. **只管架构边界，不管怎么实现**
-
-   Harness 不规定"你必须用这个设计模式"或"函数必须这样写"，它只管依赖方向。
-
-   大多数代码库的包和模块之间存在自然的依赖方向：
-   - 类型定义被所有人 import
-   - 业务逻辑依赖类型但不依赖 HTTP 层
-   - HTTP handler 依赖业务逻辑
-
-   Harness 把这种自然方向编码为层级编号，规则就一条：高层可以 import 低层，反过来不行。
-
-   在这个边界之内怎么实现，随便。
-
-4. **人的角色变了**
-
-   以前是人写代码、AI 辅助补全；现在反过来了——人设计系统（架构、约束、验证规则），Agent 在系统内执行。
-
-   人的价值从"写出正确的代码"变成了"设计出让 Agent 能可靠产出正确代码的环境"。
+| 维度 | 传统方法 | Harness Pilot 方法 |
+|------|---------|------------------|
+| 规则存储 | Wiki、Prompt、外部文档 | 项目 Git 仓库中，版本化追踪 |
+| 检查时机 | 写代码后（CI/CD）或行动中（Prompt 提醒） | **写代码前**（预验证） |
+| 约束力 | 依赖 Agent 理解和记忆 | **自动化脚本强制执行** |
+| 更新机制 | 手动维护，容易过时 | session-start hook 自动检查新鲜度 |
 
 ---
 
-## 四、怎么用？
+## 三、项目愿景与设计原则
 
-### 场景一：看一个项目靠不靠谱
+### 目标
 
-```bash
-你说：分析一下这个项目
+让 AI Agent 在代码库中**可靠协作**，建立可复用的项目知识资产。
 
-Agent 输出：
-=== Harness 健康度报告 ===
-总分: 35/100 (需要改进)
+### 解决的问题矩阵
 
-📋 文档覆盖率: 20/100
-  ❌ 缺失 .harness/docs/ARCHITECTURE.md（架构文档）
-  ❌ 缺失架构约束脚本
+| 问题 | 根本原因 | Harness Pilot 的解法 |
+|------|---------|---------------------|
+| 新会话的 Agent 不知道项目规范 | 信息未版本化，存储在外部系统 | 规范在 Git 仓库中，随代码演进 |
+| 规则频繁变化，Agent 跟不上 | 手动维护更新，有延迟 | session-start hook 自动检测文档新鲜度 |
+| 代码写完才发现架构违规 | 检查时机太晚（CI/CD） | 写代码前预验证操作合法性 |
+| 同类错误反复出现 | 没有失败模式分析和记忆 | Ralph Wiggum Loop 自动修复 + trace 记忆 |
+| 长任务单会话跑不完 | 上下文窗口被错误信息填满 | Handoff 机制跨会话传递状态 |
 
-🏗️ 架构约束: 0/100
-  ❌ 没有层级依赖检查
+### 四条设计原则
 
-📏 质量规则: 0/100
-  ❌ 没有代码质量检查
+**1. 仓库是唯一事实来源**
+- 规则必须在代码库中，不能只在 Wiki 或口头约定
+- Git 版本化，随代码演进
+- Agent 打开项目就能读取一切
 
-🎯 建议:
-  用 Harness 给这个项目加点约束吧
-```
+**2. `.harness/` 是自包含的**
+- 所有生成文件集中在 `.harness/` 目录，不污染项目根目录
+- 文档放在 `.harness/docs/`，按需加载
+- `manifest.json` 追踪状态，支持增量更新
 
-就像体检报告，一眼看出哪里有问题。
+**3. 只管边界不管实现**
+- 定义层级依赖规则
+- 不规定设计模式或编码风格（除非是质量规则）
+- 边界内如何实现自由决定
 
-### 场景二：给项目加约束
-
-```bash
-你说：帮我给这个项目加 Harness
-
-Agent 会问你几件事：
-  1. 检测到 TypeScript + Next.js，对吗？
-  2. 哪些组件需要？（文档？检查脚本？任务追踪？）
-  3. 推荐的层级规则是这样，改吗？
-  4. 质量规则要加什么？
-
-确认后生成：
-  ✓ .harness/docs/ARCHITECTURE.md（架构说明）
-  ✓ .harness/docs/DEVELOPMENT.md（开发指南）
-  ✓ .harness/scripts/lint-deps.ts（依赖检查）
-  ✓ .harness/scripts/validate.ts（统一验证）
-  ✓ .harness/memory/（经验记忆）
-  ✓ .harness/hooks/post-commit（git post-commit hook）
-```
-
-### 场景三：检查代码对不对
-
-```bash
-你说：验证一下刚才的代码
-
-Agent 输出：
-=== 验证结果 ===
-✗ 发现 2 个问题：
-
-1. src/handler/user.ts
-   ❌ imports internal/config（层级违规）
-   建议：把 config 当参数传进来
-
-2. src/api/auth.ts
-   ❌ imports src/handler/helper.ts（互引）
-   建议：把 helper 移到公共层
-```
-
-就像有个自动化的 code reviewer，在你提交前就发现问题。
-
-### 场景四：从失败中学习
-
-```bash
-你说：最近有什么反复出现的问题？
-
-Agent 输出：
-=== 失败模式分析 ===
-
-模式 1: internal/cache 没在层级里（7 次）
-  问题：这个包存在但没被检查覆盖
-  建议：把它加到 Layer 1
-
-模式 2: 添加 API 流程不一致（12 次）
-  问题：每次做法都不一样
-  建议：记录一个标准 5 步流程
-
-模式 3: 错误信息看不懂（5 次）
-  问题：只报错不说怎么修
-  建议：把错误消息改得清楚点
-
-要自动修复吗？（置信度 > 80%）
-```
-
-就像有个经验丰富的老工程师，定期总结团队踩过的坑。
-
-### 场景五：自动化审查-修复循环（Ralph Wiggum Loop）
-
-```bash
-你说：帮我实现这个功能
-
-Agent 执行 harness-apply 后自动进入 Ralph Wiggum Loop：
-
-=== Ralph Wiggum Loop（第 1/3 轮）===
-
-🔍 code-reviewer 审查:
-  ❌ src/handler/auth.ts 缺少错误路径测试
-  ⚠️ 函数 processToken 命名不够清晰
-
-🔧 自动修复:
-  ✓ 补充错误路径测试
-  ✓ 重命名 processToken → validateAndDecodeToken
-
-🧪 验证:
-  ✓ build: 通过
-  ✓ lint-arch: 通过
-  ✓ test: 通过
-
-=== Ralph Wiggum Loop 完成（1 轮）===
-所有问题已自动修复并验证通过
-```
-
-code-reviewer 融合了架构验证（原 harness-guardian）能力，同时检查架构合规性和代码质量。每轮最多重试 3 次，如果所有问题自动修复则直接完成。
-
-### 场景六：增量更新（Reentrant Apply）
-
-```bash
-你说：项目结构变了，更新一下 Harness
-
-Agent 输出：
-=== harness-apply: 增量更新 ===
-
-读取 .harness/manifest.json ...
-  上次应用: 2026-04-20T14:30:00Z
-  状态: applied
-
-检测变更:
-  [CHANGED] 新增 src/services/payment/ 目录
-  [CHANGED] Layer 3 新增 payment 模块
-  [UNCHANGED] 自定义规则 .harness/rules/ （保留）
-
-更新内容:
-  ✓ 更新 lint-deps 层级映射（+payment: Layer 3）
-  ✓ 更新 .harness/docs/ARCHITECTURE.md
-  ✓ 保留用户自定义规则（不覆盖）
-  ✓ 更新 manifest.json 状态
-
-manifest.json 记录完整状态，增量更新不会覆盖你的自定义规则。
-```
-
-### 场景七：跨会话任务恢复（Handoff 机制）
-
-```bash
-你：帮我给这个项目加 Harness，包括完整验证
-
-Agent 执行中...
-[执行 40+ 次 tool call 后]
-
-=== 上下文接近限制 ===
-检测到 tokens: 124,500 / 200,000
-触发 Handoff 机制
-
-=== Handoff 触发 ===
-任务 ID: task_20260424_143022_a1b2c3d4
-状态: Ralph Wiggum Loop - 第 1 轮完成，验证失败
-
-已保存到: .harness/handoffs/sess_20260424_143022/
-  - agent-state.json (前一个 agent 的状态)
-  - context.json (关键决策和假设)
-  - resume.json (恢复指令)
-
-待修复问题:
-  1. src/handler/auth.ts - 缺少错误路径测试
-  2. src/handler/auth.ts - 架构违规（导入 internal/config）
-
-=== 会话结束 ===
-
-恢复方式:
-  /harness-apply --resume
-  或说: "继续之前的任务"
-```
-
-第二天，你继续工作：
-
-```bash
-你：继续之前的任务
-
-Agent: 检测到未完成任务 task_20260424_143022_a1b2c3d4
-
-=== 恢复摘要 ===
-上次位置: Ralph Wiggum Loop - 第 1 轮
-关键决策:
-  - 使用 Layer 3 放置 auth handler
-  - 实现 JWT 验证
-
-加载上下文... ✓
-
-=== 第 2 轮 Ralph Wiggum Loop ===
-✓ Code reviewer: 发现 2 个问题
-✓ Auto-fix: 修复错误路径测试，架构问题需手动修复
-✓ 验证: build 通过, lint-arch 通过, test 通过
-
-=== 任务完成 ===
-总轮数: 2
-修改文件: 3
-测试结果: 全部通过
-```
-
-**Handoff 的核心价值：**
-
-| 问题 | Handoff 的解法 |
-|------|---------------|
-| 上下文被错误日志填满 | 定期清空，从干净状态重启 |
-| Agent "遗忘"最初目标 | 通过 artifacts 持久化关键决策 |
-| 长任务单会话跑不完 | 跨会话接力，任意时间点可恢复 |
-| 恢复后不知道从哪开始 | next-steps.json 明确下一步 |
-
-**文件结构：**
-
-```
-.harness/
-├── tasks/                    # 任务 artifacts
-│   ├── {task-id}/
-│   │   ├── task.json         # 任务状态和进度
-│   │   ├── checkpoint.json    # 检查点快照
-│   │   └── next-steps.json   # 下一步骤
-│   └── .current              # 当前任务符号链接
-└── handoffs/                 # 跨会话 handoffs
-    ├── {session-id}/
-    │   ├── agent-state.json  # 前一个 agent 的状态
-    │   ├── context.json      # 上下文摘要（关键决策、假设）
-    │   └── resume.json      # 恢复指令
-    └── .latest              # 最新 handoff 符号链接
-```
-
-就像接力赛——跑不动了就把接力棒交给下一个人，不用从头重新跑。
+**4. 事前验证优于事后检查**
+- 结构性操作前先验证合法性
+- 写代码前问"能不能做"而非写完再修
+- 降低修复成本
 
 ---
 
-## 五、设计思路
+## 四、核心功能
 
-### 三种记忆系统
+Harness Pilot 是一个 Claude Code 插件，提供两个核心 Skill、五个内置 Agent 和一套分层模板系统。
 
-就像人一样，AI 也需要三种记忆：
+### 两个 Skill
 
-| 记忆类型 | 人的类比 | AI 的类比 |
-|---------|----------|-----------|
-| **情景记忆** | "上次踩坑是 macOS 的问题" | 记录具体问题和解决方法 |
-| **程序记忆** | "做披萨要先揉面再烤" | 记录标准操作流程 |
-| **失败记忆** | "我总在 deadline 前熬夜" | 分析失败模式，避免再犯 |
+| Skill | 命令 | 用途 |
+|-------|------|------|
+| **harness-analyze** | `/harness-pilot:harness-analyze` | 分析项目结构、审计 Harness 健康度、生成可视化评分报告（只读，不修改任何文件） |
+| **harness-apply** | `/harness-pilot:harness-apply` | 生成/增量更新 Harness 基础设施，内置 Ralph Wiggum Loop |
 
-### 第四种：跨会话记忆（Handoff）
+#### harness-analyze
 
-Agent 的上下文窗口是有限的，长任务执行到一半就会被错误日志、代码 diff 填满。
+分析流程分四步：
 
-Handoff 机制通过**结构化 artifacts** 实现跨会话状态传递：
+```
+analyze-docs()       → 文档覆盖率
+analyze-architecture() → 架构约束与层级合规
+analyze-imports()    → 导入模式与循环依赖
+generate-report()    → 可视化评分报告（A/B/C/D）
+```
+
+评分权重：文档覆盖 35%、架构合规 35%、测试覆盖 30%，并追踪历史趋势。
+
+#### harness-apply
+
+支持三种模式：
+
+| 模式 | 触发条件 | 行为 |
+|------|---------|------|
+| **初始化** | 项目无 `.harness/` 目录 | 自动检测语言/框架，交互式选择组件，生成完整结构 |
+| **代码生成** | 脚手架新模块（API、Model、Service） | 基于模板生成代码骨架 |
+| **增量更新** | `.harness/` 已存在 | 检测变更，保留用户自定义内容，仅更新需要变化的部分 |
+
+### Agent 体系
+
+Harness Pilot 内置五个专职 Agent，在特定场景下由 Skill 自动调度：
+
+| Agent | 触发场景 | 职责 |
+|-------|---------|------|
+| **planner** | 需求模糊或跨 3+ 文件的变更 | 将模糊需求分解为有序的可执行步骤 |
+| **code-reviewer** | Ralph Wiggum Loop 审查阶段 | 架构合规 + 代码质量双维度审查 |
+| **test-generator** | PR 评审阶段 / Loop 测试阶段 | 基于 git diff 动态生成补充测试（JIT） |
+| **e2e-executor** | 阶段完成验证 | 执行 API 测试 + Playwright 浏览器测试 |
+| **refactoring-agent** | 检测到代码异味时 | 分析圈复杂度、深嵌套、上帝类等，给出重构建议 |
+
+code-reviewer 检查维度：
+
+| 审查维度 | 关注点 |
+|----------|--------|
+| **架构合规** | 层级依赖方向、循环引用检测、包边界 |
+| **工程质量** | 可测试性、错误路径、命名清晰度 |
+| **代码规范** | 边界条件、竞态风险、一致性 |
+
+### 模板系统
+
+`harness-apply` 使用分层覆盖机制生成文件，越靠后的层优先级越高：
+
+```
+base/ → languages/ → frameworks/ → rules/ → capabilities/
+```
+
+| 层 | 路径 | 内容 |
+|----|------|------|
+| **base** | `templates/base/` | 与语言/框架无关的通用模板（AGENTS、ARCHITECTURE、DEVELOPMENT、PRODUCT_SENSE） |
+| **languages** | `templates/languages/{lang}/` | 语言特定覆盖（go、java、python、typescript） |
+| **frameworks** | `templates/frameworks/{fw}/` | 框架特定覆盖（nextjs、react、express、django、fastapi、gin、spring-boot） |
+| **rules** | `templates/rules/{lang}/` | 质量规则模板（common、go、java、javascript、python、typescript） |
+| **capabilities** | `templates/capabilities/{cap}/` | 可选能力模板（e2e、jit-test、security、monitoring、logging、authorization 等） |
+
+模板使用轻量级 Mustache-like 引擎（`scripts/template-engine.js`）渲染，支持变量替换、条件块、循环，并内置 LRU 缓存提升性能。
+
+---
+
+## 五、关键机制
+
+### 1. Ralph Wiggum Loop
+
+自动化审查-测试-修复质量循环，`harness-apply` 执行后自动运行，最多 3 轮：
+
+```
+┌──────────────────────────────────────────────────────┐
+│               Ralph Wiggum Loop                      │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  harness-apply 执行                                  │
+│       ↓                                              │
+│  code-reviewer 审查（架构合规 + 代码质量）             │
+│       ↓                                              │
+│  验证管道（build → lint-arch → lint-quality → test） │
+│       ↓                                              │
+│  APPROVED → 完成                                     │
+│  NEEDS_CHANGES → 自动修复 → 下一轮                   │
+│  LOOP_EXHAUSTED（3 轮后）→ 记录 trace，提示人工介入   │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+```
+
+失败轨迹记录在 `.harness/trace/failures/`，供后续会话复盘。
+
+### 2. Handoff 跨会话机制
+
+LLM 上下文窗口有限。随着 tool call 次数增加（约 40 次），早期关键信息会被压缩或丢弃。Handoff 机制通过**结构化 artifacts** 持久化状态，不依赖 AI 的"记忆"。
+
+**触发条件**：
+1. 上下文窗口接近限制（tokens > 100k）
+2. Loop 迭代耗尽且问题未解决
+3. 用户显式请求 handoff
+
+**传递结构**：
 
 ```
 Session A → 写到文件 → Session B
-(agent-state.json, context.json, resume.json)
+
+.harness/handoffs/{session-id}/
+├── agent-state.json   ← 上一个 agent 的执行状态
+├── context.json       ← 上下文摘要（目标、进度、关键文件）
+└── resume.json        ← 下一个 session 的恢复指令
 ```
 
-不是依赖 AI 的"记忆"，而是通过文件系统持久化——不会出错，不会遗忘，不会被上下文压缩掉。
+文件系统持久化——不会出错，不会遗忘，不会被上下文压缩掉。
 
-### 文件结构长什么样？
+### 3. Reentrant Apply
+
+`manifest.json` 追踪状态，支持增量更新：
+- 记录上次 apply 时间与版本
+- 追踪层级映射和自定义规则
+- 增量更新时保留用户自定义内容，仅覆盖标准生成部分
+
+### 4. Hooks
+
+| Hook | 触发时机 | 作用 |
+|------|---------|------|
+| **session-start** | Claude Code 会话启动 | 自动检查 `.harness/docs/` 文档新鲜度 |
+| **git post-commit** | Git 提交后 | 触发验证管道，确保提交后合规 |
+
+---
+
+## 六、架构设计
+
+### 插件内部结构
+
+```
+plugins/harness-pilot/
+├── .claude-plugin/         ← 插件元数据（plugin.json）
+├── skills/
+│   ├── harness-analyze/    ← 分析 Skill（SKILL.md + 4 个工具）
+│   └── harness-apply/      ← 生成 Skill（SKILL.md + 4 个工具 + config/）
+├── agents/                 ← 5 个 Agent 定义（.md 文件）
+├── templates/              ← 分层模板系统
+│   ├── base/
+│   ├── languages/
+│   ├── frameworks/
+│   ├── rules/
+│   └── capabilities/
+├── lib/                    ← 共享工具模块
+│   ├── config.js
+│   ├── constants.js
+│   ├── detect-language.js
+│   ├── fs-utils.js
+│   └── path-utils.js
+├── scripts/
+│   ├── template-engine.js  ← 模板渲染引擎
+│   └── generate-test.sh    ← JIT 测试生成脚本
+├── hooks/                  ← session-start hook
+└── tests/                  ← 单元测试
+```
+
+### .harness/ 目录结构（生成产物）
+
+应用 `harness-apply` 后，在目标项目中生成：
 
 ```
 my-project/
 └── .harness/
     ├── manifest.json          ← 状态追踪（reentrant apply 用）
+    ├── capabilities.json      ← 已启用能力快照
     ├── docs/
     │   ├── ARCHITECTURE.md    ← 项目架构、层级规则
-    │   └── DEVELOPMENT.md     ← 开发命令、怎么测试
+    │   ├── DEVELOPMENT.md     ← 开发命令、测试方法
+    │   └── PRODUCT_SENSE.md   ← 业务上下文
     ├── scripts/
-    │   ├── lint-deps.*        ← 检查依赖方向对不对
-    │   ├── lint-quality.*     ← 检查代码质量
-    │   ├── verify/            ← 端到端功能验证
-    │   └── validate.*        ← 统一验证流程
-    ├── hooks/
-    │   └── post-commit       ← git post-commit 触发验证
-    ├── memory/            ← 三种记忆
-    ├── tasks/             ← 任务状态和检查点（handoff 用）
+    │   ├── lint-deps.*        ← 依赖方向检查
+    │   ├── lint-quality.*     ← 代码质量检查
+    │   ├── lint-imports.*     ← 导入限制与循环依赖检测
+    │   ├── lint-semantic.*    ← 语义业务逻辑验证
+    │   └── validate.*         ← 统一验证入口
+    ├── rules/
+    │   ├── common/
+    │   │   ├── safety.md          ← AI 安全约束
+    │   │   └── git-workflow.md    ← Git 工作流规则
+    │   └── {language}/
+    │       └── development.md     ← 语言特定开发规范
+    ├── memory/                ← 三种记忆（情景/程序/失败）
+    ├── trace/                 ← 失败轨迹
+    ├── hooks/                 ← Git hooks（post-commit）
+    ├── tasks/                 ← 任务状态与检查点
     │   ├── {task-id}/
     │   │   ├── task.json
     │   │   ├── checkpoint.json
     │   │   └── next-steps.json
     │   └── .current
-    ├── handoffs/          ← 跨会话 handoffs
-    │   ├── {session-id}/
-    │   │   ├── agent-state.json
-    │   │   ├── context.json
-    │   │   └── resume.json
-    │   └── .latest
-    ├── trace/             ← 失败轨迹
-    └── rules/
-        └── common/
-            └── safety.md  ← AI 安全约束
+    └── handoffs/              ← 跨会话 handoff artifacts
+        ├── {session-id}/
+        │   ├── agent-state.json
+        │   ├── context.json
+        │   └── resume.json
+        └── .latest
 ```
 
-所有生成文件都集中在 `.harness/` 目录下，不污染项目根目录。`manifest.json` 记录当前状态，支持增量更新；`tasks/` 和 `handoffs/` 支持跨会话任务恢复。
+### 共享工具库（lib/）
 
-### 在动手之前先问"能不能做"
+`lib/` 是插件内部的共享工具层，消除 Skill 和 Agent 之间的代码重复：
 
-这是最关键的理念转变。
-
-Agent 的工作流通常是：写代码 → 跑测试 → 发现错误 → 修复 → 再跑测试……
-
-当一个层级违反在 50 行代码写完后才被 linter 抓到，修复代价很大。
-
-而如果写代码前先问一句"这样做合法吗"，两次交互就够了：
-
-```
-python3 .harness/scripts/verify_action.py --action "create file internal/types/user.go"
-# ✓ VALID: internal/types/ is Layer 0, user.go follows naming convention
-
-python3 .harness/scripts/verify_action.py --action "import internal/core from internal/handler"
-# ✗ INVALID: internal/handler (L4) cannot import internal/core (L3)
-#   Fix: handler should depend on core through interfaces
-```
-
-不是每个操作都需要预验证。但只要涉及"在新位置创建文件"或"添加跨包 import"，就该先验证。
-
-### 验证顺序有讲究
-
-```
-build → lint-arch → test → verify
-  │        │         │       │
-  │        │         │       └─ 端到端功能验证
-  │        │         └─ 单元/集成测试
-  │        └─ 架构和质量合规
-  └─ 代码能否编译
-```
-
-很多人忽略了最后一步 `verify`。
-
-build + lint + test 能覆盖大部分问题，但有一类问题它们抓不到：功能层面的正确性。
-
-测试通过了不代表功能是对的——测试本身可能覆盖不全，或者 Agent 写的测试恰好绕过了关键路径。
-
-verify 是项目级别的端到端功能验证——不是"函数返回值对不对"，而是"用户执行这个操作，最终结果对不对"。
-
-### 踩过坑后的几条经验
-
-1. **故意引入违规来测试 lint**
-   - 加一个跨层 import 确认能被检测到
-   - 如果 lint 没报错说明护栏是纸糊的
-
-2. **永远不要禁用 lint 规则来"解决"问题**
-   - Agent 有时候会想绕过规则（比如注释掉 lint 配置）
-   - 应该改代码而不是改规则
-
-3. **测试不需要每次跑全量**
-   - executor 支持只跑受影响的包，速度快很多
+| 模块 | 职责 |
+|------|------|
+| `config.js` | 加载 `config/` 目录下的 JSON 配置，支持默认值和多文件批量加载 |
+| `constants.js` | 集中管理路径常量、文件扩展名、分析阈值、Loop 参数 |
+| `detect-language.js` | 自动检测项目语言（TypeScript/JavaScript/Python/Go/Java）和框架，读取 `detection-rules.json` 驱动 |
+| `fs-utils.js` | 统一文件系统操作：JSON 读写、目录创建、文件存在性检查 |
+| `path-utils.js` | 跨平台路径处理：`__filename`/`__dirname` ESM 兼容、路径规范化与拼接 |
 
 ---
 
-## 六、上下文是最贵的资源
-
-如果这篇文章你只记住一件事，记这个：
-
-**中等复杂度以上的任务，协调者绝不写代码。**
-
-### 为什么？
-
-因为 LLM 的上下文窗口是有限的。
-
-Agent 执行长任务时，窗口里慢慢堆起来的是代码 diff、编译错误、测试输出、lint 报告、重试记录……
-
-到第 40 次 tool call，早期的关键信息已经被压缩或丢弃了。Agent 开始"忘记"最初的架构决策，做出跟前面矛盾的改动。
-
-### 解法：两层 Agent
-
-```
-协调者（Coordinator）: 只管规划、委派、汇总，一行代码都不碰
-
-执行者（子代理）: 每次从干净的上下文开始，拿到精确的 prompt，干完就释放
-```
-
-信息经过了压缩和筛选，而不是无差别地堆在上下文里。
-
-### 最常见的陷阱："只是快速改一下"
-
-协调者发现一个小问题，心想"这么简单的东西不用启子代理，我直接改了"。
-
-一次编辑变成了五次（因为牵扯出其他地方），五次变成二十次，上下文就被消耗殆尽了。
-
-如果你发现协调者正在用 Edit 或 Write 工具修改源代码，立刻停下来，启动子代理。
-
-**没有例外。**
-
-### 委派时的一个杠杆：不是所有任务都需要最强模型
-
-```
-简单任务（改 typo、重命名） → Haiku，快又便宜
-复杂任务（重构、架构变更）   → Opus，质量第一
-代码检索（在大型代码库找文件） → Gemini Flash，速度第一
-```
-
-一个中等复杂度的功能开发，可能会同时调度三四个不同模型的子代理。
-
-总成本可以降低 60-70%，复杂任务的质量不打折扣。
-
-### 交叉 review
-
-机械化验证（lint、test、verify）能抓到规则层面的问题，但抓不到逻辑合理性。
-
-代码编译通过、测试全绿、架构合规，但实现思路可能有隐患：
-- 竞态条件
-- 边界遗漏
-- 不必要的复杂度
-- 命名让人看不懂
-
-这些东西只有"另一双眼睛"才能发现。
-
-关键词是"不同模型"。用同一个模型既写代码又 review，它容易对自己的产出"视而不见"。
-
-换一个架构和训练数据都不同的模型来 review，思维盲区的重叠就小得多。
-
----
-
-## 七、让 Harness 自己长大
-
-前面讲的 Harness 还是静态的——人定规则，Agent 遵守。
-
-但真正有意思的地方在于，Harness 能从 Agent 的失败里学东西。
-
-这个能力已经融合进 `harness-apply` skill 中——通过 Ralph Wiggum Loop（自动化审查-测试-修复循环）和记忆系统，Harness 在日常使用中持续进化。
-
-### Ralph Wiggum Loop
-
-```
-Agent 执行 harness-apply
-    ↓
-code-reviewer 审查（架构 + 代码质量）
-    ↓
-发现问题 → 自动修复
-    ↓
-重新验证（build → lint → test）
-    ↓
-通过 → 完成 / 未通过 → 下一轮（最多 3 轮）
-```
-
-每次 apply 完成后，code-reviewer 自动审查代码变更。如果发现问题，自动尝试修复并重新验证。最多循环 3 轮，确保产出质量。
-
-### 一个完整的闭环
-
-```
-Agent 执行
-    ↓
-Ralph Wiggum Loop 抓到问题
-    ↓
-记忆系统记录模式
-    ↓
-下次 apply 时自动加载经验
-    ↓
-下一个 Agent 受益
-```
-
-每次验证失败都被结构化地保存到 `.harness/trace/failures/`。
-
-记忆系统定期分析这些记录，找出模式和根因——比如发现 `internal/cache` 被 7 次违规 import，根因是它没被加入层级映射表，建议修复是把它加入 Layer 1。
-
-然后 harness-apply 在下次增量更新时自动整合这些改进。
-
-### 轨迹编译
-
-当同一类任务被成功执行了三次以上，而且步骤高度一致，这个模式就可以被"编译"成一个确定性脚本。
-
-比如"添加 API 端点"每次都是：
-1. 创建类型文件
-2. 写服务方法
-3. 加 handler
-4. 注册路由
-5. 写测试
-
-这个模式就可以被编译成 `make add-endpoint NAME=foo`。
-
-以后再做同类任务直接跑脚本，LLM 都省了。
-
-这是个棘轮效应：每一个被编译的成功模式都变成了永久基础设施，Agent 被释放去处理真正需要创造力的新问题。
-
----
-
-## 八、业界在做什么？
+## 七、业界在做什么？
 
 AI Coding Harness 领域有不少成熟方案，各有侧重点。
 
@@ -684,27 +336,27 @@ AI Coding Harness 领域有不少成熟方案，各有侧重点。
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  执行循环模式对比                    │
+│                    执行循环模式对比                           │
 ├─────────────────────────────────────────────────────────────┤
-│                                                         │
-│   ReAct (思考-行动)                                     │
-│   Reason → Act → Observe → Repeat                     │
-│   适用: 快速任务、简单修改                              │
-│                                                         │
-│   Reflexion (行动-反思)                                  │
-│   Act → Observe → Reflect → Improve → Act              │
-│   适用: 需要自纠错的场景                               │
-│                                                         │
-│   Planner-Executor (规划-执行)                            │
-│   Plan → Checkpoint → Execute → Verify → Repeat       │
-│   适用: 长任务、需要恢复能力                              │
+│                                                             │
+│  ReAct（思考-行动）                                          │
+│  Reason → Act → Observe → Repeat                           │
+│  适用：快速任务、简单修改                                    │
+│                                                             │
+│  Reflexion（行动-反思）                                      │
+│  Act → Observe → Reflect → Improve → Act                   │
+│  适用：需要自纠错的场景                                      │
+│                                                             │
+│  Planner-Executor（规划-执行）                               │
+│  Plan → Checkpoint → Execute → Verify → Repeat             │
+│  适用：长任务、需要恢复能力                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### 内存管理策略
 
 | 策略 | 怎么做 | 好处 |
-|------|---------|------|
+|------|--------|------|
 | **KV Cache Locality** | 高频访问的数据保持在缓存中 | 减少重复计算 |
 | **Context Condensification** | 保留目标、进度、关键文件，丢弃噪声 | 控制上下文膨胀 |
 | **Filesystem Memory** | 中间状态写入文件，必要时读取 | 跨会话持久化 |
@@ -713,138 +365,58 @@ AI Coding Harness 领域有不少成熟方案，各有侧重点。
 ### 测试验证机制
 
 | 机制 | 触发时机 | 覆盖范围 |
-|------|----------|---------|
+|------|---------|---------|
 | **静态 Lint** | 写代码后 | 架构约束、代码风格 |
 | **单元测试** | 编写代码时 | 函数/方法正确性 |
 | **集成测试** | 功能完成后 | 模块间交互 |
 | **端到端验证** | 阶段完成 / PR 时 | 用户路径 |
 | **JiT 测试生成** | PR 评审阶段 | 补充缺失测试 |
 
-### Meta 的即时测试 Harness
-
-Meta 研究发现，在 PR 阶段自动生成测试，能将 AI 代码缺陷检出率提升 **4 倍**。
-
-| 指标 | 传统测试 | JiT Test Harness |
-|-------|----------|----------------|
-| 测试覆盖率 | 60-70% | 85-95% |
-| 缺陷检出率 | 1x | 4x |
-
-关键思路：不是依赖人工维护的静态测试集，而是根据代码变更动态生成补充测试。
-
-### LangChain 的中间件理念
-
-LangChain DeepAgents 的核心思想：**LLM 和工具之间加一层可检查点**。
-
-```
-LLM → Middleware → Tools → Environment → Eval
-```
-
-每层都可以插入验证逻辑，失败了不用从头重来，而是回滚到上一个检查点。
-
-### 腾讯云的规则即测试
-
-腾讯云提出：**从代码约束自动派生测试**。
-
-- 分支解析 → `if (x > 0)` 生成边界测试
-- 条件还原 → 复杂条件拆分独立用例
-- Mock 策略 → 自动识别外部依赖
-
-让测试和代码同步演进，而不是事后补作业。
+Meta 研究发现，在 PR 阶段自动生成测试，能将 AI 代码缺陷检出率提升 **4 倍**（测试覆盖率从 60-70% 提升至 85-95%）。关键思路：不依赖人工维护的静态测试集，而是根据代码变更动态生成补充测试。
 
 ---
 
-## 九、从今天开始实践
+## 八、总结
 
-好消息：Harness 不是全有或全无的。
+### 核心理念
 
-哪怕不搭完整的基础设施，一个基本的 `.harness/` 目录就能让 AI 协作体验好一截。
-
-### 新项目
-
-最简单——告诉 harness-apply 你要做什么，它会问几个基本问题，然后直接生成全套基础设施到 `.harness/` 目录。
-
-### 老项目
-
-也不难，harness-apply 会扫描代码库、分析 import 关系、推断层级映射，生成反映代码现状的文档。如果之前已经 apply 过，manifest.json 会追踪状态，增量更新时不会覆盖你的自定义规则。
-
-### 最小起步
-
-不管哪种情况，最小起步都一样——运行 harness-apply，它会在项目中创建 `.harness/` 目录：
-
-```
-.harness/
-├── manifest.json              ← 状态追踪
-├── docs/
-│   ├── ARCHITECTURE.md        ← 架构总览、分层规则、数据流
-│   └── DEVELOPMENT.md         ← 构建、测试、lint 命令
-├── scripts/
-│   └── lint-deps.*            ← 依赖方向检查
-└── rules/
-    └── common/
-        └── safety.md          ← AI 安全约束
-```
-
-所有生成文件都在 `.harness/` 下，不污染项目根目录。Agent 通过 session-start hook 自动发现并加载这些文件。
-
-### 建议的节奏
-
-- 今天先跑 harness-apply 把基本的 `.harness/` 建出来
-- 这周调整 lint-deps 脚本把层级规则定下来
-- 这个月搭完整的验证管道
-- 之后让 Ralph Wiggum Loop 和记忆系统自动积累经验，Harness 跟着代码一起长
-
-最佳实践是先用 harness-apply 把 Harness 建到 70 分以上，再开始日常开发。
-
----
-
-## 十、总结
-
-**核心思想**：与其教 AI Agent 怎么做，不如让它自己验证做得对不对。
+与其教 AI Agent 如何正确执行任务，不如让它能够**自动验证**执行结果的正确性。
 
 靠代码、linter、测试来保证正确性，而不是靠 LLM 的"直觉"。
 
-这些机械化检查不会出错，不会遗忘，也不会被上下文压缩掉。
+### 行动建议
 
-### 回到开头那个场景
+1. 运行 `/harness-pilot:harness-analyze` 分析项目健康状况
+2. 运行 `/harness-pilot:harness-apply` 生成基础 `.harness/` 结构
+3. 调整 `lint-deps` 脚本，确定层级规则
+4. 搭建完整验证管道（build → lint → test → validate）
+5. 让 Ralph Wiggum Loop 和 Handoff 机制自动运行
 
-装了 Harness 之后，同样的任务会变成这样：
+---
 
-```
-Agent 启动
-  ↓
-session-start hook 检查 .harness/ 新鲜度，加载相关文档
-  ↓
-列出执行计划，你扫一眼批准
-  ↓
-harness-apply 开始执行，每个结构性操作前先跑预验证
-  ↓
-层级违反在写代码前就被拦住了
-  ↓
-完成后 Ralph Wiggum Loop 自动审查-修复（最多 3 轮）
-  ↓
-上下文接近限制？触发 Handoff，保存状态到 artifacts
-  ↓
-新会话恢复：从 artifacts 加载上下文，继续执行
-  ↓
-任务做完，经验教训记下来，下一个 Agent 接着用
-```
+## 附录
 
-Agent 不需要更聪明——它只是能看见更多了。
+### 支持的语言
 
-也不用担心长任务跑不完——Handoff 机制让它可以跨会话接力，就像跑马拉松可以换人接棒。
+| 语言 | 状态 | 覆盖 |
+|------|------|------|
+| TypeScript | 完整 | lint 脚本 + 规则 + 模板 |
+| JavaScript | 基础 | 规则 + 模板 |
+| Python | 完整 | lint 脚本 + 规则 + 模板 |
+| Go | 完整 | lint 脚本 + 规则 + 模板 |
+| Java | 基础 | 规则 + 检测规则 |
+| Rust | 规划中 | — |
 
-### 最后一句
+### 支持的框架
 
-说到底，**环境设计的投入回报远高于 prompt 调优**。
-
-一套好的 Harness 能让普通模型产出可靠的代码，而没有 Harness 的顶级模型照样会在同样的坑里反复栽。
-
-搭建的前期成本不高——一个下午就能用 harness-apply 建好基本的 `.harness/` 目录和 lint 脚本。
-
-但它的价值会随着时间复利式增长：记忆越来越丰富，lint 规则越来越完善，越来越多的操作模式被编译成确定性脚本。
-
-半年后回头看，你的仓库已经变成了一个高度适配你们团队工作方式的 Agent 运行环境，任何新加入的人（或新会话的 Agent）都能立刻进入状态。
-
-**竞争优势不再是 Prompt，而是 Trajectory。**
-
-这些积累，换个模型复制不来。
+| 框架 | 语言 | 状态 |
+|-------|------|------|
+| Next.js | TypeScript | ✓ |
+| React | TypeScript/JavaScript | ✓ |
+| Express.js | JavaScript | ✓ |
+| Django | Python | ✓ |
+| FastAPI | Python | ✓ |
+| Flask | Python | ✓ |
+| Gin | Go | ✓ |
+| Spring Boot | Java | ✓ |
+| Spring MVC | Java | ✓ |

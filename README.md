@@ -245,53 +245,26 @@ build → lint-arch → test → verify
 
 ## Design Philosophy
 
-### "Teach" vs "Verify"
+Harness Pilot follows a "verify before act" paradigm: instead of teaching AI agents how to do things correctly, let them verify their actions are correct before executing.
 
-Most AI coding approaches teach agents through prompts and RAG. Harness lets agents verify their actions before execution:
-
-| Approach | When Checks Happen | Reliability |
-|----------|-------------------|-------------|
-| System Prompt | After writing code | Low (agent may forget rules) |
-| CI/CD Lint | After committing | High feedback cost |
-| RAG Retrieval | Before acting | Medium (depends on retrieval accuracy) |
-| **Harness** | **Before acting** | **High (automated validation)** |
-
-Like driving: others provide a handbook; Harness installs collision avoidance brakes.
+For full design rationale, architecture decisions, and industry comparison, see [Overview Design](docs/overview-design.md).
 
 ### Key Principles
 
 1. **Repository is the single source of truth**
-   - Wiki discussions, Slack agreements, architect's mental models don't exist for agents
+   - Git-tracked architecture decisions, layer constraints, and naming conventions
    - If it's not in Git, agents can't see it
 
 2. **`.harness/` is a map, not a manual**
-   - Structure documents by concern, not a 500-line monolith
+   - Structure documents by concern, not a monolith
    - Load only what's needed for the current task
 
 3. **Only manage architectural boundaries**
-   - Harness doesn't dictate design patterns or implementation style
-   - It enforces dependency direction: high-level can import low-level, never the reverse
+   - Harness enforces dependency direction: high-level can import low-level, never reverse
+   - Implementation details are left to agents
 
 4. **The human role shifts**
    - From "write correct code" to "design an environment where agents can reliably produce correct code"
-   - Environment design ROI > prompt engineering ROI
-
-### Repository as Agent OS
-
-Think of your repository as an operating system for AI agents:
-
-```
-Without Harness:
-  Agent has powerful reasoning but doesn't know:
-  - That internal/types/ shouldn't import internal/config/
-  - Where new files belong in the directory structure
-
-With Harness:
-  The "OS" provides:
-  - Architecture constraints (the filesystem map)
-  - Validation tools (the permission system)
-  - Development workflow (the process scheduler)
-```
 
 ## What is a Harness?
 
@@ -429,30 +402,24 @@ analyze → apply → develop → apply (loop) → ship
 
 ## Documentation
 
-- [API Documentation](docs/API.md) - Full API reference
-- [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute
-- [Overview Design](docs/overview-design.md) - Design overview (中文)
-- [Detailed Design](docs/detailed-design.md) - Detailed design
-- [FAQ](docs/FAQ.md) - Frequently asked questions
+| Document | Purpose | Language |
+|----------|---------|----------|
+| [Overview Design](docs/overview-design.md) | Design philosophy, architecture decisions, and industry comparison | 中文 |
+| [Detailed Design](docs/detailed-design.md) | Technical implementation details | English |
+| [API Documentation](docs/API.md) | Full API reference | English |
+| [Contributing Guide](docs/CONTRIBUTING.md) | How to contribute | English |
+| [FAQ](docs/FAQ.md) | Frequently asked questions | English |
 
 ## Summary
 
-**Core Idea**: Instead of teaching AI agents how to do things, let them verify their actions are correct before executing.
+**Core Idea**: Let AI agents verify their actions are correct before executing, relying on code, linters, and tests rather than LLM intuition.
 
-Rely on code, linters, and tests to ensure correctness—not on LLM "intuition" that can be forgotten or compressed away.
-
-These mechanical checks don't fail, don't forget, and aren't lost to context compression.
-
-**The Competitive Advantage is Trajectory, Not Prompts**
-
-Your Harness compound-returns over time:
+Harness Pilot compound-returns over time:
 - Memory gets richer
 - Lint rules become more comprehensive
 - More execution patterns get compiled into deterministic scripts
 
-Six months later, your repository becomes a highly-tuned agent operating environment tailored to your team's workflow. New agents (or new sessions) can immediately be productive.
-
-These accumulated patterns and knowledge can't be copied by switching to a different model.
+For a deep dive into the design philosophy, self-evolving capabilities, and learning mechanisms, see [Overview Design](docs/overview-design.md) (中文).
 
 ## License
 

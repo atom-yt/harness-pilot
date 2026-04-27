@@ -143,3 +143,12 @@ Notes:
 ---
 
 *Manually maintained meta-project map. If paths drift, update this file directly — do not rely on `harness-apply` to regenerate it here.*
+
+
+<claude-mem-context>
+# Memory Context
+
+# [harness-pilot] recent context, 2026-04-27 2:50pm GMT+8
+
+No previous sessions found.
+</claude-mem-context>
