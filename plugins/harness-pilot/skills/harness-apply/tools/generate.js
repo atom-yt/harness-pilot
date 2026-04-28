@@ -14,7 +14,8 @@ import {
   getHarnessRoot,
   getDocsPath,
   getScriptsPath,
-  getRulesPath
+  getRulesPath,
+  getManifestPath
 } from '../../../lib/constants.js';
 
 const __dirname = getDirname(import.meta.url);
@@ -153,7 +154,7 @@ function resolveTemplate(type, language, framework) {
 // ============================================================================
 
 function generateHarness(options) {
-  const { language, framework, components, projectDir = process.cwd() } = options;
+  const { language, framework, components = ['ARCHITECTURE', 'DEVELOPMENT', 'PRODUCT_SENSE'], projectDir = process.cwd() } = options;
 
   const context = {
     PROJECT_NAME: path.basename(projectDir),
