@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "harness-pilot",
-      "version": "0.4.0",
+      "version": "1.0.1",
       "description": "Transform any project into a harness-compatible form with code generation, E2E testing, quality enforcement, and Ralph Wiggum Loop",
       "source": "./plugins/harness-pilot",
       "author": { "name": "harness-pilot" },

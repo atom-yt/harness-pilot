@@ -228,7 +228,7 @@ function generateHarness(options) {
 
   // Generate manifest
   const manifest = {
-    version: '0.4.0',
+    version: '1.0.1',
     language,
     framework,
     components,
