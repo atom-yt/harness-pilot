@@ -1,6 +1,6 @@
 {
   "name": "harness-pilot",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Transform any project into a harness-compatible form with code generation, E2E testing, quality enforcement, and Ralph Wiggum Loop",
   "author": {
     "name": "harness-pilot"

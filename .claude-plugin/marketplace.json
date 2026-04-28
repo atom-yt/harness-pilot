@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "harness-pilot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI Agent harness infrastructure tools for any codebase",
   "owner": {
     "name": "harness-pilot",
@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "harness-pilot",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "description": "Transform any project into a harness-compatible form with code generation, E2E testing, quality enforcement, and Ralph Wiggum Loop",
       "source": "./plugins/harness-pilot",
       "author": { "name": "harness-pilot" },
