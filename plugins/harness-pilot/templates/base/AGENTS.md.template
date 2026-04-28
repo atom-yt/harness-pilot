@@ -73,11 +73,14 @@ Requirements Design → Task Decomposition → Implementation → Completion Sum
 
 ```
 /harness-analyze  →  Check project health
+/developer-mode     →  Check SDD pipeline status
 /harness-apply    →  Generate/update harness
 develop           →  Write code
 /harness-apply    →  Validate changes (Ralph Wiggum Loop)
 ship              →  Commit and push
 ```
+
+**Recommended Plugin:** [OpenSpec](https://github.com/Fission-AI/OpenSpec) provides full SDD workflow automation for the pipeline above.
 
 ---
 

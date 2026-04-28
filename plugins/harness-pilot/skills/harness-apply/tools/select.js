@@ -106,6 +106,32 @@ function detectOpenspecPlugin() {
   return { installed: false };
 }
 
+/**
+ * Get openspec installation recommendation message with GitHub link.
+ *
+ * @returns {string} Installation recommendation
+ */
+function getOpenspecInstallRecommendation() {
+  const githubUrl = enforcement.openspecGitHub || 'https://github.com/Fission-AI/OpenSpec';
+
+  return [
+    '',
+    '┌─────────────────────────────────────────────────────────┐',
+    '│  Recommended: Install OpenSpec Plugin                 │',
+    '├─────────────────────────────────────────────────────────┤',
+    '│                                                         │',
+    '│  OpenSpec provides full SDD workflow support:            │',
+    `│  ${githubUrl}                    │`,
+    '│                                                         │',
+    '│  Install:                                               │',
+    '│  claude plugin marketplace add fission-ai/openspec-market │',
+    '│  claude plugin install openspec@openspec-marketplace       │',
+    '│                                                         │',
+    '└─────────────────────────────────────────────────────────┘',
+    ''
+  ].join('\n');
+}
+
 // ============================================================================
 // Development Mode — SDD Pipeline Validation
 // ============================================================================
@@ -451,7 +477,8 @@ function openspecOutline({ taskDescription, language, framework, estimatedFiles 
     '> [List anything that needs clarification before implementation]',
     '',
     '---',
-    '*Confirm this outline (yes / edit / cancel)?*'
+    '*Confirm this outline (yes / edit / cancel)?*',
+    getOpenspecInstallRecommendation()
   ].join('\n');
 }
 

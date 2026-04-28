@@ -108,7 +108,9 @@ STAGE 4: Completion Summary
     → Stage 1: Show pre-filled spec outline to user
     → Wait for: yes (proceed) | edit (revise outline) | cancel (abort)
     → On yes: write .comate/specs/{taskId}/doc.md from confirmed outline
-    → Recommend: "Install openspec for full SDD support."
+    → Recommend OpenSpec installation:
+      https://github.com/Fission-AI/OpenSpec
+      claude plugin marketplace add fission-ai/openspec-market
 
     → Stage 2: Prompt user to decompose tasks
     → Generate .comate/specs/{taskId}/tasks.md from requirements

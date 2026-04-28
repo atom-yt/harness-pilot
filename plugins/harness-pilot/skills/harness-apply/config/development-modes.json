@@ -274,7 +274,8 @@
     "criticalForceThreshold": 16,
     "criticalAllowSkip": false,
     "openspecEnabled": true,
-    "openspecPluginId": "openspec"
+    "openspecPluginId": "openspec",
+    "openspecGitHub": "https://github.com/Fission-AI/OpenSpec"
   },
   "userPreferences": {
     "allowSkipSpec": true,
