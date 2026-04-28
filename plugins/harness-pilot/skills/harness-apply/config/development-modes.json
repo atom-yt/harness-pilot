@@ -1,0 +1,242 @@
+{
+  "version": "1.0.0",
+  "modes": {
+    "spec": {
+      "name": "SPEC Mode",
+      "description": "Specification-Driven Development - Write specs first, then implement",
+      "trigger": "default",
+      "aliases": ["spec", "sdd", "openspec"],
+      "required": false,
+      "enforceOnLargeTasks": true,
+      "steps": [
+        "analyze-requirements",
+        "write-spec",
+        "review-spec",
+        "implement-from-spec",
+        "verify-implementation"
+      ],
+      "artifacts": {
+        "specDir": ".harness/specs/",
+        "specFile": "{feature-name}.spec.md",
+        "checklistFile": "{feature-name}.checklist.md"
+      }
+    },
+    "plan": {
+      "name": "PLAN Mode",
+      "description": "Traditional planning mode - Create implementation plan then execute",
+      "trigger": "user-select",
+      "aliases": ["plan", "planning"],
+      "required": false,
+      "steps": [
+        "analyze-task",
+        "create-plan",
+        "review-plan",
+        "execute-plan",
+        "verify-results"
+      ],
+      "artifacts": {
+        "planDir": ".harness/plans/",
+        "planFile": "{feature-name}.plan.md"
+      }
+    },
+    "direct": {
+      "name": "DIRECT Mode",
+      "description": "Direct execution - Skip planning for simple tasks",
+      "trigger": "simple-tasks",
+      "aliases": ["direct", "skip", "quick"],
+      "required": false,
+      "maxComplexity": 3,
+      "steps": [
+        "execute",
+        "verify"
+      ]
+    },
+    "expert-panel": {
+      "name": "Expert Panel Mode",
+      "description": "Multi-agent collaboration for complex tasks",
+      "trigger": "complex-tasks",
+      "aliases": ["expert", "panel", "multi-agent"],
+      "required": false,
+      "minComplexity": 7,
+      "panelSize": {
+        "min": 2,
+        "max": 5,
+        "default": 3
+      },
+      "roles": [
+        {
+          "id": "architect",
+          "name": "Architect",
+          "description": "Design and architecture decisions",
+          "focus": ["structure", "patterns", "scalability"]
+        },
+        {
+          "id": "implementer",
+          "name": "Implementer",
+          "description": "Code implementation and testing",
+          "focus": ["code", "tests", "debugging"]
+        },
+        {
+          "id": "reviewer",
+          "name": "Reviewer",
+          "description": "Code review and quality assurance",
+          "focus": ["quality", "best-practices", "security"]
+        },
+        {
+          "id": "domain-expert",
+          "name": "Domain Expert",
+          "description": "Business logic and domain knowledge",
+          "focus": ["business-rules", "domain-models", "validation"]
+        },
+        {
+          "id": "devops",
+          "name": "DevOps Engineer",
+          "description": "Deployment and infrastructure",
+          "focus": ["deployment", "infrastructure", "monitoring"]
+        }
+      ],
+      "workflow": [
+        "analyze-complexity",
+        "assemble-panel",
+        "parallel-analysis",
+        "synthesize-solutions",
+        "vote-or-consensus",
+        "execute-decision",
+        "verify-results"
+      ]
+    }
+  },
+  "complexity": {
+    "factors": [
+      {
+        "id": "file-count",
+        "name": "File Count",
+        "weight": 1,
+        "thresholds": {
+          "low": 3,
+          "medium": 10,
+          "high": 20
+        }
+      },
+      {
+        "id": "scope-breadth",
+        "name": "Scope Breadth",
+        "weight": 2,
+        "thresholds": {
+          "low": 1,
+          "medium": 3,
+          "high": 5
+        },
+        "values": {
+          "single-component": 1,
+          "multi-component": 3,
+          "cross-cutting": 5,
+          "system-wide": 8
+        }
+      },
+      {
+        "id": "dependency-impact",
+        "name": "Dependency Impact",
+        "weight": 2,
+        "thresholds": {
+          "low": 1,
+          "medium": 3,
+          "high": 5
+        },
+        "values": {
+          "isolated": 1,
+          "internal-deps": 3,
+          "external-apis": 5,
+          "breaking-changes": 8
+        }
+      },
+      {
+        "id": "risk-level",
+        "name": "Risk Level",
+        "weight": 3,
+        "thresholds": {
+          "low": 1,
+          "medium": 3,
+          "high": 5
+        },
+        "values": {
+          "non-critical": 1,
+          "important": 3,
+          "critical": 5,
+          "security-sensitive": 8
+        }
+      },
+      {
+        "id": "uncertainty",
+        "name": "Requirements Uncertainty",
+        "weight": 1,
+        "thresholds": {
+          "low": 1,
+          "medium": 3,
+          "high": 5
+        },
+        "values": {
+          "clear-spec": 1,
+          "some-ambiguity": 3,
+          "needs-research": 5,
+          "exploratory": 8
+        }
+      }
+    ],
+    "levels": {
+      "trivial": {
+        "range": [1, 3],
+        "recommendedMode": "spec",
+        "allowSkipTo": ["plan", "direct"],
+        "description": "Simple fixes, typo corrections, single-file changes"
+      },
+      "simple": {
+        "range": [4, 6],
+        "recommendedMode": "spec",
+        "allowSkipTo": ["plan", "direct"],
+        "description": "Small features, refactoring, few files"
+      },
+      "moderate": {
+        "range": [7, 10],
+        "recommendedMode": "spec",
+        "allowSkipTo": ["plan"],
+        "description": "New features, API changes, multiple components"
+      },
+      "complex": {
+        "range": [11, 15],
+        "recommendedMode": "spec",
+        "expertPanelAuto": true,
+        "expertPanelCanSkip": true,
+        "description": "Major features, architectural changes"
+      },
+      "critical": {
+        "range": [16, 100],
+        "recommendedMode": "spec",
+        "expertPanelAuto": true,
+        "expertPanelCanSkip": false,
+        "allowSkip": false,
+        "description": "System-wide changes, security-sensitive, breaking changes"
+      }
+    },
+    "largeTaskThreshold": 7,
+    "expertPanelThreshold": 11
+  },
+  "enforcement": {
+    "largeTaskThreshold": 7,
+    "largeTaskForcedMode": "spec",
+    "largeTaskAllowSkipTo": ["plan"],
+    "expertPanelAutoThreshold": 11,
+    "expertPanelCanSkip": true,
+    "criticalForceThreshold": 16,
+    "criticalAllowSkip": false,
+    "openspecEnabled": true,
+    "openspecPluginId": "openspec"
+  },
+  "userPreferences": {
+    "allowSkipSpec": true,
+    "allowSkipPlan": true,
+    "rememberChoice": true,
+    "promptOnComplexTask": true,
+    "defaultMode": "spec"
+  }
+}

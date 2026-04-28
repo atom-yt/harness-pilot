@@ -2,7 +2,7 @@
 
 > **Meta-project notice**: This repository *is* the source of the `harness-pilot` Claude Code plugin. It dog-foods its own output under `.harness/`, but this `AGENTS.md` is **manually maintained** — do NOT regenerate it via `harness-apply` in this repo.
 >
-> Last reviewed: 2026-04-27
+> Last reviewed: 2026-04-28
 
 Read this file first. It is the map that tells any AI agent where to go next.
 
@@ -43,7 +43,7 @@ Read this file first. It is the map that tells any AI agent where to go next.
 | Path | Purpose |
 |------|---------|
 | `plugins/harness-pilot/skills/harness-analyze/` | Read-only health analyzer — `SKILL.md` + `tools/analyze-{docs,architecture,imports}.js` + `generate-report.js` |
-| `plugins/harness-pilot/skills/harness-apply/`   | Generator + Ralph Wiggum Loop — `SKILL.md` + `tools/` + `config/` |
+| `plugins/harness-pilot/skills/harness-apply/`   | Generator + Ralph Wiggum Loop — `SKILL.md` + `tools/` (detect, select, generate, loop, **complexity-analyzer**, **expert-panel**) + `config/` |
 | `plugins/harness-pilot/agents/planner.md`             | Task-decomposition agent |
 | `plugins/harness-pilot/agents/code-reviewer.md`       | Review agent used by the Loop |
 | `plugins/harness-pilot/agents/test-generator.md`      | JIT test synthesis agent |
@@ -100,6 +100,8 @@ Read this file first. It is the map that tells any AI agent where to go next.
 | Change a Skill's behavior | `plugins/harness-pilot/skills/{skill}/SKILL.md` → that skill's `tools/*.js` |
 | Add/modify a generated artifact for user projects | `plugins/harness-pilot/templates/` (pick `base/` → `languages/` → `frameworks/` in override order) |
 | Extend language or framework detection | `plugins/harness-pilot/lib/detect-language.js` + `skills/harness-apply/config/detection-rules.json` |
+| Change mode selection / enforcement rules | `skills/harness-apply/config/development-modes.json` (`enforcement` block) → `tools/select.js` (`selectDevelopmentMode`) |
+| Change complexity scoring thresholds | `skills/harness-apply/tools/complexity-analyzer.js` + `development-modes.json` (`complexity.factors`) |
 | Debug handoff / resume | `docs/handoff-mechanism.md` → `.harness/handoffs/` → `.harness/tasks/` |
 | Run health check on this repo | Invoke `/harness-analyze` (read-only) |
 | Ship a feature | Follow `.comate/specs/{feature}/tasks.md` under the SDD workflow |
@@ -109,7 +111,7 @@ Read this file first. It is the map that tells any AI agent where to go next.
 | Skill | Command | Description |
 |-------|---------|-------------|
 | Analyze | `/harness-analyze` | Read-only health analysis, scoring, recommendations |
-| Apply | `/harness-apply` | Generate / incrementally update harness; runs Ralph Wiggum Loop |
+| Apply | `/harness-apply` | Intelligent mode selection (SPEC default) → generate / incrementally update harness → Ralph Wiggum Loop |
 
 ## Bundled Sub-Agents
 

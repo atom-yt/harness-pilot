@@ -2,22 +2,252 @@
 /**
  * Interactive Selection Tool
  *
- * Handles user selections for components, capabilities, and templates.
- * Outputs selection result as JSON.
+ * Handles user selections for components, capabilities, templates,
+ * and development mode (SPEC / PLAN / DIRECT) with enforcement rules.
  */
 
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { loadConfig } from '../../../lib/config.js';
 import { getDirname } from '../../../lib/path-utils.js';
 
 const __dirname = getDirname(import.meta.url);
 
 const defaults = loadConfig('defaults.json') || {};
+const modeConfig = loadConfig('development-modes.json') || {};
+const enforcement = modeConfig.enforcement || {
+  largeTaskThreshold: 7,
+  largeTaskForcedMode: 'spec',
+  largeTaskAllowSkipTo: ['plan'],
+  expertPanelAutoThreshold: 11,
+  expertPanelCanSkip: true,
+  criticalForceThreshold: 16,
+  criticalAllowSkip: false,
+  openspecEnabled: true,
+  openspecPluginId: 'openspec'
+};
 
 // ============================================================================
-// Selection Definitions
+// Development Mode Definitions
 // ============================================================================
+
+const DEVELOPMENT_MODES = modeConfig.modes || {
+  spec: {
+    name: 'SPEC Mode',
+    description: 'Specification-Driven Development - Write specs first, then implement',
+    trigger: 'default',
+    enforceOnLargeTasks: true
+  },
+  plan: {
+    name: 'PLAN Mode',
+    description: 'Traditional planning mode - Create implementation plan then execute',
+    trigger: 'user-select'
+  },
+  direct: {
+    name: 'DIRECT Mode',
+    description: 'Direct execution - Skip planning for simple tasks',
+    trigger: 'simple-tasks'
+  }
+};
+
+// ============================================================================
+// Development Mode — openspec Plugin Detection
+// ============================================================================
+
+/**
+ * Detect whether the openspec plugin is available in the current Claude
+ * Code environment.
+ *
+ * Strategy (in order, stops on first positive):
+ *  1. Check $HOME/.claude/plugins/<pluginId>/
+ *  2. `claude plugin list` output contains the pluginId
+ *
+ * @returns {{ installed: boolean, version?: string }}
+ */
+function detectOpenspecPlugin() {
+  const pluginId = enforcement.openspecPluginId || 'openspec';
+
+  // 1. File-system check
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  const pluginDir = path.join(homeDir, '.claude', 'plugins', pluginId);
+  if (fs.existsSync(pluginDir)) {
+    let version;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(pluginDir, 'package.json'), 'utf8'));
+      version = pkg.version;
+    } catch (_) { /* no package.json, still installed */ }
+    return { installed: true, version };
+  }
+
+  // 2. CLI check
+  try {
+    const output = execSync('claude plugin list 2>/dev/null', { timeout: 3000 }).toString();
+    if (output.includes(pluginId)) {
+      return { installed: true };
+    }
+  } catch (_) { /* claude CLI not available */ }
+
+  return { installed: false };
+}
+
+// ============================================================================
+// Development Mode — Mode Selection UI
+// ============================================================================
+
+/**
+ * Determine and format the development mode selection prompt for the current
+ * task. Enforces complexity-based constraints and returns the decision.
+ *
+ * @param {object} opts
+ * @param {number}  opts.complexityScore   - pre-calculated score (1–20)
+ * @param {string}  opts.complexityLevel   - trivial|simple|moderate|complex|critical
+ * @param {string}  opts.taskDescription   - short description shown in UI
+ * @param {boolean} [opts.autoMode=false]  - accept defaults without prompting
+ * @param {boolean} [opts.noPanel=false]   - skip expert panel even if auto-triggered
+ * @returns {{ prompt: string, defaultMode: string, allowedModes: string[],
+ *             expertPanel: boolean, panelSkippable: boolean, enforced: boolean }}
+ */
+function selectDevelopmentMode({ complexityScore, complexityLevel, taskDescription, autoMode = false, noPanel = false }) {
+  const score = complexityScore || 1;
+  const level = complexityLevel || 'trivial';
+
+  // Determine allowed modes and default based on enforcement config
+  let defaultMode = 'spec';
+  let allowedModes = ['spec', 'plan', 'direct'];
+  let enforced = false;
+  let expertPanel = false;
+  let panelSkippable = true;
+  let enforcementNote = '';
+
+  if (score >= enforcement.criticalForceThreshold) {
+    // Critical: spec only, expert panel required, no skip
+    defaultMode = 'spec';
+    allowedModes = ['spec'];
+    enforced = true;
+    expertPanel = true;
+    panelSkippable = false;
+    enforcementNote = `⛔  Complexity score ${score} (${level}) — SPEC + Expert Panel required. No override allowed.`;
+  } else if (score >= enforcement.expertPanelAutoThreshold) {
+    // Complex: spec forced, expert panel auto (skippable), can't drop to direct
+    defaultMode = 'spec';
+    allowedModes = ['spec'];
+    enforced = true;
+    expertPanel = !noPanel;
+    panelSkippable = enforcement.expertPanelCanSkip !== false;
+    enforcementNote = `⚠  Complexity score ${score} (${level}) — SPEC mode required. Expert Panel auto-assembled${panelSkippable ? ' (use --no-panel to skip)' : ''}.`;
+  } else if (score >= enforcement.largeTaskThreshold) {
+    // Moderate: spec is forced default, can downgrade to plan only
+    defaultMode = 'spec';
+    allowedModes = ['spec', ...(enforcement.largeTaskAllowSkipTo || ['plan'])];
+    enforced = true;
+    expertPanel = false;
+    enforcementNote = `⚠  Complexity score ${score} (${level}) — SPEC mode required. You may downgrade to PLAN, but not DIRECT.`;
+  } else {
+    // Simple / Trivial: SPEC is always the default; user may choose plan or direct
+    defaultMode = 'spec';
+    allowedModes = ['spec', 'plan', 'direct'];
+    enforcementNote = `ℹ  Complexity score ${score} (${level}) — SPEC mode recommended. You may switch to PLAN or DIRECT.`;
+  }
+
+  const modeLines = [
+    { id: 'spec',   label: 'SPEC Mode (SDD)',    note: 'Write spec first → confirm → implement',      available: allowedModes.includes('spec') },
+    { id: 'plan',   label: 'PLAN Mode',           note: 'Traditional step-by-step plan → implement',   available: allowedModes.includes('plan') },
+    { id: 'direct', label: 'DIRECT Mode',         note: 'Skip planning, code immediately',             available: allowedModes.includes('direct') }
+  ];
+
+  const bar = '━'.repeat(54);
+  const lines = [
+    bar,
+    ' Development Mode Selection',
+    ` Task: ${taskDescription || '(not specified)'}`,
+    ` Complexity: ${level} (score ${score}/20)`,
+    bar,
+    ''
+  ];
+
+  let idx = 1;
+  for (const m of modeLines) {
+    const tag = m.id === defaultMode ? ' [DEFAULT]' : '';
+    const avail = m.available ? '' : '  [unavailable at this complexity]';
+    lines.push(` ${m.available ? idx++ : '✗'} ${m.label}${tag}`);
+    lines.push(`   ${m.note}${avail}`);
+    lines.push('');
+  }
+
+  if (enforcementNote) {
+    lines.push(bar);
+    lines.push(` ${enforcementNote}`);
+  }
+
+  if (expertPanel) {
+    lines.push('');
+    lines.push(' Expert Panel will be assembled for this task.');
+  }
+
+  lines.push(bar);
+  lines.push(` Enter choice or press Enter to accept default (${defaultMode}):`);
+
+  return {
+    prompt: lines.join('\n'),
+    defaultMode,
+    allowedModes,
+    expertPanel,
+    panelSkippable,
+    enforced
+  };
+}
+
+// ============================================================================
+// Development Mode — Built-in openspec Fallback
+// ============================================================================
+
+/**
+ * Generate a pre-filled spec outline displayed to the user before doc.md is
+ * written. Used only when the openspec plugin is NOT installed.
+ *
+ * @param {object} ctx
+ * @param {string} ctx.taskDescription
+ * @param {string} [ctx.language]
+ * @param {string} [ctx.framework]
+ * @param {string[]} [ctx.estimatedFiles]
+ * @returns {string} markdown outline text
+ */
+function openspecOutline({ taskDescription, language, framework, estimatedFiles = [] }) {
+  const techStack = [language, framework].filter(Boolean).join(' / ') || 'unknown';
+  const fileList = estimatedFiles.length
+    ? estimatedFiles.map(f => `- \`${f}\``).join('\n')
+    : '- (to be identified during analysis)';
+
+  return [
+    `# Spec Outline — ${taskDescription || 'New Task'}`,
+    '',
+    '## What problem does this solve?',
+    '> [Describe the user need or technical gap this addresses]',
+    '',
+    '## Tech stack',
+    `> ${techStack}`,
+    '',
+    '## Affected files (estimated)',
+    fileList,
+    '',
+    '## Approach (choose one or propose your own)',
+    '- [ ] Option A: [describe approach]',
+    '- [ ] Option B: [describe alternative]',
+    '',
+    '## Out of scope',
+    '> [List what this task explicitly does NOT cover]',
+    '',
+    '## Open questions / ambiguities',
+    '> [List anything that needs clarification before implementation]',
+    '',
+    '---',
+    '*Confirm this outline (yes / edit / cancel)?*'
+  ].join('\n');
+}
+
+
 
 const COMPONENTS = {
   docs: {
@@ -229,9 +459,39 @@ function interactiveSelect(mode) {
 
 function main() {
   const args = process.argv.slice(2);
-  const mode = args[0] || 'components'; // components | capabilities | templates
-  const action = args[1] || 'prompt'; // prompt | parse | interactive | defaults
+  const mode = args[0] || 'components'; // components | capabilities | templates | mode | spec
+  const action = args[1] || 'prompt'; // prompt | parse | interactive | defaults | select | outline
   const input = args[2] || '';
+
+  // --- Development mode selection ---
+  if (mode === 'mode' && action === 'select') {
+    const score = parseInt(args[2] || '1', 10);
+    const level = args[3] || 'trivial';
+    const desc = args[4] || '';
+    const autoMode = args.includes('--auto');
+    const noPanel = args.includes('--no-panel');
+    const result = selectDevelopmentMode({ complexityScore: score, complexityLevel: level, taskDescription: desc, autoMode, noPanel });
+    if (autoMode) {
+      console.log(JSON.stringify({ mode: result.defaultMode, expertPanel: result.expertPanel, enforced: result.enforced }));
+    } else {
+      console.log(result.prompt);
+      console.log(JSON.stringify({ defaultMode: result.defaultMode, allowedModes: result.allowedModes, expertPanel: result.expertPanel }));
+    }
+    process.exit(0);
+  }
+
+  // --- openspec outline (built-in fallback) ---
+  if (mode === 'spec' && action === 'outline') {
+    const ctx = input ? JSON.parse(input) : {};
+    console.log(openspecOutline(ctx));
+    process.exit(0);
+  }
+
+  // --- openspec plugin detection ---
+  if (mode === 'spec' && action === 'detect') {
+    console.log(JSON.stringify(detectOpenspecPlugin()));
+    process.exit(0);
+  }
 
   // Support interactive mode
   if (action === 'interactive' || action === '-i') {
@@ -270,4 +530,8 @@ if (scriptPath === invokedPath) {
 }
 
 // Export for module use
-export { COMPONENTS, CAPABILITIES, TEMPLATES, formatComponentsPrompt, formatCapabilitiesPrompt, parseSelection, interactiveSelect };
+export {
+  COMPONENTS, CAPABILITIES, TEMPLATES,
+  formatComponentsPrompt, formatCapabilitiesPrompt, parseSelection, interactiveSelect,
+  detectOpenspecPlugin, selectDevelopmentMode, openspecOutline
+};

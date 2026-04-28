@@ -11,7 +11,7 @@ description: Generate and maintain harness infrastructure with reentrant updates
 
 The single "action" skill for Harness. Handles everything from initial setup to ongoing quality enforcement:
 
-1. **Initial generation** — Detect project, create `.harness/` infrastructure
+1. **Initial generation** — Detect project, select development mode, create `.harness/` infrastructure
 2. **Code generation** — Generate scaffolding from templates (API, model, service, handler)
 3. **Reentrant update** — Detect code changes, incrementally update harness knowledge
 4. **Ralph Wiggum Loop** — Automated review-test-fix quality cycle
@@ -25,30 +25,97 @@ The single "action" skill for Harness. Handles everything from initial setup to 
 3. **Root cause** — Fix at source, not patches. Every decision must answer "why".
 4. **Cut noise** — Output only decision-critical information.
 
-## Mode Selection
+## Development Mode
 
-Mode is determined automatically:
+**SPEC mode is the default for all tasks.** Mode is enforced by complexity score before any generation begins.
+
+### Enforcement Matrix
+
+**SPEC is the default for every task.** For large/complex tasks it is also enforced (cannot be skipped).
+
+| Score | Level | Default | Can Skip To | Expert Panel |
+|-------|-------|---------|-------------|-------------|
+| 1–3 | trivial | **spec** | plan, direct | — |
+| 4–6 | simple | **spec** | plan, direct | — |
+| 7–10 | moderate | **spec** (enforced) | plan only | — |
+| 11–15 | complex | **spec** (enforced) | — | auto (skippable) |
+| 16+ | critical | **spec** (enforced) | — | auto (**required**) |
+
+**Flags:**
+- `--auto` — skip all prompts, accept defaults
+- `--no-panel` — skip expert panel (only valid if `expertPanelCanSkip: true` for that level)
+- `--init` — force Initial Mode
+- `--resume <taskId>` — resume from checkpoint
+
+### Mode Selection Step (Step 0)
+
+Before any generation in Initial or Code Generation mode:
+
+```
+1. CALL complexity-analyzer.js estimate "<task description>"
+   → { score, level }
+
+2. CALL select.js mode select <score> <level> "<task description>" [--auto] [--no-panel]
+   → Shows enforcement UI, returns { defaultMode, allowedModes, expertPanel }
+
+3. Wait for user choice (or use default if --auto)
+```
+
+### openspec Integration
+
+When SPEC mode is selected:
+
+```
+1. CALL select.js spec detect
+   → { installed: bool }
+
+2a. IF installed:
+    Delegate the full SDD workflow to the openspec plugin:
+    doc.md → user confirms → tasks.md → user confirms → implement → summary.md
+
+2b. IF NOT installed:
+    CALL select.js spec outline '<context-json>'
+    → Show pre-filled spec outline to user
+    → Wait for: yes (proceed) | edit (revise outline) | cancel (abort)
+    → On yes: write .comate/specs/{taskId}/doc.md from confirmed outline
+    → Recommend: "Install openspec for full SDD support."
+
+3. Proceed to generate.js only after spec is confirmed
+```
+
+### Expert Panel Auto-Routing
+
+When `expertPanel: true` is returned from mode selection:
+
+```
+1. CALL expert-panel.js assemble <taskId> [--roles architect,implementer,reviewer]
+   → Show panel composition: "Assembling Expert Panel: Architect, Implementer, Reviewer"
+
+2. Wait for user confirmation (or proceed if --auto)
+
+3. CALL expert-panel.js execute <taskId>
+   → Parallel analysis → synthesize → vote/consensus → execute decision
+
+4. Continue with generate.js using panel's recommended approach
+```
+
+### Harness Mode (vs. Development Mode)
+
+Harness mode (Initial / Code Generation / Reentry) is determined separately from development mode:
 
 ```
 if .harness/manifest.json does NOT exist:
   → Initial Mode (generate full .harness/)
-  → Then run first Loop verification
 
 if .harness/manifest.json EXISTS:
   → Check user intent:
-
   if user says "add-api" | "add-model" | "add-service" | "add-handler":
-    → Code Generation Mode (scaffold from templates)
-
+    → Code Generation Mode
   else:
     → Reentry Mode (scan code changes, incremental update)
-    → Then run Ralph Wiggum Loop
 
 if user says --init:
-  → Force Initial Mode (regenerate everything, skip Loop)
-
-if user says --auto:
-  → Non-interactive mode (use detected defaults, no prompts)
+  → Force Initial Mode
 ```
 
 **Trigger keywords:** "harness-apply", "apply", "harness-build", "generate-rules", "harness-rules", "harness-loop", "quality loop", "add-api", "add-model", "add-service", "add-handler"
@@ -58,13 +125,25 @@ if user says --auto:
 ### Tool Locations
 All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 - `detect.js` — Project detection
-- `select.js` — Interactive selection
+- `select.js` — Mode selection, component/capability selection, openspec integration
 - `generate.js` — Template generation
 - `loop.js` — Ralph Wiggum Loop
+- `complexity-analyzer.js` — Task complexity scoring
+- `expert-panel.js` — Multi-agent expert panel coordinator
 
 ### Initial Mode Workflow
 
 ```
+0. CALL select.js mode select <score> <level> "<desc>"   ← NEW: mode selection first
+   Confirm development mode (default: spec)
+
+   IF spec mode:
+     Run openspec integration (detect plugin → delegate or fallback outline)
+     Wait for spec confirmation before continuing
+
+   IF expert panel triggered:
+     Assemble and confirm panel
+
 1. CALL detect()
    Input: none
    Output: { language, framework, structure, harness }
@@ -94,6 +173,9 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 ### Code Generation Mode Workflow
 
 ```
+0. CALL select.js mode select <score> <level> "<desc>"   ← NEW: mode selection first
+   Confirm development mode
+
 1. CALL detect()
    Get current project context
 
@@ -118,6 +200,8 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 ### Reentry Mode Workflow
 
 ```
+(No mode selection — mode is carried from prior session or manifest)
+
 1. CALL detect()
    Check harness status
    Detect changes since last apply
@@ -135,6 +219,7 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 5. CALL loop("analyze")
    Show evolution insights (recurring failure patterns)
 ```
+
 
 ## Ralph Wiggum Loop
 
@@ -312,8 +397,20 @@ node plugins/harness-pilot/scripts/template-engine.js \n  plugins/harness-pilot/
 All configuration is in `plugins/harness-pilot/skills/harness-apply/config/`:
 - `defaults.json` — Default quality rules and capabilities
 - `detection-rules.json` — Language and framework detection
+- `development-modes.json` — Mode definitions, complexity levels, and enforcement rules
 - `layer-mappings.json` — Default layer mappings by framework
 - `quality-rules.json` — Language-specific quality rules
+
+Key enforcement fields in `development-modes.json`:
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `enforcement.largeTaskThreshold` | 7 | Score ≥ this → SPEC forced |
+| `enforcement.expertPanelAutoThreshold` | 11 | Score ≥ this → Expert Panel auto-assembled |
+| `enforcement.criticalForceThreshold` | 16 | Score ≥ this → SPEC + Panel, no override |
+| `enforcement.openspecEnabled` | true | Enable openspec plugin detection |
+| `enforcement.openspecPluginId` | "openspec" | Plugin identifier to look up |
+| `userPreferences.defaultMode` | "spec" | Fallback default if no enforcement applies |
 
 To add support for a new framework:
 1. Add entry to `detection-rules.json`
