@@ -15,6 +15,35 @@ Read this file first. It is the map that tells any AI agent where to go next.
 3. **Root cause** — Fix at source, not patches. Every decision must answer "why".
 4. **Cut noise** — Output only decision-critical information.
 
+## Development Mode Declaration
+
+**Default Mode: SPEC (SDD - Specification-Driven Development)**
+
+This project uses SPEC mode as the default development mode for all tasks. The SDD pipeline enforces a strict sequence:
+
+```
+Requirements Design → Task Decomposition → Implementation → Completion Summary
+```
+
+**SDD Pipeline Stages:**
+
+| Stage | Artifact | Description | Gate |
+|-------|----------|-------------|------|
+| Requirements | `.comate/specs/{feature}/doc.md` | Analyze and clarify requirements | Must complete first |
+| Decomposition | `.comate/specs/{feature}/tasks.md` | Break down into executable tasks | Requires doc.md |
+| Implementation | Code + Tests | Execute following tasks.md | Requires tasks.md |
+| Summary | `.comate/specs/{feature}/summary.md` | Document completion | Requires implementation |
+
+**Enforcement Rules:**
+- Task decomposition (tasks.md) CANNOT be created before requirements (doc.md) are complete
+- Implementation CANNOT begin before tasks.md is finalized
+- This order is enforced by complexity scoring (moderate tasks and above force SPEC mode)
+
+**To bypass SDD mode** (only allowed for trivial tasks with complexity ≤ 6):
+- Use `--mode direct` flag explicitly
+- Confirm bypass at complexity analyzer prompt
+- Simple fixes (typos, one-line changes) may skip directly
+
 ## Project Overview
 
 - **Type**: Claude Code plugin (distributed as a directory tree)
@@ -126,11 +155,34 @@ Read this file first. It is the map that tells any AI agent where to go next.
 ## Development Workflow
 
 ```
-/harness-analyze  →  Check project health (read-only)
-develop           →  Edit plugin code under plugins/harness-pilot/
-/harness-apply    →  Re-validate in a downstream sample (test-projects/*)
-ship              →  Commit and push
-```
+New Feature Request → Spec/SDD Workflow → Implementation → Test → Commit
+
+Spec/SDD Workflow (Mandatory for new features):
+  Step 1: Requirements Design
+    → /harness-apply → select mode: spec
+    → Create .comate/specs/{feature}/doc.md (spec outline)
+    → Review and confirm requirements
+
+  Step 2: Task Decomposition
+    → Create .comate/specs/{feature}/tasks.md (task breakdown)
+    → Break down into ordered, executable steps
+    → Review and confirm task plan
+
+  Step 3: Implementation
+    → Implement following tasks.md sequentially
+    → Each task marked complete before moving to next
+
+  Step 4: Completion Summary
+    → Create .comate/specs/{feature}/summary.md
+    → Document what was accomplished
+
+Example workflow:
+  /harness-analyze  →  Check project health (read-only)
+  develop           →  Follow spec tasks under .comate/specs/
+  /harness-apply    →  Re-validate in a downstream sample (test-projects/*)
+  ship              →  Commit and push
+
+Important: Tasks.md cannot be created until doc.md is complete. Implementation cannot begin until tasks.md is finalized.
 
 Notes:
 - In **this** repo, run `harness-analyze` freely, but avoid `harness-apply` unless intentionally refreshing the self-applied `.harness/` snapshot — `AGENTS.md` (this file) is intentionally excluded from that refresh.

@@ -11,6 +11,35 @@
 3. **Root cause** — Fix at source, not patches. Every decision must answer "why".
 4. **Cut noise** — Output only decision-critical information.
 
+## Development Mode Declaration
+
+**Default Mode: SPEC (SDD - Specification-Driven Development)**
+
+This project uses SPEC mode as the default development mode for all tasks. The SDD pipeline enforces a strict sequence:
+
+```
+Requirements Design → Task Decomposition → Implementation → Completion Summary
+```
+
+**SDD Pipeline Stages:**
+
+| Stage | Artifact | Description | Gate |
+|-------|----------|-------------|------|
+| Requirements | `.comate/specs/{feature}/doc.md` | Analyze and clarify requirements | Must complete first |
+| Decomposition | `.comate/specs/{feature}/tasks.md` | Break down into executable tasks | Requires doc.md |
+| Implementation | Code + Tests | Execute following tasks.md | Requires tasks.md |
+| Summary | `.comate/specs/{feature}/summary.md` | Document completion | Requires implementation |
+
+**Enforcement Rules:**
+- Task decomposition (tasks.md) CANNOT be created before requirements (doc.md) are complete
+- Implementation CANNOT begin before tasks.md is finalized
+- This order is enforced by complexity scoring (moderate tasks and above force SPEC mode)
+
+**To bypass SDD mode** (only allowed for trivial tasks with complexity ≤ 6):
+- Use `--mode direct` flag explicitly
+- Confirm bypass at complexity analyzer prompt
+- Simple fixes (typos, one-line changes) may skip directly
+
 ## Project Overview
 
 - **Language**: {{LANGUAGE}}

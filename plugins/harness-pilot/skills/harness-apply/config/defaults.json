@@ -1,5 +1,12 @@
 {
   "version": "1.0.0",
+  "developmentMode": {
+    "default": "spec",
+    "enforceSDDPipeline": true,
+    "strictOrder": true,
+    "allowSkipForTrivial": true,
+    "trivialThreshold": 6
+  },
   "qualityRules": {
     "noConsoleLog": true,
     "maxFileSize": 500,

@@ -14,9 +14,23 @@ import { loadConfig } from '../../../lib/config.js';
 import { getDirname } from '../../../lib/path-utils.js';
 
 const __dirname = getDirname(import.meta.url);
+const configDir = path.join(__dirname, '..', 'config');
 
-const defaults = loadConfig('defaults.json') || {};
-const modeConfig = loadConfig('development-modes.json') || {};
+const defaults = loadConfig('defaults.json', configDir) || {};
+const modeConfig = loadConfig('development-modes.json', configDir) || {};
+
+// Extract pipeline configuration from SPEC mode
+const specMode = modeConfig.modes?.spec || {};
+const specPipeline = specMode.pipeline || {
+  stages: [
+    { id: 'requirements', artifacts: ['.comate/specs/{feature}/doc.md'] },
+    { id: 'decomposition', artifacts: ['.comate/specs/{feature}/tasks.md'] },
+    { id: 'implementation', artifacts: ['code changes', 'tests'] },
+    { id: 'summary', artifacts: ['.comate/specs/{feature}/summary.md'] }
+  ],
+  enforcement: { strictOrder: true, allowParallel: false, skipStages: false }
+};
+
 const enforcement = modeConfig.enforcement || {
   largeTaskThreshold: 7,
   largeTaskForcedMode: 'spec',
@@ -90,6 +104,200 @@ function detectOpenspecPlugin() {
   } catch (_) { /* claude CLI not available */ }
 
   return { installed: false };
+}
+
+// ============================================================================
+// Development Mode — SDD Pipeline Validation
+// ============================================================================
+
+/**
+ * Validate SDD pipeline stage order before allowing progression.
+ * Ensures requirements (doc.md) exist before tasks.md can be created,
+ * and tasks.md exists before implementation can begin.
+ *
+ * @param {string} stageId - Current stage: 'requirements' | 'decomposition' | 'implementation' | 'summary'
+ * @param {string} featureId - Feature/task identifier (e.g., 'user-auth')
+ * @param {string} projectDir - Project root directory
+ * @returns {{ allowed: boolean, reason?: string, missingArtifacts?: string[] }}
+ */
+function validateSDDStage(stageId, featureId, projectDir = process.cwd()) {
+  const stages = specPipeline.stages || [];
+  const currentIndex = stages.findIndex(s => s.id === stageId);
+
+  if (currentIndex < 0) {
+    return { allowed: false, reason: `Unknown SDD stage: ${stageId}` };
+  }
+
+  // Check if previous stages have required artifacts
+  const missingArtifacts = [];
+  for (let i = 0; i < currentIndex; i++) {
+    const prevStage = stages[i];
+    const artifacts = prevStage.artifacts || [];
+
+    for (const artifact of artifacts) {
+      const artifactPath = artifact
+        .replace('{feature}', featureId)
+        .replace('{feature-name}', featureId);
+
+      const fullPath = path.join(projectDir, artifactPath);
+
+      // Skip checking 'code changes' type artifacts (not file-based)
+      if (artifactPath.includes('code') || artifactPath.includes('tests')) {
+        continue;
+      }
+
+      if (!fs.existsSync(fullPath)) {
+        missingArtifacts.push(artifactPath);
+      }
+    }
+  }
+
+  if (missingArtifacts.length > 0) {
+    const prevStage = stages[currentIndex - 1];
+    return {
+      allowed: false,
+      reason: `SDD Pipeline Enforcement: Cannot proceed to '${stageId}' stage.`,
+      missingArtifacts,
+      message: `Required artifacts from '${prevStage.id}' stage are missing:\n${missingArtifacts.map(a => `  - ${a}`).join('\n')}\n\nComplete the previous stage first.`
+    };
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Get the next SDD pipeline stage for a given feature.
+ *
+ * @param {string} featureId - Feature/task identifier
+ * @param {string} projectDir - Project root directory
+ * @returns {{ nextStage?: string, message: string }}
+ */
+function getNextSDDStage(featureId, projectDir = process.cwd()) {
+  const stages = specPipeline.stages || [];
+
+  for (const stage of stages) {
+    const validation = validateSDDStage(stage.id, featureId, projectDir);
+    if (!validation.allowed && validation.missingArtifacts) {
+      // Previous stage is incomplete, this is where we are blocked
+      const stageIndex = stages.indexOf(stage);
+      const prevStage = stages[stageIndex - 1];
+      return {
+        nextStage: prevStage.id,
+        message: `SDD Pipeline: Complete '${prevStage.id}' stage first. Missing: ${validation.missingArtifacts.join(', ')}`
+      };
+    }
+
+    // Check if this stage's artifacts exist
+    const artifacts = stage.artifacts || [];
+    let stageComplete = true;
+    for (const artifact of artifacts) {
+      const artifactPath = artifact
+        .replace('{feature}', featureId)
+        .replace('{feature-name}', featureId);
+
+      const fullPath = path.join(projectDir, artifactPath);
+
+      if (artifactPath.includes('code') || artifactPath.includes('tests')) {
+        continue; // Non-file artifacts
+      }
+
+      if (!fs.existsSync(fullPath)) {
+        stageComplete = false;
+        break;
+      }
+    }
+
+    if (!stageComplete) {
+      return {
+        nextStage: stage.id,
+        message: `SDD Pipeline: Next stage is '${stage.id}' (${stage.description})`
+      };
+    }
+  }
+
+  // All stages complete
+  const lastStage = stages[stages.length - 1];
+  return {
+    nextStage: 'complete',
+    message: `SDD Pipeline: All stages complete. Ready to ship '${featureId}'`
+  };
+}
+
+/**
+ * Display SDD pipeline status for a feature.
+ *
+ * @param {string} featureId - Feature/task identifier
+ * @param {string} projectDir - Project root directory
+ * @returns {string} Formatted pipeline status display
+ */
+function displaySDDPipelineStatus(featureId, projectDir = process.cwd()) {
+  const stages = specPipeline.stages || [];
+  const lines = [
+    '┌─────────────────────────────────────────────────────────┐',
+    '│  SDD Pipeline Status                                    │',
+    `│  Feature: ${featureId.padEnd(44)}│`,
+    '├─────────────────────────────────────────────────────────┤',
+    ''
+  ];
+
+  let currentIndex = 0;
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    const validation = validateSDDStage(stage.id, featureId, projectDir);
+
+    let status = ' ';
+    if (validation.allowed) {
+      // Check if this stage has artifacts
+      const artifacts = stage.artifacts || [];
+      let hasArtifacts = true;
+      for (const artifact of artifacts) {
+        const artifactPath = artifact
+          .replace('{feature}', featureId)
+          .replace('{feature-name}', featureId);
+
+        const fullPath = path.join(projectDir, artifactPath);
+
+        if (artifactPath.includes('code') || artifactPath.includes('tests')) {
+          continue;
+        }
+
+        if (!fs.existsSync(fullPath)) {
+          hasArtifacts = false;
+          break;
+        }
+      }
+
+      if (hasArtifacts) {
+        status = '✓';
+        currentIndex = i + 1;
+      } else {
+        status = '>';
+      }
+    } else {
+      status = '✗';
+      if (currentIndex === 0) {
+        currentIndex = i;
+      }
+    }
+
+    lines.push(` ${status} ${i + 1}. ${stage.name}`);
+    lines.push(`   ${stage.description}`);
+    lines.push('');
+  }
+
+  const nextStage = currentIndex < stages.length ? stages[currentIndex] : null;
+  if (nextStage) {
+    lines.push('─────────────────────────────────────────────────────────');
+    lines.push(`  Next: ${nextStage.name}`);
+    lines.push(`  Action: ${nextStage.artifacts.join(', ')}`);
+  } else {
+    lines.push('─────────────────────────────────────────────────────────');
+    lines.push('  Status: All stages complete ✓');
+  }
+
+  lines.push('└─────────────────────────────────────────────────────────┘');
+
+  return lines.join('\n');
 }
 
 // ============================================================================
@@ -459,9 +667,49 @@ function interactiveSelect(mode) {
 
 function main() {
   const args = process.argv.slice(2);
-  const mode = args[0] || 'components'; // components | capabilities | templates | mode | spec
+  const mode = args[0] || 'components'; // components | capabilities | templates | mode | spec | pipeline
   const action = args[1] || 'prompt'; // prompt | parse | interactive | defaults | select | outline
   const input = args[2] || '';
+
+  // --- SDD pipeline commands ---
+  if (mode === 'pipeline') {
+    const featureId = args[1] || '';
+    const pipelineAction = args[2] || 'status'; // status | validate | next
+
+    if (pipelineAction === 'status') {
+      if (!featureId) {
+        console.error('Usage: select.js pipeline <feature-id> status');
+        process.exit(1);
+      }
+      console.log(displaySDDPipelineStatus(featureId));
+    } else if (pipelineAction === 'validate') {
+      const stageId = args[3] || '';
+      if (!featureId || !stageId) {
+        console.error('Usage: select.js pipeline <feature-id> validate <stage-id>');
+        process.exit(1);
+      }
+      const validation = validateSDDStage(stageId, featureId);
+      console.log(JSON.stringify(validation, null, 2));
+      if (!validation.allowed) {
+        console.log(validation.message || validation.reason);
+        process.exit(1);
+      }
+    } else if (pipelineAction === 'next') {
+      if (!featureId) {
+        console.error('Usage: select.js pipeline <feature-id> next');
+        process.exit(1);
+      }
+      const next = getNextSDDStage(featureId);
+      console.log(next.message);
+      if (next.nextStage && next.nextStage !== 'complete') {
+        console.log(JSON.stringify({ nextStage: next.nextStage }));
+      }
+    } else {
+      console.error('Unknown pipeline action. Use: status | validate | next');
+      process.exit(1);
+    }
+    process.exit(0);
+  }
 
   // --- Development mode selection ---
   if (mode === 'mode' && action === 'select') {
@@ -533,5 +781,6 @@ if (scriptPath === invokedPath) {
 export {
   COMPONENTS, CAPABILITIES, TEMPLATES,
   formatComponentsPrompt, formatCapabilitiesPrompt, parseSelection, interactiveSelect,
-  detectOpenspecPlugin, selectDevelopmentMode, openspecOutline
+  detectOpenspecPlugin, selectDevelopmentMode, openspecOutline,
+  validateSDDStage, getNextSDDStage, displaySDDPipelineStatus, specPipeline
 };

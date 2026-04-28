@@ -63,24 +63,58 @@ Before any generation in Initial or Code Generation mode:
 
 ### openspec Integration
 
-When SPEC mode is selected:
+When SPEC mode is selected, the SDD pipeline enforces strict stage ordering:
+
+```
+STAGE 1: Requirements Design
+  → Generate spec outline (openspec or built-in fallback)
+  → Write .comate/specs/{feature}/doc.md
+  → User must confirm requirements before proceeding
+
+STAGE 2: Task Decomposition
+  → Break down requirements into ordered tasks
+  → Write .comate/specs/{feature}/tasks.md
+  → User must confirm task plan before proceeding
+
+STAGE 3: Implementation
+  → Execute tasks following tasks.md sequentially
+  → Each task marked complete before next begins
+
+STAGE 4: Completion Summary
+  → Write .comate/specs/{feature}/summary.md
+  → Document accomplishments
+```
+
+**Critical Enforcement:**
+- **Cannot skip stages**: doc.md → tasks.md → implementation → summary.md
+- **Cannot skip order**: tasks.md CANNOT be created before doc.md is complete
+- **Cannot start implementation**: Until tasks.md is finalized
+
+**openspec Integration Flow:**
 
 ```
 1. CALL select.js spec detect
    → { installed: bool }
 
 2a. IF installed:
-    Delegate the full SDD workflow to the openspec plugin:
-    doc.md → user confirms → tasks.md → user confirms → implement → summary.md
+    Delegate full SDD workflow to openspec plugin:
+    → Stage 1: doc.md generation → user confirms
+    → Stage 2: tasks.md generation → user confirms
+    → Stage 3: Implementation (delegated back to harness-apply)
+    → Stage 4: summary.md generation
 
 2b. IF NOT installed:
     CALL select.js spec outline '<context-json>'
-    → Show pre-filled spec outline to user
+    → Stage 1: Show pre-filled spec outline to user
     → Wait for: yes (proceed) | edit (revise outline) | cancel (abort)
     → On yes: write .comate/specs/{taskId}/doc.md from confirmed outline
     → Recommend: "Install openspec for full SDD support."
 
-3. Proceed to generate.js only after spec is confirmed
+    → Stage 2: Prompt user to decompose tasks
+    → Generate .comate/specs/{taskId}/tasks.md from requirements
+    → Wait for: confirm | edit | cancel
+
+3. Proceed to generate.js only AFTER Stage 2 (tasks.md) is confirmed
 ```
 
 ### Expert Panel Auto-Routing

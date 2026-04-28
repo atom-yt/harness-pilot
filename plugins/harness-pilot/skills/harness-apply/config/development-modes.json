@@ -2,8 +2,8 @@
   "version": "1.0.0",
   "modes": {
     "spec": {
-      "name": "SPEC Mode",
-      "description": "Specification-Driven Development - Write specs first, then implement",
+      "name": "SPEC Mode (SDD)",
+      "description": "Specification-Driven Development - Write specs first, then implement. Default mode for all tasks.",
       "trigger": "default",
       "aliases": ["spec", "sdd", "openspec"],
       "required": false,
@@ -12,13 +12,57 @@
         "analyze-requirements",
         "write-spec",
         "review-spec",
+        "decompose-tasks",
         "implement-from-spec",
         "verify-implementation"
       ],
+      "pipeline": {
+        "name": "SDD Pipeline",
+        "description": "Strict specification-driven development workflow enforced by AGENTS.md",
+        "stages": [
+          {
+            "id": "requirements",
+            "name": "Requirements Design",
+            "description": "Analyze and clarify requirements before any implementation planning",
+            "artifacts": [".comate/specs/{feature}/doc.md"],
+            "gate": "must-complete",
+            "next": "decomposition"
+          },
+          {
+            "id": "decomposition",
+            "name": "Task Decomposition",
+            "description": "Break down requirements into executable tasks",
+            "artifacts": [".comate/specs/{feature}/tasks.md"],
+            "gate": "requires-requirements",
+            "next": "implementation"
+          },
+          {
+            "id": "implementation",
+            "name": "Implementation",
+            "description": "Execute tasks following the decomposed plan",
+            "artifacts": ["code changes", "tests"],
+            "gate": "requires-decomposition",
+            "next": "summary"
+          },
+          {
+            "id": "summary",
+            "name": "Completion Summary",
+            "description": "Document what was accomplished",
+            "artifacts": [".comate/specs/{feature}/summary.md"],
+            "gate": "requires-implementation"
+          }
+        ],
+        "enforcement": {
+          "strictOrder": true,
+          "allowParallel": false,
+          "skipStages": false
+        }
+      },
       "artifacts": {
-        "specDir": ".harness/specs/",
-        "specFile": "{feature-name}.spec.md",
-        "checklistFile": "{feature-name}.checklist.md"
+        "specDir": ".comate/specs/",
+        "docFile": "{feature}/doc.md",
+        "tasksFile": "{feature}/tasks.md",
+        "summaryFile": "{feature}/summary.md"
       }
     },
     "plan": {
