@@ -36,6 +36,28 @@ refactor(utils): simplify date formatting logic
 2. Ensure all tests pass
 3. Check for accidental inclusions (secrets, temp files, debug code)
 
+### Plugin Release Checklist
+
+Before pushing changes that affect plugin functionality:
+
+1. **Version Synchronization**
+   - Update `plugins/harness-pilot/.claude-plugin/plugin.json`
+   - Update `.claude-plugin/marketplace.json`
+   - Update `plugins/harness-pilot/skills/harness-apply/tools/generate.js` (manifest template)
+
+2. **Verify Version Match**
+   ```bash
+   grep -h '"version"' \n     plugins/harness-pilot/.claude-plugin/plugin.json \n     .claude-plugin/marketplace.json \n     | sort | uniq
+   ```
+   Should output exactly one version line.
+
+3. **Semantic Versioning**
+   - `0.x.y → 0.x.(y+1)` for bug fixes
+   - `0.x.y → 0.(x+1).0` for new features
+   - `0.x.y → 1.0.0` for breaking changes
+
+**Why?** Users install plugins via marketplace.json, and version mismatch causes update failures.
+
 ## Branch Management
 
 ### Branch Naming

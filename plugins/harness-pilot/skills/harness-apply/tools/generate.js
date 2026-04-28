@@ -228,7 +228,7 @@ function generateHarness(options) {
 
   // Generate manifest
   const manifest = {
-    version: '0.3.0',
+    version: '0.4.0',
     language,
     framework,
     components,
@@ -240,6 +240,63 @@ function generateHarness(options) {
   results.push({ type: 'file', path: '.harness/manifest.json', created: true });
 
   return { success: true, results };
+}
+
+/**
+ * Incremental Update Function
+ *
+ * Updates AGENTS.md for existing harness projects.
+ * Checks if manifest.json exists to determine update behavior.
+ */
+function generateIncremental(options) {
+  const { language, framework, projectDir = process.cwd() } = options;
+
+  // Check if manifest.json exists
+  const manifestPath = getManifestPath(projectDir);
+  const hasManifest = fs.existsSync(manifestPath);
+
+  // If project is managed by harness-pilot, update AGENTS.md automatically
+  if (hasManifest) {
+    const context = {
+      PROJECT_NAME: path.basename(projectDir),
+      LANGUAGE: language || 'unknown',
+      FRAMEWORK: framework || 'none',
+      GENERATED_DATE: new Date().toISOString().split('T')[0],
+      CURRENT_YEAR: new Date().getFullYear().toString()
+    };
+
+    const engine = new TemplateEngine();
+    engine.setContext(context);
+
+    const templatePath = resolveTemplate('AGENTS', language, framework);
+    if (templatePath && fs.existsSync(templatePath)) {
+      const template = fs.readFileSync(templatePath, 'utf8');
+      const rendered = engine.render(template);
+      const outputPath = path.join(projectDir, 'AGENTS.md');
+
+      // Update manifest lastApplied timestamp
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        manifest.lastApplied = new Date().toISOString();
+        fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+      } catch (e) {
+        // Manifest update failed, but continue with AGENTS.md update
+      }
+
+      fs.writeFileSync(outputPath, rendered, 'utf8');
+      return { success: true, results: [{ type: 'file', path: 'AGENTS.md', action: 'updated' }] };
+    } else {
+      return { success: false, error: `AGENTS.md template not found for language=${language}, framework=${framework}` };
+    }
+  }
+
+  // If project is not managed by harness-pilot, return confirmation request
+  return {
+    success: true,
+    requiresConfirmation: true,
+    message: 'AGENTS.md not managed by harness-pilot. Generate or append?',
+    results: []
+  };
 }
 
 function generateCode(options) {
@@ -279,6 +336,8 @@ function main() {
       result = generateHarness(options);
     } else if (type === 'code') {
       result = generateCode(options);
+    } else if (type === 'incremental') {
+      result = generateIncremental(options);
     } else {
       result = { success: false, error: `Unknown type: ${type}` };
     }
@@ -296,4 +355,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 // Export for module use
-export { generateHarness, generateCode, TemplateEngine, resolveTemplate };
+export { generateHarness, generateCode, generateIncremental, TemplateEngine, resolveTemplate };

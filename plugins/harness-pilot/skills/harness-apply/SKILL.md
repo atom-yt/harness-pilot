@@ -206,17 +206,23 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
    Check harness status
    Detect changes since last apply
 
-2. CALL generate("incremental", { changes })
+2. CALL generate("incremental", { language, framework, projectDir })
+   Updates AGENTS.md (if manifest.json exists)
    Updates layer mappings
    Refreshes ARCHITECTURE.md
    Preserves custom rules
 
-3. CALL loop("run")
+3. IF result.requiresConfirmation:
+   - Show message: "AGENTS.md not managed by harness-pilot. Generate or append?"
+   - Wait for user choice
+   - If yes: CALL generate("harness", { language, framework, components: ['AGENTS'] })
+
+4. CALL loop("run")
    Validates updates
 
-4. Report changes made
+5. Report changes made
 
-5. CALL loop("analyze")
+6. CALL loop("analyze")
    Show evolution insights (recurring failure patterns)
 ```
 
