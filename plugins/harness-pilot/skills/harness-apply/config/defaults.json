@@ -25,7 +25,9 @@
     "recordTrace": true
   },
   "capabilities": {
-    "jitTest": false,
+    "jitTest": true,
+    "testFramework": "jest",
+    "coverageThreshold": 80,
     "codeTemplates": true,
     "refactoring": false,
     "e2e": false,

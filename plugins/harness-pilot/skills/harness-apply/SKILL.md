@@ -163,7 +163,8 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 - `detect.js` — Project detection
 - `select.js` — Mode selection, component/capability selection, openspec integration
 - `generate.js` — Template generation
-- `loop.js` — Ralph Wiggum Loop
+- `loop.js` — Ralph Wiggum Loop with JiT test generation
+- `change-tracker.js` — Code change detection and manifest update
 - `complexity-analyzer.js` — Task complexity scoring
 - `expert-panel.js` — Multi-agent expert panel coordinator
 
@@ -240,32 +241,45 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 
 1. CALL detect()
    Check harness status
-   Detect changes since last apply
 
-2. CALL generate("incremental", { language, framework, projectDir })
-   Updates AGENTS.md (if manifest.json exists)
-   Updates layer mappings
-   Refreshes ARCHITECTURE.md
-   Preserves custom rules
+2. CALL change-tracker.js detect
+   Get files modified/added/deleted since last apply
+   Output: { modified: [], added: [], deleted: [] }
 
-3. IF result.requiresConfirmation:
+3. CALL change-tracker.js update
+   Update manifest.changeLog and manifest.checkpoints
+   Output: { changes, affectedRules, commit }
+
+4. CALL generate("incremental", {
+     language,
+     framework,
+     projectDir,
+     changeLog: changeLog.result  // Pass change info
+   })
+   - Only regenerate components based on changeLog.rulesAffected
+   - Skip unchanged components
+   - Preserves custom rules
+
+5. IF result.requiresConfirmation:
    - Show message: "AGENTS.md not managed by harness-pilot. Generate or append?"
    - Wait for user choice
    - If yes: CALL generate("harness", { language, framework, components: ['AGENTS'] })
 
-4. CALL loop("run")
-   Validates updates
+6. CALL loop("run", {
+     focusFiles: changeLog.getFilesToRevalidate()  // Only validate changed files
+   })
+   Targeted validation for changed files only
 
-5. Report changes made
+7. Report changes made
 
-6. CALL loop("analyze")
+8. CALL loop("analyze")
    Show evolution insights (recurring failure patterns)
 ```
 
 
 ## Ralph Wiggum Loop
 
-The loop tool orchestrates the review-test-fix cycle:
+The loop tool orchestrates the review-test-fix cycle with JiT test generation:
 
 ```
 MAX_ITERATIONS = 3
@@ -278,17 +292,25 @@ for iteration in 1..MAX_ITERATIONS:
 
   2. Test phase
      - Run: build → lint-arch → lint-quality → test → validate
-     - Stop on first failure
+     - Check test coverage report
+     - Identify uncovered files
 
-  3. If passed:
+  3. JiT Test Generation (NEW)
+     IF jitTestEnabled AND failures.type IN [test-coverage, missing-test]:
+       - Collect uncovered files
+       - Call test-generator agent
+       - Generate test files adjacent to source
+       - Re-run test phase
+
+  4. If passed:
      - Return APPROVED
 
-  4. Fix phase
+  5. Fix phase
      - Record failure to .harness/trace/failures/
      - Attempt auto-fix for simple issues
      - If fix fails, suggest manual action
 
-  5. Continue to next iteration
+  6. Continue to next iteration
 
 If loop exhausted:
   - Output unresolved issues
@@ -296,6 +318,67 @@ If loop exhausted:
 ```
 
 ## Handoff (Cross-Session Resume)
+
+**Trigger conditions:**
+1. Context window approaching limit (tokens > 100k)
+2. Loop iterations exhausted with unresolved issues
+3. User explicitly requests handoff
+
+**Handoff flow:**
+```
+1. CALL loop("checkpoint", { state, changes })
+   Saves current execution state
+
+2. CALL loop("handoff", { taskId, reason })
+   Creates handoff artifacts:
+   - .harness/tasks/{taskId}/checkpoint.json
+   - .harness/tasks/{taskId}/next-steps.json
+   - .harness/handoffs/{sessionId}/agent-state.json
+   - .harness/handoffs/{sessionId}/resume.json
+
+3. Output resume instructions:
+   === Handoff Triggered ===
+   Reason: {reason}
+   Task ID: {taskId}
+   Resume: /harness-apply --resume {taskId}
+```
+
+**Resume flow:**
+```
+1. Detect resume intent:
+   - User says "continue", "resume", "--resume"
+   - User provides task ID
+
+2. CALL loop("resolve", [handoffId])
+   Loads handoff artifacts
+   Verifies checksum
+
+3. From clean context:
+   - Load contextSummary from resume.json
+   - Load keyFiles mentioned in state
+   - Execute next-steps.json sequentially
+
+4. Continue from checkpoint
+```
+
+### CLI Usage
+
+```bash
+# Change tracking commands (standalone)
+node change-tracker.js detect
+node change-tracker.js update
+node change-tracker.js hasChanged <file>
+node change-tracker.js filesToRevalidate
+node change-tracker.js cleanup [days]
+
+# Loop commands (standalone)
+node loop.js start
+node loop.js checkpoint
+node loop.js handoff <id> <reason>
+node loop.js resolve [id]
+```
+
+### Handoff (Cross-Session Resume)
 
 **Trigger conditions:**
 1. Context window approaching limit (tokens > 100k)

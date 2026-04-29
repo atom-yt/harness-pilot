@@ -226,14 +226,38 @@ function generateHarness(options) {
     }
   }
 
-  // Generate manifest
+  // Generate manifest with extended schema
   const manifest = {
-    version: '1.1.0',
+    version: '1.2.1',
     language,
     framework,
     components,
     lastApplied: new Date().toISOString(),
-    capabilities: defaults.capabilities || {}
+
+    // Change tracking for incremental updates
+    changeLog: {
+      filesModified: [],
+      filesAdded: [],
+      filesDeleted: [],
+      rulesAffected: [],
+      timestamp: new Date().toISOString()
+    },
+
+    // Checkpoints for change detection
+    checkpoints: {
+      git: { lastCommit: null, branch: null },
+      fileHash: {},
+      lastCheck: new Date().toISOString()
+    },
+
+    capabilities: {
+      jitTest: true,  // Enable JiT test generation
+      testFramework: framework === 'nextjs' ? 'jest' :
+                      framework === 'django' || framework === 'fastapi' ? 'pytest' :
+                      language === 'python' ? 'pytest' : 'jest',
+      coverageThreshold: 80,
+      ...defaults.capabilities
+    }
   };
   const manifestPath = getManifestPath(projectDir);
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
@@ -245,17 +269,17 @@ function generateHarness(options) {
 /**
  * Incremental Update Function
  *
- * Updates AGENTS.md for existing harness projects.
+ * Updates AGENTS.md for existing harness projects with selective component updates.
  * Checks if manifest.json exists to determine update behavior.
  */
 function generateIncremental(options) {
-  const { language, framework, projectDir = process.cwd() } = options;
+  const { language, framework, projectDir = process.cwd(), changeLog = null } = options;
 
   // Check if manifest.json exists
   const manifestPath = getManifestPath(projectDir);
   const hasManifest = fs.existsSync(manifestPath);
 
-  // If project is managed by harness-pilot, update AGENTS.md automatically
+  // If project is managed by harness-pilot, update with selective regeneration
   if (hasManifest) {
     const context = {
       PROJECT_NAME: path.basename(projectDir),
@@ -278,13 +302,43 @@ function generateIncremental(options) {
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
         manifest.lastApplied = new Date().toISOString();
+
+        // Update changeLog if provided (from change-tracker)
+        if (changeLog && changeLog.changes) {
+          const affectedRules = changeLog.affectedRules || [];
+          console.log(`📋 Affected rules: ${affectedRules.join(', ')}`);
+
+          // Selectively update documents based on affected rules
+          const docsToUpdate = [];
+          if (affectedRules.includes('architecture')) {
+            docsToUpdate.push('ARCHITECTURE');
+          }
+          if (affectedRules.includes('lint-deps') ||
+              affectedRules.includes('lint-quality') ||
+              affectedRules.includes('jit-test')) {
+            docsToUpdate.push('DEVELOPMENT');
+          }
+
+          // Update affected documentation
+          for (const doc of docsToUpdate) {
+            const docTemplate = resolveTemplate(doc, language, framework);
+            if (docTemplate && fs.existsSync(docTemplate)) {
+              const docTemplateContent = fs.readFileSync(docTemplate, 'utf8');
+              const docRendered = engine.render(docTemplateContent);
+              const docOutputPath = path.join(projectDir, `.harness/docs/${doc}.md`);
+              fs.writeFileSync(docOutputPath, docRendered, 'utf8');
+              console.log(`✓ Updated ${doc} (affected by: ${affectedRules.join(', ')})`);
+            }
+          }
+        }
+
         fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
       } catch (e) {
-        // Manifest update failed, but continue with AGENTS.md update
+        console.warn(`⚠️  Manifest update warning: ${e.message}`);
       }
 
       fs.writeFileSync(outputPath, rendered, 'utf8');
-      return { success: true, results: [{ type: 'file', path: 'AGENTS.md', action: 'updated' }] };
+      return { success: true, results: [{ type: 'file', path: 'AGENTS.md', action: 'updated', changeLog }] };
     } else {
       return { success: false, error: `AGENTS.md template not found for language=${language}, framework=${framework}` };
     }

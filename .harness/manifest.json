@@ -1,49 +1,31 @@
 {
-  "version": "0.3.0",
+  "version": "1.2.0",
   "language": "typescript",
   "framework": "nextjs",
   "components": [
     "ARCHITECTURE",
     "DEVELOPMENT",
-    "PRODUCT_SENSE",
-    "safety",
-    "git-workflow",
-    "dev-rules"
+    "PRODUCT_SENSE"
   ],
-  "lastApplied": "2026-04-25T00:29:24.000Z",
+  "lastApplied": "2026-04-29T16:02:36.102Z",
+  "changeLog": {
+    "filesModified": [],
+    "filesAdded": [],
+    "filesDeleted": [],
+    "rulesAffected": [],
+    "timestamp": "2026-04-29T16:03:01.439Z"
+  },
+  "checkpoints": {
+    "git": {
+      "lastCommit": "e70d297b981586d811d35453a64aa49d50d018a7",
+      "branch": "main"
+    },
+    "fileHash": {},
+    "lastCheck": "2026-04-29T16:03:01.453Z"
+  },
   "capabilities": {
     "jitTest": true,
-    "codeTemplates": true,
-    "refactoring": true,
-    "e2e": true,
-    "security": false,
-    "monitoring": false
-  },
-  "tasks": {
-    "current": null,
-    "history": []
-  },
-  "handoffs": {
-    "latest": null,
-    "enabled": true
-  },
-  "newDirectories": [
-    "plugins/harness-pilot/lib/"
-  ],
-  "newFiles": [
-    "plugins/harness-pilot/lib/config.js",
-    "plugins/harness-pilot/lib/constants.js",
-    "plugins/harness-pilot/lib/detect-language.js",
-    "plugins/harness-pilot/lib/fs-utils.js",
-    "plugins/harness-pilot/lib/path-utils.js",
-    "plugins/harness-pilot/lib/README.md"
-  ],
-  "loop": {
-    "lastRun": "2026-04-25T00:29:24.000Z",
-    "iterations": 1,
-    "status": "PASS"
-  },
-  "documentationUpdates": [
-    "2026-04-25T00:32:00.000Z - Added harness-pilot Plugin Architecture section to ARCHITECTURE.md documenting lib/ directory"
-  ]
+    "testFramework": "jest",
+    "coverageThreshold": 80
+  }
 }
