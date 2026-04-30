@@ -1,6 +1,6 @@
 {
   "name": "harness-pilot",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Transform any project into a harness-compatible form with code generation, E2E testing, quality enforcement, JiT test generation, code change tracking, and Ralph Wiggum Loop",
   "author": {
     "name": "harness-pilot"

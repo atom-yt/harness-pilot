@@ -228,7 +228,7 @@ function generateHarness(options) {
 
   // Generate manifest with extended schema
   const manifest = {
-    version: '1.2.2',
+    version: '1.2.3',
     language,
     framework,
     components,

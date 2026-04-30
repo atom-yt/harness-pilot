@@ -34,6 +34,32 @@
     "security": false,
     "monitoring": false
   },
+  "ducc": {
+    "autoInstallSkills": true,
+    "skills": [
+      {
+        "name": "icafe-official",
+        "required": true,
+        "url": "https://console.cloud.baidu-int.com/onetool/skills/2082",
+        "installCommand": "ducc skill install icafe-official",
+        "postInstallAction": "icafe-cli login"
+      },
+      {
+        "name": "icode",
+        "required": true,
+        "url": "https://console.cloud.baidu-int.com/onetool/skills/2057",
+        "installCommand": "ducc skill install icode",
+        "postInstallHint": "请在 ducc/claude 中输入『帮我登录 iCode』进行登录"
+      },
+      {
+        "name": "ku-doc-manage",
+        "required": false,
+        "url": "https://console.cloud.baidu-int.com/onetool/skills/154",
+        "installCommand": "ducc skill install ku-doc-manage",
+        "description": "知识库文档管理（可选）- 如果要访问知识库可以安装，否则会通过浏览器方式访问"
+      }
+    ]
+  },
   "superpowers": {
     "recommended": [
       "brainstorm",

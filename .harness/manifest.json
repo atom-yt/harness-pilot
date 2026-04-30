@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.2",
   "language": "typescript",
   "framework": "nextjs",
   "components": [
@@ -7,21 +7,21 @@
     "DEVELOPMENT",
     "PRODUCT_SENSE"
   ],
-  "lastApplied": "2026-04-29T16:02:36.102Z",
+  "lastApplied": "2026-04-30T08:49:17.298Z",
   "changeLog": {
     "filesModified": [],
     "filesAdded": [],
     "filesDeleted": [],
     "rulesAffected": [],
-    "timestamp": "2026-04-29T16:03:01.439Z"
+    "timestamp": "2026-04-30T08:49:17.298Z"
   },
   "checkpoints": {
     "git": {
-      "lastCommit": "e70d297b981586d811d35453a64aa49d50d018a7",
-      "branch": "main"
+      "lastCommit": null,
+      "branch": null
     },
     "fileHash": {},
-    "lastCheck": "2026-04-29T16:03:01.453Z"
+    "lastCheck": "2026-04-30T08:49:17.298Z"
   },
   "capabilities": {
     "jitTest": true,

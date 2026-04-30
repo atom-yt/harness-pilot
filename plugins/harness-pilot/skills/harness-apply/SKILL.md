@@ -167,6 +167,7 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
 - `change-tracker.js` — Code change detection and manifest update
 - `complexity-analyzer.js` — Task complexity scoring
 - `expert-panel.js` — Multi-agent expert panel coordinator
+- `install-skills.js` — Ducc skills installation (icafe, icode, ku-doc-manage)
 
 ### Initial Mode Workflow
 
@@ -181,30 +182,38 @@ All tools are in `plugins/harness-pilot/skills/harness-apply/tools/`:
    IF expert panel triggered:
      Assemble and confirm panel
 
-1. CALL detect()
+1. CALL install-skills.js install
+   Checks and installs default ducc skills (icafe, icode, ku-doc-manage)
+   Output: { success, message, skills: [{ name, status, message }] }
+
+   IF installation fails:
+     Show warning but continue with harness generation
+     (Skills are optional for harness functionality)
+
+2. CALL detect()
    Input: none
    Output: { language, framework, structure, harness }
 
-2. Show detection results to user, confirm
+3. Show detection results to user, confirm
 
-3. CALL select("components", "prompt")
+4. CALL select("components", "prompt")
    Shows interactive component selection prompt
    Wait for user to select (or use defaults if --auto)
 
-4. Parse user selection:
+5. Parse user selection:
    CALL select("components", "parse", user_input)
    Output: { mode, selected }
 
-5. CALL generate("harness", { language, framework, components })
+6. CALL generate("harness", { language, framework, components })
    Creates .harness/ directory structure
    Generates documentation from templates
    Creates manifest.json
 
-6. CALL loop("run")
+7. CALL loop("run")
    Runs Ralph Wiggum Loop (max 3 iterations)
    Reviews, tests, and validates generated harness
 
-7. Report success or issues
+8. Report success or issues
 ```
 
 ### Code Generation Mode Workflow
@@ -451,6 +460,71 @@ If not installed, display recommendation (does not block the flow):
 │  claude plugin install superpowers@superpowers-marketplace │
 └─────────────────────────────────────────────────────────┘
 ```
+
+## Ducc Skills Auto-Installation
+
+During Initial Mode, harness-apply automatically installs default ducc skills:
+
+### Default Skills
+
+| Skill | Required | URL | Description |
+|-------|----------|-----|-------------|
+| icafe-official | Yes | https://console.cloud.baidu-int.com/onetool/skills/2082 | iCAFE integration |
+| icode | Yes | https://console.cloud.baidu-int.com/onetool/skills/2057 | iCode integration |
+| ku-doc-manage | No | https://console.cloud.baidu-int.com/onetool/skills/154 | Knowledge base management (optional) |
+
+### Installation Process
+
+1. **Check ducc availability** — Verify `ducc` command is accessible
+2. **Check installed skills** — Query `ducc skill list` for each skill
+3. **Install missing skills** — Run `ducc skill install <name>` for uninstalled skills
+4. **Provide post-install guidance** — Show login commands or hints
+
+### Configuration
+
+Skills are configured in `config/defaults.json`:
+
+```json
+{
+  "ducc": {
+    "autoInstallSkills": true,
+    "skills": [
+      {
+        "name": "icafe-official",
+        "required": true,
+        "installCommand": "ducc skill install icafe-official",
+        "postInstallAction": "icafe-cli login"
+      },
+      {
+        "name": "icode",
+        "required": true,
+        "installCommand": "ducc skill install icode",
+        "postInstallHint": "请在 ducc/claude 中输入『帮我登录 iCode』进行登录"
+      }
+    ]
+  }
+}
+```
+
+### Tool Usage
+
+```bash
+# Check installation status
+node install-skills.js check
+
+# Install all missing skills
+node install-skills.js install
+
+# List configured skills
+node install-skills.js list
+```
+
+### Behavior Notes
+
+- **Non-blocking**: Installation failures don't stop harness generation
+- **Idempotent**: Already-installed skills are skipped
+- **Flexible**: Set `autoInstallSkills: false` to disable
+- **Configurable**: Add/remove skills in `defaults.json`
 
 ## Error Handling
 
