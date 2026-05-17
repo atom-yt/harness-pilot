@@ -1,0 +1,23 @@
+{
+  "taskId": "task_ui_test_1778081830",
+  "type": "harness-apply",
+  "status": "completed",
+  "startTime": "2026-05-06T15:30:00.000Z",
+  "endTime": "2026-05-06T15:45:00.000Z",
+  "title": "测试任务：添加用户管理功能",
+  "progress": {
+    "currentStep": "completed",
+    "iteration": 1,
+    "completedSteps": ["requirement", "plan", "development", "quality"]
+  },
+  "context": {
+    "language": "TypeScript",
+    "framework": "Next.js",
+    "projectRoot": "/Users/yangtong07/Desktop/code/harness/harness-pilot"
+  },
+  "metrics": {
+    "iterationCount": 3,
+    "totalToolCalls": 45,
+    "errors": 2
+  }
+}

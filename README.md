@@ -424,3 +424,16 @@ For a deep dive into the design philosophy, self-evolving capabilities, and lear
 ## License
 
 MIT
+
+## For AI Agents
+
+This repository ships with an [`AGENTS.md`](AGENTS.md) at the root — a navigation map for AI coding agents (Cursor, Comate, Codex, Copilot, etc.).
+
+**Claude Code users**: Claude Code reads `CLAUDE.md`. Create a symlink so both worlds share one source of truth:
+
+```bash
+ln -s AGENTS.md CLAUDE.md
+```
+
+For bad cases / rule evolution, see [.harness/docs/BAD_CASES.md](.harness/docs/BAD_CASES.md).
+For SDD workflow details, see [.harness/docs/WORKFLOW.md](.harness/docs/WORKFLOW.md).

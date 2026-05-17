@@ -1,0 +1,10 @@
+{
+  "taskId": "task_20260430T084951_45a9a701",
+  "type": "harness-apply",
+  "status": "running",
+  "startTime": "2026-04-30T08:49:51.618Z",
+  "progress": {
+    "currentStep": "init",
+    "iteration": 0
+  }
+}
